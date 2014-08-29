@@ -1,0 +1,142 @@
+### Apps
+sudo apt-get install terminator
+sudo apt-get install synaptic
+sudo apt-get install alacarte
+sudo apt-get install qtcreator	(set entry with alacarte to "bash -c -i 'qtcreator'" to source ros environment)
+#for catkin projects set CMake arguments in QtCreator to "-DCATKIN_DEVEL_PREFIX=/home/sysadm/catkin_workspace/devel" or add "set(DCATKIN_DEVEL_PREFIX=/home/sysadm/catkin_workspace/devel)" directly to CMakeLists.txt
+
+### ROS Indigo
+sudo apt-get install ros-indigo-desktop-full
+sudo rosdep init
+rosdep update
+echo "source /opt/ros/indigo/setup.bash" >> ~/.bashrc
+source ~/.bashrc
+sudo apt-get install python-rosinstall
+
+### Nvidia Driver + CUDA
+sudo apt-get install nvidia-331
+sudo apt-get install nvidia-cuda-toolkit
+sudo apt-get install libglu-dev freeglut3 freeglut3-dev libxmu-dev libxi-dev mpi-default-dev
+#Download: 
+https://developer.nvidia.com/cuda-toolkit-55-archive
+#Extract only the samples (adjust directory accordingly)
+./cuda_5.5.22_linux_64.run -extract=/home/sysadm/Downloads
+#Install the samples
+./cuda-samples-linux-5.5.22-16488124.run
+#Install path:
+/home/sysadm/cuda-5.5-samples (no sudo required)
+#nvcc path is: 
+/usr/lib/nvidia-cuda-toolkit/
+#reboot necessary for correct detection
+
+### PCL and KinfuLS
+#create seperat workspace for pcl and kinfu (from http://answers.ros.org/question/142461/pcl-kinfu-in-ros-hydro/)
+source /opt/ros/hydro/setup.sh
+mkdir pcl_workspace && cd pcl_workspace && catkin_make_isolated
+mkdir -p src/pcl/ && cd src/pcl
+#PCL
+wget https://raw.githubusercontent.com/ros-perception/perception_pcl/groovy-unstable-devel/pcl/CMakeLists.txt
+wget https://raw.githubusercontent.com/ros-perception/perception_pcl/groovy-unstable-devel/pcl/package.xml
+sed -i '/GIT_TAG/d' CMakeLists.txt
+cd ../..
+catkin_make_isolated
+#KinfuLS
+cd src && svn co http://fsstud.is.uni-due.de/svn/ros/is/kinfu && 
+gedit /kinfu/CMakeLists.txt 
+# -> replace Eigen with Eigen3
+cd ..
+catkin_make_isolated
+source devel_isolated/setup.sh
+echo "source /home/sysadm/pcl_workspace/devel_isolated/setup.sh" >> ~/.bashrc
+roslaunch kinfu kinfu.launch
+
+### Kinect / openni_launch
+sudo apt-get install ros-indigo-openni-launch
+#In case of broken dependency of libopenni-sensor-primesense0
+sudo dpkg --remove --force-remove-reinstreq libopenni-sensor-pointclouds0
+sudo apt-get install -f
+(from https://github.com/ros/rosdistro/issues/3986 and https://github.com/turtlebot/turtlebot/issues/139)
+#In Case of error: "Failed to set USB interface":
+sudo modprobe -r gspca_kinect 
+sudo modprobe -r gspca_main
+(von http://answers.ros.org/question/55201/using-ros-with-kinect-failed-to-set-usb-interface/)
+
+### octovis
+sudo apt-get install ros-indigo-octovis
+
+### robot_pose_ekf
+sudo apt-get install ros-indigo-robot-pose-ekf
+
+### humanoid navigation
+sudo apt-get install ros-indigo-map-server
+sudo apt-get install ros-indigo-dynamic-edt-3d
+sudo apt-get install ros-indigo-octomap-msgs
+sudo apt-get install ros-indigo-octomap-ros
+sudo apt-get install ros-indigo-octomap-rviz-plugins
+mkdir catkin_workspace && cd catkin_workspace
+wstool init src && cd src
+git clone https://github.com/sbpl/sbpl.git sbpl
+cd sbpl/
+mkdir build && cd build/
+cmake ..
+make
+sudo make install
+cd ~/catkin_workspace/src
+wstool set humanoid_msgs --git https://github.com/ahornung/humanoid_msgs
+wstool set humanoid_navigation --git https://github.com/ahornung/humanoid_navigation -v hydro-devel
+wstool update
+cd .. && catkin_make
+gedit ~/catkin_workspace/src/humanoid_navigation/humanoid_localization/CMakeLists.txt 
+# -> replace Eigen with Eigen3
+# -> add library endpointmodel to "target_link_libraries(humanoidlocalization ..."
+cd ~/catkin_workspace && catkin_make
+echo "source /home/sysadm/catkin_workspace/devel/setup.bash" >> ~/.bashrc
+
+#after pcl errors during execution the package humanoid_navigation was moved to the pcl_workspace
+#the following lines were added/modified in the CMakeLists.txt
+find_package(PCL 1.7.0 REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+target_link_libraries(localization_node humanoidlocalization ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+### fovis
+cd catkin_workspace/src
+git clone https://github.com/srv/fovis.git fovis
+git clone https://github.com/srv/libfovis.git libfovis
+cd .. && catkin_make
+
+### octomap conversion
+sudo apt-get install blender
+sudo apt-get install xsltproc
+#Download xslt stylesheet from http://www.web3d.org/x3d/content/X3dToVrml97.xslt
+#Export blender model as .x3d (y axis forward, z axis up)
+
+### Arduino
+sudo apt-get remove brltty # -> may interfer with arduino
+sudo apt-get install arduino
+
+### ccny_rgbd_tools for visual odometry
+rosws init ~/rosbuild_workspace /opt/ros/indigo
+echo "source /home/sysadm/rosbuild_workspace/setup.bash" >> ~/.bashrc
+echo "export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:/home/sysadm/rosbuild_workspace" >> ~/.bashrc
+cd ~/rosbuild_workspace
+git clone https://github.com/ccny-ros-pkg/ccny_rgbd_tools.git
+rosdep install ccny_rgbd_tools
+rospack profile
+rosmake ccny_rgbd_tools
+#-> opencv2/nonfree not included in opencv for Ubuntu 14.04
+#-> solution is installing opencv from source...
+
+### raspberry pi
+# install gparted
+sudo apt-get install gparted
+# pi config.txt entries
+overscan_left=-8
+overscan_rigth=-32
+overscan_top=-32
+overscan_bottom=-32
+framebuffer_width=848
+framebuffer_height=480
+sdtv_mode=2
+
