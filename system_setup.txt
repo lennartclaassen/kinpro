@@ -131,6 +131,9 @@ rosmake ccny_rgbd_tools
 ### raspberry pi
 # install gparted
 sudo apt-get install gparted
+# format sd card to FAT-32
+# download NOOBS image from http://www.raspberrypi.org/downloads/
+# unzip and copy data inside unzipped folder onto the card
 # pi config.txt entries
 overscan_left=-8
 overscan_rigth=-32
