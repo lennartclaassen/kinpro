@@ -132,6 +132,7 @@ rosmake ccny_rgbd_tools
 # install gparted
 sudo apt-get install gparted
 # format sd card to FAT-32
+# if not working use windows...
 # download NOOBS image from http://www.raspberrypi.org/downloads/
 # unzip and copy data inside unzipped folder onto the card
 # pi config.txt entries
@@ -142,4 +143,15 @@ overscan_bottom=-32
 framebuffer_width=848
 framebuffer_height=480
 sdtv_mode=2
+# install ros after http://wiki.ros.org/groovy/Installation/Raspbian
+sudo sh -c 'echo "deb http://64.91.227.57/repos/rospbian wheezy main" > /etc/apt/sources.list.d/rospbian.list'
+wget http://64.91.227.57/repos/rospbian.key -O - | sudo apt-key add -
+sudo apt-get update
+sudo apt-get install ros-groovy-ros-comm
+# install image view (if necessary)
+sudo apt-get install ros-groovy-image-view
+rospack profile
+sudo rosdep init
+rosdep update
+echo "source /opt/ros/groovy/setup.bash" >> ~/.bashrc
 
