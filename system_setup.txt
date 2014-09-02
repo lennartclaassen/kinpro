@@ -157,3 +157,6 @@ echo "source /opt/ros/groovy/setup.bash" >> ~/.bashrc
 # add ip of master pc to /etc/hosts -> e.g. "192.168.0.88	imesmedhiwi03"
 sudo nano /etc/hosts
 
+### catkin_make errors
+# cannot find -lorocos-bfl
+sudo apt-get install ros-indigo-bfl
