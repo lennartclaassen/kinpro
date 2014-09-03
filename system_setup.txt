@@ -137,7 +137,7 @@ sudo apt-get install gparted
 # unzip and copy data inside unzipped folder onto the card
 # pi config.txt entries
 overscan_left=-8
-overscan_rigth=-32
+overscan_rigth=-16
 overscan_top=-32
 overscan_bottom=-32
 framebuffer_width=848
@@ -187,3 +187,16 @@ cd /opt/ros/indigo/bin
 # remove dependency for opencv2 from manifest.xml
 
 # gave /home/sysadm/rosbuild_workspace/imes_calibration/calibrationFiles/kinect_rgb_calib_14-08-26_rms_0-229655.yaml
+-----
+# calibrating thekinect RGB camera with
+# camera calibration toolbox for matlab
+# http://www.vision.caltech.edu/bouguetj/calib_doc/
+# and the pro_cam_calib extension
+# https://code.google.com/p/procamcalib/
+
+# take images (uncalibrated camera) of 
+# 1.) chessboard (25mm) for camera calibration
+# 2.) the projected chessboard (40px) and the chessboard (10mm) for projector calibration
+
+rosrun image_view image_view image:=/camera/rgb/image_raw
+# right click saves images to current directory
