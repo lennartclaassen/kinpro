@@ -160,3 +160,30 @@ sudo nano /etc/hosts
 ### catkin_make errors
 # cannot find -lorocos-bfl
 sudo apt-get install ros-indigo-bfl
+
+### camera calibration
+# Calibrating the kinect RGB camera after 
+# http://wiki.ros.org/openni_launch/Tutorials/IntrinsicCalibration
+# using printed chessboard "chessboard_calib_cam"
+
+cd /opt/ros/indigo/bin
+./cameracalibrator.py image:=/camera/rgb/image_raw camera:=/camera/rgb --size 10x7 --square 0.025
+
+# gave /home/sysadm/.ros/camera_info/rgb_A00364812894051A.yaml
+-----
+# Calibrating the kinect IR (Depth) camera after 
+# http://wiki.ros.org/openni_launch/Tutorials/IntrinsicCalibration
+# using printed chessboard "chessboard_calib_cam"
+# using infrared lamp and covering the ir pattern projector
+
+cd /opt/ros/indigo/bin
+./cameracalibrator.py image:=/camera/ir/image_raw camera:=/camera/ir --size 10x7 --square 0.025
+
+# gave /home/sysadm/.ros/camera_info/depth_A00364812894051A.yaml
+-----
+# Calibrating the kinect RGB camera with
+# imes_calibration camera_calibration_node
+# using old chessboard from robolab
+# remove dependency for opencv2 from manifest.xml
+
+# gave /home/sysadm/rosbuild_workspace/imes_calibration/calibrationFiles/kinect_rgb_calib_14-08-26_rms_0-229655.yaml
