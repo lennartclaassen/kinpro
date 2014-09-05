@@ -67,7 +67,7 @@ sudo apt-get install ros-indigo-octovis
 ### robot_pose_ekf
 sudo apt-get install ros-indigo-robot-pose-ekf
 
-### humanoid navigation
+### humanoid navigation preparation
 sudo apt-get install ros-indigo-map-server
 sudo apt-get install ros-indigo-dynamic-edt-3d
 sudo apt-get install ros-indigo-octomap-msgs
@@ -75,12 +75,20 @@ sudo apt-get install ros-indigo-octomap-ros
 sudo apt-get install ros-indigo-octomap-rviz-plugins
 mkdir catkin_workspace && cd catkin_workspace
 wstool init src && cd src
+
+########## All 3rd party libraries have been packed into a single repository ##########
+cd ~/catkin_workspace/src
+git clone https://github.com/lennartclaassen/3rd-party-ressources.git
+
+### sbpl (for humanoid navigation)
 git clone https://github.com/sbpl/sbpl.git sbpl
 cd sbpl/
 mkdir build && cd build/
 cmake ..
 make
 sudo make install
+
+### humanoid navigation
 cd ~/catkin_workspace/src
 wstool set humanoid_msgs --git https://github.com/ahornung/humanoid_msgs
 wstool set humanoid_navigation --git https://github.com/ahornung/humanoid_navigation -v hydro-devel
@@ -106,15 +114,24 @@ git clone https://github.com/srv/fovis.git fovis
 git clone https://github.com/srv/libfovis.git libfovis
 cd .. && catkin_make
 
+##########
+
 ### octomap conversion
 sudo apt-get install blender
 sudo apt-get install xsltproc
-#Download xslt stylesheet from http://www.web3d.org/x3d/content/X3dToVrml97.xslt
-#Export blender model as .x3d (y axis forward, z axis up)
+# Download xslt stylesheet from http://www.web3d.org/x3d/content/X3dToVrml97.xslt
+# OR clone octomaps repository
+cd ~/catkin_workspace/src
+git clone https://github.com/lennartclaassen/octomaps.git
+# Export blender models as .x3d (y axis forward, z axis up)
 
 ### Arduino
 sudo apt-get remove brltty # -> may interfer with arduino
 sudo apt-get install arduino
+# create ~/sketchbook folder
+# git clone "libraries" and arduino imu sketch
+git clone https://github.com/lennartclaassen/libraries.git
+git clone https://github.com/lennartclaassen/arduino-ros-imu.git
 
 ### ccny_rgbd_tools for visual odometry
 rosws init ~/rosbuild_workspace /opt/ros/indigo
@@ -156,6 +173,16 @@ rosdep update
 echo "source /opt/ros/groovy/setup.bash" >> ~/.bashrc
 # add ip of master pc to /etc/hosts -> e.g. "192.168.0.88	imesmedhiwi03"
 sudo nano /etc/hosts
+# set ROS_IP in .bashrc (e.g. export ROS_IP=192.168.0.89)
+# install wstool
+sudo apt-get install python-pip
+sudo pip install -U wstool
+# create workspace
+mkdir catkin_workspace && cd catkin_workspace
+wstool init src
+catkin make
+# source setup.bash in .bashrc
+echo 'source /home/pi/catkin_workspace/devel/setup.bash' >> ~/.bashrc
 
 ### catkin_make errors
 # cannot find -lorocos-bfl
@@ -200,3 +227,5 @@ cd /opt/ros/indigo/bin
 
 rosrun image_view image_view image:=/camera/rgb/image_raw
 # right click saves images to current directory
+
+# if saved images are grayscale there will be a conversion error when using the matlab toolbox. Just remove the BGR2GRAY conversion in the file throwing the error 
