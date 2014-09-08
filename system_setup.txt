@@ -6,6 +6,9 @@ sudo apt-get install qtcreator	(set entry with alacarte to "bash -c -i 'qtcreato
 #for catkin projects set CMake arguments in QtCreator to "-DCATKIN_DEVEL_PREFIX=/home/sysadm/catkin_workspace/devel" or add "set(DCATKIN_DEVEL_PREFIX=/home/sysadm/catkin_workspace/devel)" directly to CMakeLists.txt
 
 ### ROS Indigo
+sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu trusty main" > /etc/apt/sources.list.d/ros-latest.list'
+wget https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -O - | sudo apt-key add -
+sudo apt-get update
 sudo apt-get install ros-indigo-desktop-full
 sudo rosdep init
 rosdep update
@@ -79,6 +82,10 @@ wstool init src && cd src
 ########## All 3rd party libraries have been packed into a single repository ##########
 cd ~/catkin_workspace/src
 git clone https://github.com/lennartclaassen/3rd-party-ressources.git
+
+##### Errors #####
+Eigen/Core not found by unsupported/Eigen/MatrixFunctions
+change the "#include <Eigen/...>" lines to "#include <eigen3/Eigen/...>" 
 
 ### sbpl (for humanoid navigation)
 git clone https://github.com/sbpl/sbpl.git sbpl
