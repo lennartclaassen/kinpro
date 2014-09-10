@@ -46,7 +46,7 @@ void VTKPointCloudWidget::addPointCloud(PointCloud<PointXYZ>::Ptr pc)
 
     vtkSmartPointer<vtkRenderWindow> renderWindow = vis->getRenderWindow();
     this->SetRenderWindow(renderWindow);
-    this->show();
+//    this->show();
 }
 
 void VTKPointCloudWidget::showPointCloud()
@@ -74,10 +74,30 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     PointCloud<PointXYZ>::Ptr pc (new PointCloud<PointXYZ>);
 
-    //vis->addPointCloud<PointXYZ>(pc);
     pclWidget->addPointCloud(pc);
     pclWidget->showPointCloud();
 
+    Instantiate( sphereSource, vtkSphereSource);
+
+    Instantiate( sphereMapper, vtkPolyDataMapper);
+    Instantiate( sphereActor, vtkActor);
+
+    Instantiate( renderer, vtkRenderer);
+    Instantiate( renderWindow, vtkRenderWindow);
+    Instantiate( interactor, vtkRenderWindowInteractor);
+    sphereSource->SetRadius( 5 );
+    sphereSource->SetPhiResolution( 36 );
+    sphereSource->SetThetaResolution( 36 );
+
+    sphereMapper->SetInputConnection( sphereSource->GetOutputPort() );
+    sphereActor->SetMapper( sphereMapper );
+    renderer->AddViewProp( sphereActor );
+    ui->qvtkWidget->GetRenderWindow()->AddRenderer( renderer );
+
+    renderWindow = pclWidget->vis->getRenderWindow();
+    ui->qvtkWidget->SetRenderWindow (renderWindow);     //Only shows pointCloud data not previously added renderers
+
+    ui->qvtkWidget->show();
 }
 
 

@@ -79,6 +79,8 @@
 // Boost
 #include <boost/foreach.hpp>
 
+#define Instantiate( obj, class ) vtkSmartPointer<class> obj = vtkSmartPointer<class>::New();
+
 class VTKPointCloudWidget: QVTKWidget
 {
 
