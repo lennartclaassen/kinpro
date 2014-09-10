@@ -4,10 +4,39 @@ project(kinpro)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED)
+find_package(catkin REQUIRED COMPONENTS roscpp rqt_gui rqt_gui_cpp)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
+
+###########
+##  Vtk   ##
+###########
+
+find_package(VTK REQUIRED)
+include(${VTK_USE_FILE})
+
+###########
+##  Qt   ##
+###########
+
+find_package(Qt4 REQUIRED)
+include(${QT_USE_FILE})
+
+file(GLOB QT_FORMS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ui/*.ui)
+file(GLOB QT_RESOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} resources/*.qrc)
+file(GLOB_RECURSE QT_MOC RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} FOLLOW_SYMLINKS include/kinpro/*.hpp)
+
+QT4_ADD_RESOURCES(QT_RESOURCES_CPP ${QT_RESOURCES})
+QT4_WRAP_UI(QT_FORMS_HPP ${QT_FORMS})
+QT4_WRAP_CPP(QT_MOC_HPP ${QT_MOC})
+
+##############################################################################
+# Sources
+##############################################################################
+
+#file(GLOB_RECURSE QT_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} FOLLOW_SYMLINKS src/*.cpp)
+set(QT_SOURCES src/qtros.cpp src/mainwindow.cpp)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -76,10 +105,10 @@ find_package(catkin REQUIRED)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+  INCLUDE_DIRS include
 #  LIBRARIES kinpro
 #  CATKIN_DEPENDS other_catkin_pkg
-#  DEPENDS system_lib
+#  DEPENDS roscpp std_msgs
 )
 
 ###########
@@ -89,23 +118,50 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 # include_directories(include)
+include_directories(include
+  ${catkin_INCLUDE_DIRS}
+)
+
+##############################################################################
+# LIBRARIES
+##############################################################################
+
+add_library(kinpro_lib ${QT_SOURCES} ${QT_RESOURCES_CPP} ${QT_FORMS_HPP} ${QT_MOC_HPP})
 
 ## Declare a cpp library
 # add_library(kinpro
 #   src/${PROJECT_NAME}/kinpro.cpp
 # )
 
+##############################################################################
+# Binaries
+##############################################################################
+
+
 ## Declare a cpp executable
 # add_executable(kinpro_node src/kinpro_node.cpp)
+#add_executable(kinpro_node src/kinpro_node.cpp ${QT_FORMS_HPP} ${QT_MOC})
+add_executable(kinpro_node src/main.cpp  ${QT_MOC} ${QT_SOURCES})
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(kinpro_node kinpro_generate_messages_cpp)
 
+##############################################################################
+# LINK LIBRARIES
+##############################################################################
+
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(kinpro_node
-#   ${catkin_LIBRARIES}
-# )
+#target_link_libraries(kinpro_node
+#  ${catkin_LIBRARIES}
+#)
+target_link_libraries(kinpro_node
+  kinpro_lib
+  ${catkin_LIBRARIES}
+  ${QT_LIBRARIES}
+  ${VTK_LIBRARIES}
+  QVTK
+)
 
 #############
 ## Install ##
