@@ -10,7 +10,7 @@ find_package(catkin REQUIRED COMPONENTS roscpp rqt_gui rqt_gui_cpp)
 # find_package(Boost REQUIRED COMPONENTS system)
 
 ###########
-##  Vtk   ##
+##  VTK  ##
 ###########
 
 find_package(VTK REQUIRED)
@@ -30,6 +30,15 @@ file(GLOB_RECURSE QT_MOC RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} FOLLOW_SYMLINKS in
 QT4_ADD_RESOURCES(QT_RESOURCES_CPP ${QT_RESOURCES})
 QT4_WRAP_UI(QT_FORMS_HPP ${QT_FORMS})
 QT4_WRAP_CPP(QT_MOC_HPP ${QT_MOC})
+
+###########
+##  PCL  ##
+###########
+
+find_package(PCL 1.7.0 REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
 
 ##############################################################################
 # Sources
@@ -161,6 +170,7 @@ target_link_libraries(kinpro_node
   ${QT_LIBRARIES}
   ${VTK_LIBRARIES}
   QVTK
+  ${PCL_LIBRARIES}
 )
 
 #############

@@ -26,28 +26,34 @@
 #define _KINPRO_MAIN_WINDOW_H
 
 #include <kinpro/qtros.hpp>
+#include "../../build/kinpro/ui_mainwindow.h"
+
+// Qt
 #include <QMainWindow>
 #include <QString>
 #include <QtGui>
 #include <QDebug>
 #include <QMessageBox>
 #include <QKeyEvent>
+
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
 
-#include <vtkSphereSource.h>
-#include <vtkGlyph3D.h>
-#include <vtkPolyDataMapper.h>
-#include <vtkRenderWindowInteractor.h>
-#include <vtkSliderWidget.h>
-#include <vtkSliderRepresentation2D.h>
-#include <vtkInteractorStyleSwitch.h>
-#include <vtkActor.h>
+//VTK
+#include <vtkSmartPointer.h>
 #include <vtkCommand.h>
 #include <vtkRenderer.h>
 #include <vtkRenderWindow.h>
-#include <vtkSmartPointer.h>
+#include <vtkRenderWindowInteractor.h>
+#include <vtkActor.h>
+#include <vtkSphereSource.h>
+#include <vtkGlyph3D.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkSliderWidget.h>
+#include <vtkSliderRepresentation2D.h>
+#include <vtkInteractorStyleSwitch.h>
+#include <vtkInteractorStyleTrackballActor.h>
 #include <vtkImageMagnitude.h>
 #include <vtkImageGradientMagnitude.h>
 #include <vtkImageShiftScale.h>
@@ -55,28 +61,46 @@
 #include <vtkPNGReader.h>
 #include <vtkPNGWriter.h>
 #include <QVTKWidget.h>
+#include <pcl/point_cloud.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/sample_consensus/sac_model_plane.h>
+#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/common/common.h>
 
-#include <vtkEventQtSlotConnect.h>
+// PCL
+#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl_ros/point_cloud.h>
+#include <pcl/point_types.h>
 
+// ROS
+#include <ros/ros.h>
 
-#include "../../build/kinpro/ui_mainwindow.h"
+// Boost
+#include <boost/foreach.hpp>
 
-class vtkEventQtSlotConnect;
-
-class EventQtSlotConnect : public QMainWindow, private Ui::EventQtSlotConnect
+class VTKPointCloudWidget: QVTKWidget
 {
-  Q_OBJECT
-public:
 
-  EventQtSlotConnect();
+    public:
+        /**
+         * @brief MainWindow constructor
+         * @param *parent pointer to parent widget
+         */
+        VTKPointCloudWidget(QWidget *parent = 0);
 
-public slots:
+        /**
+         * @brief MainWindow destructor
+         */
+        ~VTKPointCloudWidget();
 
-  void slot_clicked(vtkObject*, unsigned long, void*, void*);
+        void addPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr pc);
+        void showPointCloud();
+        pcl::visualization::PCLVisualizer *vis;
 
-private:
+    private:
 
-  vtkSmartPointer<vtkEventQtSlotConnect> Connections;
+
 };
 
 /**
@@ -97,23 +121,22 @@ class MainWindow: public QMainWindow {
          */
         ~MainWindow();
 
+        VTKPointCloudWidget* pclWidget;
 
     signals:
 
 
     private slots:
 
-        void onOpen();
-        void onFilter();
-        void onSave();
-
-
     public slots:
 
 
     private:
 
-//        Ui::MainWindow* ui;
+        Ui::MainWindow* ui;
+
+
+
 
 };
 

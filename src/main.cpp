@@ -23,12 +23,11 @@ int main(int argc, char **argv) {
     // create the ROS Node
     QtROS qtRos(argc, argv, "kinpro_node");
 
-    EventQtSlotConnect eventQtSlotConnect;
-    eventQtSlotConnect.show();
-
     // create a GUI
-//    MainWindow gui;
-//    gui.show();
+    MainWindow gui;
+    gui.show();
+
+    VTKPointCloudWidget pcw;
 
     // signals and slots
     //app.connect(&app,   SIGNAL(lastWindowClosed()), &app, SLOT(quit()));

@@ -28,7 +28,6 @@
 #include <iostream>
 #include <sstream>
 
-
 using namespace std;
 
 class QtROS: public QThread {
