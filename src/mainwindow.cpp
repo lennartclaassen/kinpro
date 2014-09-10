@@ -27,49 +27,94 @@
 using namespace Qt;
 using namespace std;
 
+#include <vtkPolyDataMapper.h>
+#include <vtkRenderer.h>
+#include <vtkRenderWindow.h>
+#include <vtkSphereSource.h>
+#include <vtkSmartPointer.h>
+#include <vtkInteractorStyleTrackballActor.h>
+
+// Constructor
+EventQtSlotConnect::EventQtSlotConnect()
+{
+  this->setupUi(this);
+
+  this->Connections = vtkSmartPointer<vtkEventQtSlotConnect>::New();
+
+  // Sphere
+  vtkSmartPointer<vtkSphereSource> sphereSource =
+    vtkSmartPointer<vtkSphereSource>::New();
+  sphereSource->Update();
+  vtkSmartPointer<vtkPolyDataMapper> sphereMapper =
+    vtkSmartPointer<vtkPolyDataMapper>::New();
+  sphereMapper->SetInputConnection(sphereSource->GetOutputPort());
+
+  vtkSmartPointer<vtkActor> sphereActor =
+    vtkSmartPointer<vtkActor>::New();
+  sphereActor->SetMapper(sphereMapper);
+
+  // VTK Renderer
+  vtkSmartPointer<vtkRenderer> renderer =
+    vtkSmartPointer<vtkRenderer>::New();
+  renderer->AddActor(sphereActor);
+
+  this->qvtkWidget->GetRenderWindow()->AddRenderer(renderer);
+
+  this->Connections->Connect(this->qvtkWidget->GetRenderWindow()->GetInteractor(),
+  vtkCommand::LeftButtonPressEvent,
+  this,
+  SLOT(slot_clicked(vtkObject*, unsigned long, void*, void*)));
+
+};
+
+void EventQtSlotConnect::slot_clicked(vtkObject*, unsigned long, void*, void*)
+{
+  std::cout << "Clicked." << std::endl;
+}
+
 /* METHODS */
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
-    ui = new Ui::MainWindow();
-    ui->setupUi(this);
+//    ui = new Ui::MainWindow();
+//    ui->setupUi(this);
 
-    QObject::connect(ui->openButton, SIGNAL(clicked()), this, SLOT(onOpen()));
-    QObject::connect(ui->filterButton, SIGNAL(clicked()), this, SLOT(onFilter()));
-    QObject::connect(ui->saveButton, SIGNAL(clicked()), this, SLOT(onSave()));
+//    QObject::connect(ui->openButton, SIGNAL(clicked()), this, SLOT(onOpen()));
+//    QObject::connect(ui->filterButton, SIGNAL(clicked()), this, SLOT(onFilter()));
+//    QObject::connect(ui->saveButton, SIGNAL(clicked()), this, SLOT(onSave()));
 
-    Instantiate( sphereSource, vtkSphereSource);
-    Instantiate( glyph, vtkGlyph3D );
-    Instantiate( glyphMapper, vtkPolyDataMapper);
-    Instantiate( glyphActor, vtkActor);
-    Instantiate( sphereMapper, vtkPolyDataMapper);
-    Instantiate( sphereActor, vtkActor);
-    Instantiate( sliderWidget, vtkSliderWidget);
-    Instantiate( sliderRepresentation, vtkSliderRepresentation2D);
-    Instantiate( callback, vtkSliderCallback);
-    Instantiate( renderer, vtkRenderer);
-    Instantiate( renderWindow, vtkRenderWindow);
-    Instantiate( interactor, vtkRenderWindowInteractor);
+//    Instantiate( sphereSource, vtkSphereSource);
+//    Instantiate( glyph, vtkGlyph3D );
+//    Instantiate( glyphMapper, vtkPolyDataMapper);
+//    Instantiate( glyphActor, vtkActor);
+//    Instantiate( sphereMapper, vtkPolyDataMapper);
+//    Instantiate( sphereActor, vtkActor);
+//    Instantiate( sliderWidget, vtkSliderWidget);
+//    Instantiate( sliderRepresentation, vtkSliderRepresentation2D);
+//    Instantiate( callback, vtkSliderCallback);
+//    Instantiate( renderer, vtkRenderer);
+//    Instantiate( renderWindow, vtkRenderWindow);
+//    Instantiate( interactor, vtkRenderWindowInteractor);
 
-    sphereSource->SetRadius( 5 );
-    sphereSource->SetPhiResolution( 36 );
-    sphereSource->SetThetaResolution( 36 );
+//    sphereSource->SetRadius( 5 );
+//    sphereSource->SetPhiResolution( 36 );
+//    sphereSource->SetThetaResolution( 36 );
 
-    glyph->SetInputConnection( sphereSource->GetOutputPort() );
-    glyph->OrientOn();
-    glyph->SetVectorModeToUseNormal();
+//    glyph->SetInputConnection( sphereSource->GetOutputPort() );
+//    glyph->OrientOn();
+//    glyph->SetVectorModeToUseNormal();
 
-    glyphMapper->SetInputConnection( glyph->GetOutputPort() );
+//    glyphMapper->SetInputConnection( glyph->GetOutputPort() );
 
-    glyphActor->SetMapper( glyphMapper );
+//    glyphActor->SetMapper( glyphMapper );
 
-    sphereMapper->SetInputConnection( sphereSource->GetOutputPort() );
+//    sphereMapper->SetInputConnection( sphereSource->GetOutputPort() );
 
-    sphereActor->SetMapper( sphereMapper );
+//    sphereActor->SetMapper( sphereMapper );
 
-    renderer->AddViewProp( sphereActor );
-    renderer->AddViewProp( glyphActor );
+//    renderer->AddViewProp( sphereActor );
+//    renderer->AddViewProp( glyphActor );
 
-    ui->qvtkWidget->GetRenderWindow()->AddRenderer( renderer );
+//    ui->qvtkWidget->GetRenderWindow()->AddRenderer( renderer );
 
 //    renderWindow->AddRenderer( renderer );
 

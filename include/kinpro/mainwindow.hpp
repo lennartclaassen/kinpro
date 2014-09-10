@@ -54,32 +54,30 @@
 #include <vtkImageData.h>
 #include <vtkPNGReader.h>
 #include <vtkPNGWriter.h>
-//#include <QVTKWidget.h>
+#include <QVTKWidget.h>
+
+#include <vtkEventQtSlotConnect.h>
+
 
 #include "../../build/kinpro/ui_mainwindow.h"
 
-#define Instantiate( obj, class ) vtkSmartPointer<class> obj = vtkSmartPointer<class>::New();
-#define vsp(class,var)\
-    tmpvar = vtkSmartPointer<class>::New();\
-    var = tmpvar;
+class vtkEventQtSlotConnect;
 
-class vtkSliderCallback : public vtkCommand {
+class EventQtSlotConnect : public QMainWindow, private Ui::EventQtSlotConnect
+{
+  Q_OBJECT
+public:
 
-    public:
-        static vtkSliderCallback *New() {
-            return new vtkSliderCallback;
-        }
+  EventQtSlotConnect();
 
-        virtual void Execute(vtkObject *caller, unsigned long eventId, void *callData) {
-            vtkSliderWidget *sliderWidget = reinterpret_cast<vtkSliderWidget*>(caller);
-            double value = static_cast<double> (static_cast<vtkSliderRepresentation*> (sliderWidget->GetRepresentation())->GetValue());
-            this->glyph->SetScaleFactor(value);
-        }
+public slots:
 
-        vtkGlyph3D *glyph;
+  void slot_clicked(vtkObject*, unsigned long, void*, void*);
 
+private:
+
+  vtkSmartPointer<vtkEventQtSlotConnect> Connections;
 };
-
 
 /**
  * @brief Qt central, all operations relating to the view part here.
@@ -115,7 +113,7 @@ class MainWindow: public QMainWindow {
 
     private:
 
-        Ui::MainWindow* ui;
+//        Ui::MainWindow* ui;
 
 };
 
