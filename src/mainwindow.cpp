@@ -31,41 +31,34 @@ using namespace pcl;
 VTKPointCloudWidget::VTKPointCloudWidget(QWidget *parent) : QVTKWidget(parent)
 {
     vis = new visualization::PCLVisualizer("vis", false);
-    this->resize(500, 500);
-
-
+    vis->setBackgroundColor(0.0, 0.0, 0.2);
 }
 
 VTKPointCloudWidget::~VTKPointCloudWidget() {
 
 }
 
-void VTKPointCloudWidget::addPointCloud(PointCloud<PointXYZ>::Ptr pc)
+void VTKPointCloudWidget::setRenderWindow()
 {
-    this->vis->addPointCloud(pc);
-
     vtkSmartPointer<vtkRenderWindow> renderWindow = vis->getRenderWindow();
     this->SetRenderWindow(renderWindow);
-//    this->show();
 }
 
-void VTKPointCloudWidget::showPointCloud()
+void VTKPointCloudWidget::addPointCloud(PointCloud<PointXYZ>::Ptr pc, const string &id)
 {
-    PointCloud<PointXYZ>::Ptr pc (new PointCloud<PointXYZ>);
+    this->vis->addPointCloud(pc, id);
+}
 
-    for(int i = 0; i < 10 ; i++) {
-        for(int j = 0; j < 10 ; j++){
-            pc->push_back( PointXYZ( (float)i, (float)j, 1.0 ) );
-        }
-    }
-
-    this->vis->updatePointCloud<PointXYZ>(pc);
-
+void VTKPointCloudWidget::showPointCloud(PointCloud<PointXYZ>::Ptr pc, const string &id)
+{
+    this->vis->updatePointCloud<PointXYZ>(pc, id);
     this->update();
 }
 
 /* METHODS */
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
+
+    firstcall = true;
 
     ui = new Ui::MainWindow();
     ui->setupUi(this);
@@ -75,32 +68,26 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     PointCloud<PointXYZ>::Ptr pc (new PointCloud<PointXYZ>);
 
     pclWidget->addPointCloud(pc);
-    pclWidget->showPointCloud();
+    pclWidget->setRenderWindow();
 
-    Instantiate( sphereSource, vtkSphereSource);
-
-    Instantiate( sphereMapper, vtkPolyDataMapper);
-    Instantiate( sphereActor, vtkActor);
-
-    Instantiate( renderer, vtkRenderer);
     Instantiate( renderWindow, vtkRenderWindow);
-    Instantiate( interactor, vtkRenderWindowInteractor);
-    sphereSource->SetRadius( 5 );
-    sphereSource->SetPhiResolution( 36 );
-    sphereSource->SetThetaResolution( 36 );
-
-    sphereMapper->SetInputConnection( sphereSource->GetOutputPort() );
-    sphereActor->SetMapper( sphereMapper );
-    renderer->AddViewProp( sphereActor );
-    ui->qvtkWidget->GetRenderWindow()->AddRenderer( renderer );
 
     renderWindow = pclWidget->vis->getRenderWindow();
     ui->qvtkWidget->SetRenderWindow (renderWindow);     //Only shows pointCloud data not previously added renderers
-
-    ui->qvtkWidget->show();
 }
 
 
 MainWindow::~MainWindow() {
+
+}
+
+void MainWindow::newPointCloud(PointCloud<PointXYZ> pc) {
+//    ROS_INFO("PCL cloud received");
+
+    m_pc = pc.makeShared();
+//    string id = string("new");
+    pclWidget->showPointCloud(m_pc);
+
+    ui->qvtkWidget->update();
 
 }

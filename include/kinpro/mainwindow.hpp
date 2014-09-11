@@ -96,8 +96,9 @@ class VTKPointCloudWidget: QVTKWidget
          */
         ~VTKPointCloudWidget();
 
-        void addPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr pc);
-        void showPointCloud();
+        void setRenderWindow();
+        void addPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr pc, const string& id = string("cloud"));
+        void showPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr pc, const string& id = string("cloud"));
         pcl::visualization::PCLVisualizer *vis;
 
     private:
@@ -132,11 +133,14 @@ class MainWindow: public QMainWindow {
 
     public slots:
 
+        void newPointCloud(pcl::PointCloud<pcl::PointXYZ> pc);
 
     private:
 
         Ui::MainWindow* ui;
+        pcl::PointCloud<pcl::PointXYZ>::Ptr m_pc;
 
+        bool firstcall;
 
 
 

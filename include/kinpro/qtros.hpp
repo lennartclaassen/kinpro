@@ -28,6 +28,11 @@
 #include <iostream>
 #include <sstream>
 
+#include <sensor_msgs/PointCloud2.h>
+
+#include <pcl_ros/point_cloud.h>
+#include <pcl/point_types.h>
+
 using namespace std;
 
 class QtROS: public QThread {
@@ -39,6 +44,8 @@ class QtROS: public QThread {
          * @brief this signal is emitted when the ROS main loop is left
          */
         void rosShutdown();
+
+        void pointCloudReceived(pcl::PointCloud<pcl::PointXYZ> pc);
 
     public slots:
 
@@ -66,9 +73,14 @@ class QtROS: public QThread {
          */
         void run();
 
+        void callback(const sensor_msgs::PointCloud2::ConstPtr& msg);
+
     private:
 
+        ros::Subscriber sub;
         ros::NodeHandle* nh;
+
+        pcl::PointCloud<pcl::PointXYZ> pclCloud;
 
 };
 #endif
