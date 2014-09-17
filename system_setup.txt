@@ -188,9 +188,10 @@ rospack profile
 sudo rosdep init
 rosdep update
 echo "source /opt/ros/groovy/setup.bash" >> ~/.bashrc
-# add ip of master pc to /etc/hosts -> e.g. "192.168.0.88	imesmedhiwi03"
+# add ip of master pc to /etc/hosts -> e.g. "192.168.0.88	imesbv03"
 sudo nano /etc/hosts
-# set ROS_IP in .bashrc (e.g. export ROS_IP=192.168.0.89)
+# set ROS_IP in .bashrc for Pi (e.g. export ROS_IP=192.168.0.89)
+# set ROS_IP in .bashrc for PC (e.g. export ROS_IP=192.168.0.88)
 # install wstool
 sudo apt-get install python-pip
 sudo pip install -U wstool
@@ -200,6 +201,12 @@ wstool init src
 catkin make
 # source setup.bash in .bashrc
 echo 'source /home/pi/catkin_workspace/devel/setup.bash' >> ~/.bashrc
+#autostarting image viewer (quick fix, image is displayed every time the terminal is opened/the bashrc is sourced)
+sudo apt-get install feh
+gedit ~/.bashrc
+#add "feh -Y -F /Path/To/File" 
+sudo nano /etc/xdg/lxsession/LXDE/autostart
+#add "@lxterminal"
 
 ### catkin_make errors
 # cannot find -lorocos-bfl

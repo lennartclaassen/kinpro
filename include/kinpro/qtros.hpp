@@ -29,6 +29,12 @@
 #include <sstream>
 
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/image_encodings.h>
+#include <sensor_msgs/Image.h>
+
+#include <image_transport/image_transport.h>
+
+#include <opencv2/opencv.hpp>
 
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
@@ -45,9 +51,11 @@ class QtROS: public QThread {
          */
         void rosShutdown();
 
-        void pointCloudReceived(pcl::PointCloud<pcl::PointXYZ> pc);
+        void pointCloudReceived(pcl::PointCloud<pcl::PointXYZRGB> pc);
 
     public slots:
+
+        void slotProjectImage(cv::Mat img);
 
     public:
         /**
@@ -73,14 +81,18 @@ class QtROS: public QThread {
          */
         void run();
 
-        void callback(const sensor_msgs::PointCloud2::ConstPtr& msg);
+        void callback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg);
 
     private:
 
-        ros::Subscriber sub;
         ros::NodeHandle* nh;
+        image_transport::ImageTransport* it;
+        image_transport::Publisher image_publisher;
+        ros::Subscriber sub;
 
-        pcl::PointCloud<pcl::PointXYZ> pclCloud;
+        pcl::PointCloud<pcl::PointXYZRGB> pclCloud;
+        sensor_msgs::Image projectorImg;
 
+        void publishImage();
 };
 #endif

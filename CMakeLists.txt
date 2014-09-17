@@ -4,7 +4,7 @@ project(kinpro)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp rqt_gui rqt_gui_cpp)
+find_package(catkin REQUIRED COMPONENTS roscpp rqt_gui rqt_gui_cpp image_transport)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -39,6 +39,15 @@ find_package(PCL 1.7.0 REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
+
+###########
+# OpenCV  #
+###########
+
+find_package(OpenCV REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
+link_directories(${OpenCV_LIBRARY_DIRS})
+add_definitions(${OpenCV_DEFINITIONS})
 
 ##############################################################################
 # Sources
@@ -171,6 +180,7 @@ target_link_libraries(kinpro_node
   ${VTK_LIBRARIES}
   QVTK
   ${PCL_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 
 #############

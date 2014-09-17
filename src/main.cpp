@@ -18,8 +18,8 @@
 int main(int argc, char **argv) {
 
     QApplication app(argc, argv);
-    //qRegisterMetaType< cv::Mat >("cv::Mat");
-    qRegisterMetaType< pcl::PointCloud<pcl::PointXYZ> >("pcl::PointCloud<pcl::PointXYZ>");
+    qRegisterMetaType< cv::Mat >("cv::Mat");
+    qRegisterMetaType< pcl::PointCloud<pcl::PointXYZRGB> >("pcl::PointCloud<pcl::PointXYZRGB>");
 
 
     // create the ROS Node
@@ -29,12 +29,12 @@ int main(int argc, char **argv) {
     MainWindow gui;
     gui.show();
 
-    //VTKPointCloudWidget pcw;
-
     // signals and slots
+    app.connect(&gui,   SIGNAL(signalProjectImage(cv::Mat)), &qtRos, SLOT(slotProjectImage(cv::Mat)));
+    app.connect(&qtRos, SIGNAL(pointCloudReceived(pcl::PointCloud<pcl::PointXYZRGB>)), &gui, SLOT(newPointCloud(pcl::PointCloud<pcl::PointXYZRGB>)));
+
     //app.connect(&app,   SIGNAL(lastWindowClosed()), &app, SLOT(quit()));
     //app.connect(&qtRos, SIGNAL(rosShutdown()), &app, SLOT(quit()));
-    app.connect(&qtRos, SIGNAL(pointCloudReceived(pcl::PointCloud<pcl::PointXYZ>)), &gui, SLOT(newPointCloud(pcl::PointCloud<pcl::PointXYZ>)));
     //app.connect(&qtRos, SIGNAL(signalNewInterfaceFrame(cv::Mat)), &gui, SLOT(slotNewInterfaceFrame(cv::Mat)));
     //app.connect(&qtRos, SIGNAL(newParams(int)), &gui, SLOT(newParams(int)));
     //app.connect(&gui, SIGNAL(signalNewSelectedArea(int)), &qtRos, SLOT(slotNewSelectedArea(int)));

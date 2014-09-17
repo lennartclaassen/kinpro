@@ -61,17 +61,34 @@
 #include <vtkPNGReader.h>
 #include <vtkPNGWriter.h>
 #include <QVTKWidget.h>
-#include <pcl/point_cloud.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/features/normal_3d.h>
-#include <pcl/sample_consensus/sac_model_plane.h>
-#include <pcl/visualization/cloud_viewer.h>
-#include <pcl/common/common.h>
 
 // PCL
-#include <pcl/visualization/pcl_visualizer.h>
-#include <pcl_ros/point_cloud.h>
+#include <pcl/common/common.h>
+#include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
+#include <pcl/point_cloud.h>
+#include <pcl_ros/point_cloud.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/ModelCoefficients.h>
+#include <pcl/kdtree/kdtree.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/sample_consensus/sac_model_plane.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/segmentation/extract_clusters.h>
+#include <pcl/surface/convex_hull.h>
+#include <pcl/surface/concave_hull.h>
+#include <pcl/filters/project_inliers.h>
+
+// OpenCV
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 // ROS
 #include <ros/ros.h>
@@ -96,9 +113,7 @@ class VTKPointCloudWidget: QVTKWidget
          */
         ~VTKPointCloudWidget();
 
-        void setRenderWindow();
-        void addPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr pc, const string& id = string("cloud"));
-        void showPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr pc, const string& id = string("cloud"));
+        pcl::visualization::PointCloudColorHandler<pcl::PointXYZRGB>::Ptr c;
         pcl::visualization::PCLVisualizer *vis;
 
     private:
@@ -128,22 +143,76 @@ class MainWindow: public QMainWindow {
 
     signals:
 
+        void signalProjectImage(cv::Mat img);
+
 
     private slots:
+        void toggleRGB(bool state);
+        void on_btnSetCamView_clicked();
+        void on_checkBoxCoordSys_toggled(bool checked);
 
-    public slots:
+        void on_btnResetCamParams_clicked();
 
-        void newPointCloud(pcl::PointCloud<pcl::PointXYZ> pc);
+        void on_btnSavePointcloud_clicked();
+
+        void on_btnLoadPointcloud_clicked();
+
+        void on_btnSegmentate_clicked();
+
+        void on_btnPassthrough_clicked();
+
+        void on_btnTransform_clicked();
+
+        void on_btnHull_clicked();
+
+        void on_btnTransformApply_clicked();
+
+        void on_btnVoxelize_clicked();
+
+        void on_btnCreateProjImage_clicked();
+
+public slots:
+
+        void newPointCloud(pcl::PointCloud<pcl::PointXYZRGB> pc);
 
     private:
 
         Ui::MainWindow* ui;
-        pcl::PointCloud<pcl::PointXYZ>::Ptr m_pc;
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_pc;
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_pc_projector;
 
-        bool firstcall;
+        void setRenderWindowVis2Qt();
+        void displayCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc, std::string id = std::string("cloud"));
+        void setTransformations();
+        void projectImage();
+        void processCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+        void applyVoxelization(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+        void applyPassthrough(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+        void applySegmentation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+        void applyHull(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+        void applyTransformation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+        void createProjectionImage();
+        void showProjectionImage();
 
+        int line2int(QLineEdit& line)       { return (&line)->text().toInt(); }
+        double line2double(QLineEdit& line) { return (&line)->text().toDouble(); }
+        float line2float(QLineEdit& line)   { return (&line)->text().toFloat(); }
 
+        bool displayRGBCloud;
+        bool imgReady;
 
+        bool voxelize;
+        bool passthrough;
+        bool segmentate;
+        bool hull;
+        bool transform;
+        bool createProjImage;
+
+        Eigen::Matrix4f T_cam2proj;
+        Eigen::Matrix3f T_intrProj;
+
+        vector< vector<cv::Point> > projectionContour;
+        cv::Mat projectorImage;
 };
 
 #endif // _KINPRO_MAIN_WINDOW_H
