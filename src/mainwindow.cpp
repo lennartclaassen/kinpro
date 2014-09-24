@@ -46,7 +46,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     pclWidget = new VTKPointCloudWidget();
 
-    displayRGBCloud = false;
+    displayRGBCloud = true;
     imgReady = true;
     projectorImage = cv::Mat::zeros(480, 848, CV_8UC3);
 
@@ -62,7 +62,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     this->setTransformations();
 
     toggleCloudName = string("pointcloud.pcd");
-
+    this->on_btnLoadPointcloud_clicked();
 }
 
 MainWindow::~MainWindow() {
@@ -147,6 +147,7 @@ void MainWindow::setTransformations()
     T_intrProj <<   line2float(*ui->lineIntrinsicParamsProj_fx),   0,                                                  line2float(*ui->lineIntrinsicParamsProj_cx),
                     0,                                                  line2float(*ui->lineIntrinsicParamsProj_fy),   line2float(*ui->lineIntrinsicParamsProj_cy),
                     0,                                                  0,                                                  1;
+
 }
 
 void MainWindow::applyPassthrough(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
@@ -989,4 +990,29 @@ void MainWindow::on_btnTogglecloud_clicked()
     }else {
         toggleCloudName = string("pointcloud.pcd");
     }
+}
+
+void MainWindow::on_btnCreateImgFromGUI_clicked()
+{
+    vtkSmartPointer<vtkRenderWindow> renderWindow = pclWidget->vis->getRenderWindow();
+    vtkSmartPointer<vtkWindowToImageFilter> windowToImageFilter = vtkSmartPointer<vtkWindowToImageFilter>::New();
+    windowToImageFilter->SetInput( renderWindow );
+
+    //get rgb-image
+    windowToImageFilter->SetInputBufferTypeToRGB();
+    windowToImageFilter->Update();
+    vtkImageData* vtkRGBimage = windowToImageFilter->GetOutput();
+    int dimsRGBImage[3];
+    vtkRGBimage->GetDimensions(dimsRGBImage);
+    cv::Mat cvImageRGB(dimsRGBImage[1], dimsRGBImage[0], CV_8UC3, vtkRGBimage->GetScalarPointer());
+    cout << "dims1 = " << dimsRGBImage[1] << " dims2 = " << dimsRGBImage[0] << endl;
+    cv::cvtColor( cvImageRGB, cvImageRGB, CV_BGR2RGB); //convert color
+    cv::flip( cvImageRGB, cvImageRGB, 0); //align axis with visualizer
+    cv::Rect roi(0,0,848,480);
+    Mat croppedImage = cvImageRGB(roi).clone();
+
+    //visualize
+    const std::string windowNameRGBImage = "vtkRGBImage";
+    cv::namedWindow( windowNameRGBImage, cv::WINDOW_AUTOSIZE);
+    cv::imshow( windowNameRGBImage, croppedImage);
 }

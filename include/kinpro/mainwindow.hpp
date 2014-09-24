@@ -28,84 +28,83 @@
 #include <kinpro/qtros.hpp>
 #include "../../build/kinpro/ui_mainwindow.h"
 
-// Qt
-#include <QMainWindow>
-#include <QString>
-#include <QtGui>
-#include <QDebug>
-#include <QMessageBox>
-#include <QKeyEvent>
-
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
 
+// Qt
+#include <QDebug>
+#include <QKeyEvent>
+#include <QMainWindow>
+#include <QMessageBox>
+#include <QString>
+#include <QtGui>
+
 //VTK
-#include <vtkSmartPointer.h>
+#include <vtkActor.h>
 #include <vtkCommand.h>
+#include <vtkGlyph3D.h>
+#include <vtkImageData.h>
+#include <vtkImageGradientMagnitude.h>
+#include <vtkImageMagnitude.h>
+#include <vtkImageShiftScale.h>
+#include <vtkInteractorStyleSwitch.h>
+#include <vtkInteractorStyleTrackballActor.h>
+#include <vtkPNGReader.h>
+#include <vtkPNGWriter.h>
+#include <vtkPolyDataMapper.h>
 #include <vtkRenderer.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
-#include <vtkActor.h>
-#include <vtkSphereSource.h>
-#include <vtkGlyph3D.h>
-#include <vtkPolyDataMapper.h>
 #include <vtkSliderWidget.h>
 #include <vtkSliderRepresentation2D.h>
-#include <vtkInteractorStyleSwitch.h>
-#include <vtkInteractorStyleTrackballActor.h>
-#include <vtkImageMagnitude.h>
-#include <vtkImageGradientMagnitude.h>
-#include <vtkImageShiftScale.h>
-#include <vtkImageData.h>
-#include <vtkPNGReader.h>
-#include <vtkPNGWriter.h>
+#include <vtkSmartPointer.h>
+#include <vtkSphereSource.h>
+#include <vtkWindowToImageFilter.h>
 #include <QVTKWidget.h>
 
 // PCL
 #include <pcl/common/common.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/point_types.h>
-#include <pcl/point_cloud.h>
-#include <pcl_ros/point_cloud.h>
+#include <pcl/common/transforms.h>
+#include <pcl/console/parse.h>
+#include <pcl/correspondence.h>
+#include <pcl/features/board.h>
+#include <pcl/features/integral_image_normal.h>
 #include <pcl/features/normal_3d.h>
-#include <pcl/visualization/cloud_viewer.h>
-#include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/ModelCoefficients.h>
-#include <pcl/kdtree/kdtree.h>
-#include <pcl/filters/voxel_grid.h>
+#include <pcl/features/normal_3d_omp.h>
+#include <pcl/features/shot_omp.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/passthrough.h>
+#include <pcl/filters/project_inliers.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/keypoints/uniform_sampling.h>
+#include <pcl/kdtree/impl/kdtree_flann.hpp>
+#include <pcl/kdtree/kdtree.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/ModelCoefficients.h>
+#include <pcl/octree/octree.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/recognition/cg/geometric_consistency.h>
+#include <pcl/recognition/cg/hough_3d.h>
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
 #include <pcl/sample_consensus/sac_model_plane.h>
-#include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
-#include <pcl/surface/convex_hull.h>
-#include <pcl/surface/concave_hull.h>
-#include <pcl/filters/project_inliers.h>
-#include <pcl/octree/octree.h>
-
-#include <pcl/correspondence.h>
-#include <pcl/features/normal_3d_omp.h>
-#include <pcl/features/shot_omp.h>
-#include <pcl/features/board.h>
-#include <pcl/keypoints/uniform_sampling.h>
-#include <pcl/recognition/cg/hough_3d.h>
-#include <pcl/recognition/cg/geometric_consistency.h>
-#include <pcl/kdtree/kdtree_flann.h>
-#include <pcl/kdtree/impl/kdtree_flann.hpp>
-#include <pcl/common/transforms.h>
-#include <pcl/console/parse.h>
-
 #include <pcl/segmentation/organized_connected_component_segmentation.h>
 #include <pcl/segmentation/organized_multi_plane_segmentation.h>
-#include <pcl/features/integral_image_normal.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/surface/concave_hull.h>
+#include <pcl/surface/convex_hull.h>
+#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl_ros/point_cloud.h>
 
 // OpenCV
 #include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 // ROS
 #include <ros/ros.h>
@@ -211,6 +210,8 @@ class MainWindow: public QMainWindow {
         void on_btnResetCamParams_2_clicked();
 
         void on_btnTogglecloud_clicked();
+
+        void on_btnCreateImgFromGUI_clicked();
 
 public slots:
 

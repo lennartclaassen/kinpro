@@ -7,26 +7,13 @@
     <x>0</x>
     <y>0</y>
     <width>868</width>
-    <height>850</height>
+    <height>860</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QVTKWidget" name="qvtkWidget" native="true">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>320</y>
-      <width>848</width>
-      <height>480</height>
-     </rect>
-    </property>
-    <property name="autoFillBackground">
-     <bool>true</bool>
-    </property>
-   </widget>
    <widget class="QTabWidget" name="tabWidget">
     <property name="geometry">
      <rect>
@@ -249,7 +236,7 @@
         <string>RGB Cloud</string>
        </property>
        <property name="checked">
-        <bool>false</bool>
+        <bool>true</bool>
        </property>
       </widget>
       <widget class="QCheckBox" name="checkBoxShowProjImage">
@@ -544,7 +531,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>0.020</string>
+         <string>-0.020</string>
         </property>
        </widget>
        <widget class="QLineEdit" name="lineTransCamProjY">
@@ -557,7 +544,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>0.049</string>
+         <string>-0.049</string>
         </property>
        </widget>
        <widget class="QLabel" name="labelTransCamProjZ">
@@ -596,7 +583,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>0.027</string>
+         <string>-0.027</string>
         </property>
        </widget>
        <widget class="QLabel" name="labelTransCamProjX">
@@ -882,7 +869,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>515.55742</string>
+         <string>1031.11484</string>
         </property>
        </widget>
        <widget class="QLabel" name="labelIntrinsicParamsProj_cx">
@@ -921,7 +908,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>437.37754</string>
+         <string>874.75508</string>
         </property>
        </widget>
        <widget class="QPushButton" name="btnResetIntrPrinc">
@@ -1039,7 +1026,7 @@
         </rect>
        </property>
        <property name="text">
-        <string>0</string>
+        <string>180</string>
        </property>
       </widget>
       <widget class="QLabel" name="labelPitch">
@@ -1055,6 +1042,19 @@
         <string>pitch:</string>
        </property>
       </widget>
+     </widget>
+     <widget class="QPushButton" name="btnCreateImgFromGUI">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>120</y>
+        <width>141</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Create Image</string>
+      </property>
      </widget>
     </widget>
     <widget class="QWidget" name="tab_camView">
@@ -2152,6 +2152,31 @@
       </property>
      </widget>
     </widget>
+   </widget>
+   <widget class="QVTKWidget" name="qvtkWidget" native="true">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>320</y>
+      <width>848</width>
+      <height>480</height>
+     </rect>
+    </property>
+    <property name="minimumSize">
+     <size>
+      <width>0</width>
+      <height>0</height>
+     </size>
+    </property>
+    <property name="maximumSize">
+     <size>
+      <width>848</width>
+      <height>480</height>
+     </size>
+    </property>
+    <property name="autoFillBackground">
+     <bool>true</bool>
+    </property>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
