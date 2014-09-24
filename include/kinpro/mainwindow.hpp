@@ -84,6 +84,23 @@
 #include <pcl/surface/convex_hull.h>
 #include <pcl/surface/concave_hull.h>
 #include <pcl/filters/project_inliers.h>
+#include <pcl/octree/octree.h>
+
+#include <pcl/correspondence.h>
+#include <pcl/features/normal_3d_omp.h>
+#include <pcl/features/shot_omp.h>
+#include <pcl/features/board.h>
+#include <pcl/keypoints/uniform_sampling.h>
+#include <pcl/recognition/cg/hough_3d.h>
+#include <pcl/recognition/cg/geometric_consistency.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/kdtree/impl/kdtree_flann.hpp>
+#include <pcl/common/transforms.h>
+#include <pcl/console/parse.h>
+
+#include <pcl/segmentation/organized_connected_component_segmentation.h>
+#include <pcl/segmentation/organized_multi_plane_segmentation.h>
+#include <pcl/features/integral_image_normal.h>
 
 // OpenCV
 #include <opencv2/core/core.hpp>
@@ -151,7 +168,7 @@ class MainWindow: public QMainWindow {
         void on_btnSetCamView_clicked();
         void on_checkBoxCoordSys_toggled(bool checked);
 
-        void on_btnResetCamParams_clicked();
+        void on_btnSetCamParams_clicked();
 
         void on_btnSavePointcloud_clicked();
 
@@ -171,6 +188,30 @@ class MainWindow: public QMainWindow {
 
         void on_btnCreateProjImage_clicked();
 
+        void on_btnCorrGroup_clicked();
+
+        void on_btnGenerateCube_clicked();
+
+        void on_btnSaveCube_clicked();
+
+        void on_btnOrgConComp_clicked();
+
+        void on_btnResetIntrFoc_clicked();
+
+        void on_btnResetIntrPrinc_clicked();
+
+        void on_btnResetExtrRot_clicked();
+
+        void on_btnResetExtrTrans_clicked();
+
+        void on_btnGetCamParams_clicked();
+
+        void on_btnSetCamParamsTest_clicked();
+
+        void on_btnResetCamParams_2_clicked();
+
+        void on_btnTogglecloud_clicked();
+
 public slots:
 
         void newPointCloud(pcl::PointCloud<pcl::PointXYZRGB> pc);
@@ -179,12 +220,11 @@ public slots:
 
         Ui::MainWindow* ui;
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_pc;
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_pc_projector;
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_bg;
 
         void setRenderWindowVis2Qt();
         void displayCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc, std::string id = std::string("cloud"));
         void setTransformations();
-        void projectImage();
         void processCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
         void applyVoxelization(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
         void applyPassthrough(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
@@ -197,6 +237,10 @@ public slots:
         int line2int(QLineEdit& line)       { return (&line)->text().toInt(); }
         double line2double(QLineEdit& line) { return (&line)->text().toDouble(); }
         float line2float(QLineEdit& line)   { return (&line)->text().toFloat(); }
+
+        void int2line(QLineEdit& line, int value)       { (&line)->setText(QString::number(value)); }
+        void double2line(QLineEdit& line, double value) { (&line)->setText(QString::number(value)); }
+        void float2line(QLineEdit& line, float value)   { (&line)->setText(QString::number(value)); }
 
         bool displayRGBCloud;
         bool imgReady;
@@ -213,6 +257,13 @@ public slots:
 
         vector< vector<cv::Point> > projectionContour;
         cv::Mat projectorImage;
+
+        double computeCloudResolution(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &cloud);
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_cube;
+
+        std::string toggleCloudName;
+
+
 };
 
 #endif // _KINPRO_MAIN_WINDOW_H
