@@ -173,19 +173,19 @@ class MainWindow: public QMainWindow {
 
         void on_btnLoadPointcloud_clicked();
 
-        void on_btnSegmentate_clicked();
+        void on_btnSegmentate_2_clicked();
 
-        void on_btnPassthrough_clicked();
+        void on_btnPassthrough_2_clicked();
 
-        void on_btnTransform_clicked();
+        void on_btnTransform_2_clicked();
 
-        void on_btnHull_clicked();
+        void on_btnHull_2_clicked();
 
         void on_btnTransformApply_clicked();
 
-        void on_btnVoxelize_clicked();
+        void on_btnVoxelize_2_clicked();
 
-        void on_btnCreateProjImage_clicked();
+        void on_btnCreateProjImage_2_clicked();
 
         void on_btnCorrGroup_clicked();
 
@@ -213,6 +213,23 @@ class MainWindow: public QMainWindow {
 
         void on_btnCreateImgFromGUI_clicked();
 
+        void on_sliderPass_min_valueChanged(int value);
+
+        void on_sliderPass_max_valueChanged(int value);
+
+        void on_linePass_max_textEdited(const QString &arg1);
+
+        void on_linePass_min_textEdited(const QString &arg1);
+
+        void on_btnSegmentate_clicked();
+
+        void on_comboBoxPlanes_activated(int index);
+
+        void on_btnCreateProjImage_clicked();
+
+        void on_btnFilterPlane_clicked();
+
+
 public slots:
 
         void newPointCloud(pcl::PointCloud<pcl::PointXYZRGB> pc);
@@ -222,6 +239,7 @@ public slots:
         Ui::MainWindow* ui;
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_pc;
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_bg;
+        vector<pcl::PointCloud<pcl::PointXYZRGB> >segmentedPlanes;
 
         void setRenderWindowVis2Qt();
         void displayCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc, std::string id = std::string("cloud"));
@@ -253,6 +271,9 @@ public slots:
         bool transform;
         bool createProjImage;
 
+        Eigen::Matrix3f R_cam2projVTK;
+        Eigen::Matrix4f T_cam2projVTK;
+        Eigen::Matrix3f T_intrProjVTK;
         Eigen::Matrix4f T_cam2proj;
         Eigen::Matrix3f T_intrProj;
 

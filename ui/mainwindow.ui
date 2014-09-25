@@ -24,96 +24,12 @@
      </rect>
     </property>
     <property name="currentIndex">
-     <number>1</number>
+     <number>0</number>
     </property>
     <widget class="QWidget" name="tab_controls">
      <attribute name="title">
       <string>Controls</string>
      </attribute>
-     <widget class="QGroupBox" name="groupBox_3">
-      <property name="geometry">
-       <rect>
-        <x>460</x>
-        <y>10</y>
-        <width>201</width>
-        <height>101</height>
-       </rect>
-      </property>
-      <property name="title">
-       <string>Passthrough</string>
-      </property>
-      <widget class="QLabel" name="labelPassMax">
-       <property name="geometry">
-        <rect>
-         <x>105</x>
-         <y>30</y>
-         <width>31</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>max:</string>
-       </property>
-      </widget>
-      <widget class="QLineEdit" name="linePass_min">
-       <property name="geometry">
-        <rect>
-         <x>50</x>
-         <y>30</y>
-         <width>50</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>0.85</string>
-       </property>
-      </widget>
-      <widget class="QLineEdit" name="linePass_max">
-       <property name="geometry">
-        <rect>
-         <x>140</x>
-         <y>30</y>
-         <width>50</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>0.98</string>
-       </property>
-      </widget>
-      <widget class="QLabel" name="labelPassMin">
-       <property name="geometry">
-        <rect>
-         <x>15</x>
-         <y>30</y>
-         <width>50</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>min:</string>
-       </property>
-      </widget>
-      <widget class="QPushButton" name="btnPassthrough">
-       <property name="geometry">
-        <rect>
-         <x>10</x>
-         <y>70</y>
-         <width>111</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Passthrough</string>
-       </property>
-       <property name="checkable">
-        <bool>true</bool>
-       </property>
-       <property name="checked">
-        <bool>false</bool>
-       </property>
-      </widget>
-     </widget>
      <widget class="QGroupBox" name="groupBox_4">
       <property name="geometry">
        <rect>
@@ -266,29 +182,29 @@
        </property>
       </widget>
      </widget>
-     <widget class="QGroupBox" name="groupBox_13">
+     <widget class="QGroupBox" name="groupBox_5">
       <property name="geometry">
        <rect>
-        <x>670</x>
-        <y>130</y>
-        <width>161</width>
-        <height>61</height>
+        <x>460</x>
+        <y>90</y>
+        <width>181</width>
+        <height>91</height>
        </rect>
       </property>
       <property name="title">
-       <string>Transformation</string>
+       <string>Segmentation</string>
       </property>
-      <widget class="QPushButton" name="btnTransform">
+      <widget class="QPushButton" name="btnSegmentate">
        <property name="geometry">
         <rect>
-         <x>20</x>
+         <x>10</x>
          <y>30</y>
-         <width>141</width>
+         <width>161</width>
          <height>30</height>
         </rect>
        </property>
        <property name="text">
-        <string>Transform</string>
+        <string>Plane segmentation</string>
        </property>
        <property name="checkable">
         <bool>true</bool>
@@ -299,30 +215,14 @@
       <property name="geometry">
        <rect>
         <x>670</x>
-        <y>10</y>
+        <y>60</y>
         <width>161</width>
-        <height>111</height>
+        <height>131</height>
        </rect>
       </property>
       <property name="title">
        <string>Hull</string>
       </property>
-      <widget class="QPushButton" name="btnHull">
-       <property name="geometry">
-        <rect>
-         <x>20</x>
-         <y>70</y>
-         <width>141</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Create hull</string>
-       </property>
-       <property name="checkable">
-        <bool>true</bool>
-       </property>
-      </widget>
       <widget class="QRadioButton" name="radioConvex">
        <property name="geometry">
         <rect>
@@ -352,98 +252,56 @@
         <string>Concave</string>
        </property>
       </widget>
-     </widget>
-     <widget class="QGroupBox" name="groupBox_5">
-      <property name="geometry">
-       <rect>
-        <x>460</x>
-        <y>200</y>
-        <width>181</width>
-        <height>61</height>
-       </rect>
-      </property>
-      <property name="title">
-       <string>Segmentation</string>
-      </property>
-      <widget class="QPushButton" name="btnSegmentate">
+      <widget class="QPushButton" name="btnFilterPlane">
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>30</y>
-         <width>161</width>
-         <height>30</height>
+         <y>100</y>
+         <width>141</width>
+         <height>31</height>
         </rect>
        </property>
        <property name="text">
-        <string>Plane segmentation</string>
+        <string>Filter Plane</string>
        </property>
        <property name="checkable">
         <bool>true</bool>
        </property>
       </widget>
-     </widget>
-     <widget class="QGroupBox" name="groupBox_15">
-      <property name="geometry">
-       <rect>
-        <x>460</x>
-        <y>130</y>
-        <width>191</width>
-        <height>61</height>
-       </rect>
-      </property>
-      <property name="title">
-       <string>Voxelization</string>
-      </property>
-      <widget class="QPushButton" name="btnVoxelize">
+      <widget class="QLabel" name="labelHullAlpha">
        <property name="geometry">
         <rect>
-         <x>10</x>
-         <y>30</y>
-         <width>91</width>
+         <x>30</x>
+         <y>70</y>
+         <width>41</width>
          <height>30</height>
         </rect>
        </property>
        <property name="text">
-        <string>Voxelization</string>
-       </property>
-       <property name="checkable">
-        <bool>true</bool>
+        <string>alpha:</string>
        </property>
       </widget>
-      <widget class="QLabel" name="labelVoxRes">
+      <widget class="QLineEdit" name="lineHullAlpha">
        <property name="geometry">
         <rect>
-         <x>110</x>
-         <y>30</y>
-         <width>31</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>res:</string>
-       </property>
-      </widget>
-      <widget class="QLineEdit" name="lineVoxRes">
-       <property name="geometry">
-        <rect>
-         <x>140</x>
-         <y>30</y>
+         <x>80</x>
+         <y>70</y>
          <width>50</width>
          <height>30</height>
         </rect>
        </property>
        <property name="text">
-        <string>0.01</string>
+        <string>0.02</string>
        </property>
       </widget>
      </widget>
      <widget class="QGroupBox" name="groupBox_16">
       <property name="geometry">
        <rect>
-        <x>670</x>
-        <y>200</y>
-        <width>161</width>
-        <height>61</height>
+        <x>460</x>
+        <y>180</y>
+        <width>371</width>
+        <height>81</height>
        </rect>
       </property>
       <property name="title">
@@ -452,8 +310,8 @@
       <widget class="QPushButton" name="btnCreateProjImage">
        <property name="geometry">
         <rect>
-         <x>20</x>
-         <y>30</y>
+         <x>230</x>
+         <y>50</y>
          <width>141</width>
          <height>30</height>
         </rect>
@@ -465,6 +323,223 @@
         <bool>true</bool>
        </property>
       </widget>
+      <widget class="QCheckBox" name="checkBoxContours">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>20</y>
+         <width>100</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Contours</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="checkBoxPoly">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>40</y>
+         <width>100</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Poly Filled</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="checkBoxRect">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>60</y>
+         <width>131</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Bounding Rect</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="checkBoxContoursLines">
+       <property name="geometry">
+        <rect>
+         <x>120</x>
+         <y>20</y>
+         <width>131</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Contours Lines</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="checkBoxPolyLines">
+       <property name="geometry">
+        <rect>
+         <x>120</x>
+         <y>40</y>
+         <width>100</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Poly Lines</string>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QGroupBox" name="groupBox_15">
+      <property name="geometry">
+       <rect>
+        <x>670</x>
+        <y>10</y>
+        <width>131</width>
+        <height>61</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Voxelization</string>
+      </property>
+      <widget class="QLabel" name="labelVoxRes">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>20</y>
+         <width>81</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>resolution:</string>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineVoxRes">
+       <property name="geometry">
+        <rect>
+         <x>80</x>
+         <y>20</y>
+         <width>50</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>0.01</string>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QGroupBox" name="groupBox_3">
+      <property name="geometry">
+       <rect>
+        <x>460</x>
+        <y>10</y>
+        <width>201</width>
+        <height>81</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Passthrough</string>
+      </property>
+      <widget class="QLabel" name="labelPassMax">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>50</y>
+         <width>31</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>max:</string>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="linePass_min">
+       <property name="geometry">
+        <rect>
+         <x>150</x>
+         <y>20</y>
+         <width>50</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>0.6</string>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="linePass_max">
+       <property name="geometry">
+        <rect>
+         <x>150</x>
+         <y>50</y>
+         <width>50</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>1.2</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelPassMin">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>20</y>
+         <width>31</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>min:</string>
+       </property>
+      </widget>
+      <widget class="QSlider" name="sliderPass_min">
+       <property name="geometry">
+        <rect>
+         <x>40</x>
+         <y>20</y>
+         <width>101</width>
+         <height>29</height>
+        </rect>
+       </property>
+       <property name="maximum">
+        <number>500</number>
+       </property>
+       <property name="value">
+        <number>60</number>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+      <widget class="QSlider" name="sliderPass_max">
+       <property name="geometry">
+        <rect>
+         <x>40</x>
+         <y>50</y>
+         <width>101</width>
+         <height>29</height>
+        </rect>
+       </property>
+       <property name="maximum">
+        <number>500</number>
+       </property>
+       <property name="value">
+        <number>120</number>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QComboBox" name="comboBoxPlanes">
+      <property name="geometry">
+       <rect>
+        <x>470</x>
+        <y>150</y>
+        <width>161</width>
+        <height>31</height>
+       </rect>
+      </property>
      </widget>
     </widget>
     <widget class="QWidget" name="tab_transform">
@@ -2150,6 +2225,295 @@
       <property name="text">
        <string>Toggle Cloud</string>
       </property>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="tab_filtering">
+     <attribute name="title">
+      <string>Filtering</string>
+     </attribute>
+     <widget class="QGroupBox" name="groupBox_26">
+      <property name="geometry">
+       <rect>
+        <x>220</x>
+        <y>130</y>
+        <width>161</width>
+        <height>61</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Transformation</string>
+      </property>
+      <widget class="QPushButton" name="btnTransform_2">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>30</y>
+         <width>141</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Transform</string>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QGroupBox" name="groupBox_27">
+      <property name="geometry">
+       <rect>
+        <x>220</x>
+        <y>200</y>
+        <width>161</width>
+        <height>61</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Projection Image</string>
+      </property>
+      <widget class="QPushButton" name="btnCreateProjImage_2">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>30</y>
+         <width>141</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Create proj. image</string>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QGroupBox" name="groupBox_28">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>200</y>
+        <width>181</width>
+        <height>61</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Segmentation</string>
+      </property>
+      <widget class="QPushButton" name="btnSegmentate_2">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>30</y>
+         <width>161</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Plane segmentation</string>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QGroupBox" name="groupBox_29">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>130</y>
+        <width>191</width>
+        <height>61</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Voxelization</string>
+      </property>
+      <widget class="QPushButton" name="btnVoxelize_2">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>30</y>
+         <width>91</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Voxelization</string>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelVoxRes_2">
+       <property name="geometry">
+        <rect>
+         <x>110</x>
+         <y>30</y>
+         <width>31</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>res:</string>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineVoxRes_2">
+       <property name="geometry">
+        <rect>
+         <x>140</x>
+         <y>30</y>
+         <width>50</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>0.01</string>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QGroupBox" name="groupBox_30">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>10</y>
+        <width>201</width>
+        <height>101</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Passthrough</string>
+      </property>
+      <widget class="QLabel" name="labelPassMax_2">
+       <property name="geometry">
+        <rect>
+         <x>105</x>
+         <y>30</y>
+         <width>31</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>max:</string>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="linePass_min_2">
+       <property name="geometry">
+        <rect>
+         <x>50</x>
+         <y>30</y>
+         <width>50</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>0.85</string>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="linePass_max_2">
+       <property name="geometry">
+        <rect>
+         <x>140</x>
+         <y>30</y>
+         <width>50</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>0.98</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelPassMin_2">
+       <property name="geometry">
+        <rect>
+         <x>15</x>
+         <y>30</y>
+         <width>50</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>min:</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="btnPassthrough_2">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>70</y>
+         <width>111</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Passthrough</string>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QGroupBox" name="groupBox_31">
+      <property name="geometry">
+       <rect>
+        <x>220</x>
+        <y>10</y>
+        <width>161</width>
+        <height>111</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Hull</string>
+      </property>
+      <widget class="QPushButton" name="btnHull_2">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>70</y>
+         <width>141</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Create hull</string>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="QRadioButton" name="radioConvex_2">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>25</y>
+         <width>117</width>
+         <height>22</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Convex</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="QRadioButton" name="radioConcave_2">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>45</y>
+         <width>117</width>
+         <height>22</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Concave</string>
+       </property>
+      </widget>
      </widget>
     </widget>
    </widget>

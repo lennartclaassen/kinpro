@@ -131,23 +131,27 @@ void MainWindow::setTransformations()
     ty = line2float(*ui->lineTransCamProjY);
     tz = line2float(*ui->lineTransCamProjZ);
 
-    Eigen::Matrix3f rotMatRGB2Projector;                //TODO: load calibration values
-    rotMatRGB2Projector <<  line2float(*ui->lineRotCamProj_00),    line2float(*ui->lineRotCamProj_01),    line2float(*ui->lineRotCamProj_02),
-                            line2float(*ui->lineRotCamProj_10),    line2float(*ui->lineRotCamProj_11),    line2float(*ui->lineRotCamProj_12),
-                            line2float(*ui->lineRotCamProj_20),    line2float(*ui->lineRotCamProj_21),    line2float(*ui->lineRotCamProj_22);
-//    rotMatRGB2Projector <<  0.9999, -0.0104, -0.0106,
-//                            0.0073,  0.9661, -0.2582,
-//                            0.0129,  0.2581,  0.9660;
+    R_cam2projVTK <<    line2float(*ui->lineRotCamProj_00),     line2float(*ui->lineRotCamProj_01),     line2float(*ui->lineRotCamProj_02),
+                        line2float(*ui->lineRotCamProj_10),     line2float(*ui->lineRotCamProj_11),     line2float(*ui->lineRotCamProj_12),
+                        line2float(*ui->lineRotCamProj_20),     line2float(*ui->lineRotCamProj_21),     line2float(*ui->lineRotCamProj_22);
 
-    T_cam2proj <<   rotMatRGB2Projector(0,0),   rotMatRGB2Projector(0,1),   rotMatRGB2Projector(0,2),   tx,
-                    rotMatRGB2Projector(1,0),   rotMatRGB2Projector(1,1),   rotMatRGB2Projector(1,2),   ty,
-                    rotMatRGB2Projector(2,0),   rotMatRGB2Projector(2,1),   rotMatRGB2Projector(2,2),   tz,
-                    0,                          0,                          0,                          1;
+    T_cam2projVTK <<    line2float(*ui->lineRotCamProj_00),     line2float(*ui->lineRotCamProj_01),     line2float(*ui->lineRotCamProj_02),     tx,
+                        line2float(*ui->lineRotCamProj_10),     line2float(*ui->lineRotCamProj_11),     line2float(*ui->lineRotCamProj_12),     ty,
+                        line2float(*ui->lineRotCamProj_20),     line2float(*ui->lineRotCamProj_21),     line2float(*ui->lineRotCamProj_22),     tz,
+                        0,                                      0,                                      0,                                      1;
 
-    T_intrProj <<   line2float(*ui->lineIntrinsicParamsProj_fx),   0,                                                  line2float(*ui->lineIntrinsicParamsProj_cx),
-                    0,                                                  line2float(*ui->lineIntrinsicParamsProj_fy),   line2float(*ui->lineIntrinsicParamsProj_cy),
-                    0,                                                  0,                                                  1;
+    T_intrProjVTK <<    line2float(*ui->lineIntrinsicParamsProj_fx),   0,                                             line2float(*ui->lineIntrinsicParamsProj_cx),
+                        0,                                             line2float(*ui->lineIntrinsicParamsProj_fy),   line2float(*ui->lineIntrinsicParamsProj_cy),
+                        0,                                             0,                                             1;
 
+    T_cam2proj <<   0.9999,    -0.0104,    -0.0106,     0.027,
+                    0.0073,     0.9661,    -0.2582,     0.049,
+                    0.0129,     0.2581,     0.9660,      0.020,
+                    0,          0,          0,          1;
+
+    T_intrProj <<   1515.51089,     0,              437.37754,
+                    0,              1447.40731,     515.55742,
+                    0,              0,              1;
 }
 
 void MainWindow::applyPassthrough(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
@@ -198,9 +202,12 @@ void MainWindow::applySegmentation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
 
     //testing multi plane segmentation
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr  cloud_plane (new pcl::PointCloud<pcl::PointXYZRGB> ()),
+                                            cloud_plane_proj (new pcl::PointCloud<pcl::PointXYZRGB> ()),
                                             cloud_f (new pcl::PointCloud<pcl::PointXYZRGB> ()),
                                             cloud_hull (new pcl::PointCloud<pcl::PointXYZRGB> ()),
                                             cloud_all_planes (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    segmentedPlanes.clear();
+
     int nr_points = (int) cloud->points.size ();
     while (cloud->points.size () > 0.1 * nr_points)
     {
@@ -219,8 +226,16 @@ void MainWindow::applySegmentation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
         extract.setIndices (inliers);
         extract.setNegative (false);
 
+        pcl::ProjectInliers<pcl::PointXYZRGB> proj;
+        proj.setModelType(pcl::SACMODEL_PLANE);
+        proj.setInputCloud(cloud);
+        proj.setModelCoefficients(coefficients);
+        proj.setIndices(inliers);
+        proj.filter(*cloud_plane);
+
         // Get the points associated with the planar surface
-        extract.filter (*cloud_plane);
+        extract.filter (*cloud_plane_proj);
+        segmentedPlanes.push_back(*cloud_plane);
 //        std::cout << "PointCloud representing the planar component: " << cloud_plane->points.size () << " data points." << std::endl;
 
 //        pcl::ConvexHull<pcl::PointXYZRGB> chull;
@@ -235,8 +250,7 @@ void MainWindow::applySegmentation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
         extract.filter (*cloud_f);
         *cloud = *cloud_f;
     }
-    *cloud = *cloud_all_planes;
-
+//    *cloud = *cloud_all_planes;
 }
 
 void MainWindow::applyHull(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
@@ -249,7 +263,7 @@ void MainWindow::applyHull(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
     }else if(ui->radioConcave->isChecked()) {
         pcl::ConcaveHull<pcl::PointXYZRGB> chull;
         chull.setInputCloud (cloud);
-        chull.setAlpha (0.01);
+        chull.setAlpha (line2double(*ui->lineHullAlpha));
         chull.reconstruct (*cloud);
 //        cout << "Concave hull has: " << cloud_hull->points.size () << " data points." << std::endl;
     }
@@ -289,7 +303,6 @@ void MainWindow::applyTransformation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
         int x = (int)pixVec.at(i)(0);
         int y = (int)pixVec.at(i)(1);
         if(x<848 && x>=0 && y<480 && y>=0) {
-//            cout << "Point added: " << "x = " << x << " y = " << y <<endl;
             pVec.push_back(Point(x, y));
         }
     }
@@ -303,19 +316,30 @@ void MainWindow::createProjectionImage()
     if(!this->projectionContour[0].empty()) {
         vector<vector<Point> > contours_poly( this->projectionContour.size() );
         vector<Rect> boundRect( this->projectionContour.size() );
-        cv::approxPolyDP( Mat(this->projectionContour[0]), contours_poly[0], 3, true );
-//        boundRect[0] = boundingRect( Mat(contours_poly[0]) );
+        cv::approxPolyDP( Mat(this->projectionContour[0]), contours_poly[0], line2double(*ui->lineVoxRes), ui->checkBoxRect->isChecked() );
 
-//        cv::drawContours(this->projectorImage, this->projectionContour, 0, Scalar(0,255,0), -1);
-//        fillPoly(this->projectorImage, contours_poly, Scalar(0,0,255));
-        for(int i=0; i<contours_poly[0].size()-1; i++) {
-            line(this->projectorImage, contours_poly[0][i], contours_poly[0][i+1], Scalar(255, 255, 255), 2);
-        }
-        for(int i=0; i<this->projectionContour[0].size()-1; i++) {
-            line(this->projectorImage, this->projectionContour[0][i], this->projectionContour[0][i+1], Scalar(0, 255, 0), 2);
+        if(ui->checkBoxContours->isChecked())
+            cv::drawContours(this->projectorImage, this->projectionContour, 0, Scalar(0,255,0), -1);
+
+        if(ui->checkBoxPoly->isChecked())
+            fillPoly(this->projectorImage, contours_poly, Scalar(0,0,255));
+
+        if(ui->checkBoxPolyLines->isChecked()) {
+            for(int i=0; i<contours_poly[0].size()-1; i++) {
+                line(this->projectorImage, contours_poly[0][i], contours_poly[0][i+1], Scalar(0, 0, 255), 2);
+            }
         }
 
-//        cv::rectangle(this->projectorImage, boundRect[0], Scalar(255,255,255), 2);
+        if(ui->checkBoxContoursLines->isChecked()) {
+            for(int i=0; i<this->projectionContour[0].size()-1; i++) {
+                line(this->projectorImage, this->projectionContour[0][i], this->projectionContour[0][i+1], Scalar(0, 255, 0), 2);
+            }
+        }
+
+        if(ui->checkBoxRect->isChecked()) {
+            boundRect[0] = boundingRect( Mat(contours_poly[0]) );
+            cv::rectangle(this->projectorImage, boundRect[0], Scalar(255,255,255), 2);
+        }
     }
 
     if(ui->checkBoxShowProjImage->isChecked())
@@ -381,35 +405,17 @@ void MainWindow::on_btnSetCamParams_clicked()
     Eigen::Matrix3f rotMatIR2RGB;
     rotMatIR2RGB = q.matrix();
 
-    Eigen::Matrix3f rotMatRGB2Projector;
-    rotMatRGB2Projector <<  line2float(*ui->lineRotCamProj_00),    line2float(*ui->lineRotCamProj_01),    line2float(*ui->lineRotCamProj_02),
-                            line2float(*ui->lineRotCamProj_10),    line2float(*ui->lineRotCamProj_11),    line2float(*ui->lineRotCamProj_12),
-                            line2float(*ui->lineRotCamProj_20),    line2float(*ui->lineRotCamProj_21),    line2float(*ui->lineRotCamProj_22);
-
     Eigen::Matrix3f rotMatIR2Projector;
-    rotMatIR2Projector = rotMatIR2RGB * rotMatRGB2Projector;
-//    rotMatIR2Projector = rotMatIR2RGB;
+    rotMatIR2Projector = rotMatIR2RGB * R_cam2projVTK;
 
-
-    Eigen::Matrix3f intrinsicParams;
     Eigen::Matrix4f extrinsicParams;
-
-//    intrinsicParams << 583.257049527068, 0, 321.2388215864229, 0, 585.1600543518808, 242.7879843187553, 0, 0, 1;    //kinect ir camera params
-    intrinsicParams << 1515.51089, 0, 848.0, 0, 1447.40731, 480.0, 0, 0, 1;                                 //projector params, modified for image fitting
-//    extrinsicParams << 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1;                                              //identity for cam
-//    extrinsicParams <<  0.9999, -0.0104, -0.0106,  (0.0272556 + 0.045),
-//                        0.0073,  0.9661, -0.2582,  0.0495066,
-//                        0.0129,  0.2581,  0.9660,  0.0205514,
-//                        0,       0,       0,       1;                   //mat for projector; additional x translation due to transformation from kinect rgb cam to kinect ir projector
     extrinsicParams <<  rotMatIR2Projector(0,0), rotMatIR2Projector(0,1), rotMatIR2Projector(0,2), tx,
                         rotMatIR2Projector(1,0), rotMatIR2Projector(1,1), rotMatIR2Projector(1,2), ty,
                         rotMatIR2Projector(2,0), rotMatIR2Projector(2,1), rotMatIR2Projector(2,2), tz,
                         0,                       0,                       0,                       1;
 
-//    pclWidget->vis->setCameraParameters(intrinsicParams, extrinsicParams);
-    pclWidget->vis->setCameraParameters(T_intrProj, extrinsicParams);
+    pclWidget->vis->setCameraParameters(T_intrProjVTK, extrinsicParams);
     ui->qvtkWidget->update();
-
 }
 
 void MainWindow::on_btnLoadPointcloud_clicked()
@@ -426,14 +432,13 @@ void MainWindow::on_btnLoadPointcloud_clicked()
     hull = false;
     transform = false;
     createProjImage = false;
-    ui->btnPassthrough->setChecked(passthrough);
-    ui->btnSegmentate->setChecked(segmentate);
-    ui->btnHull->setChecked(voxelize);
-    ui->btnVoxelize->setChecked(hull);
-    ui->btnTransform->setChecked(transform);
-    ui->btnCreateProjImage->setChecked(createProjImage);
+    ui->btnPassthrough_2->setChecked(passthrough);
+    ui->btnSegmentate_2->setChecked(segmentate);
+    ui->btnHull_2->setChecked(voxelize);
+    ui->btnVoxelize_2->setChecked(hull);
+    ui->btnTransform_2->setChecked(transform);
+    ui->btnCreateProjImage_2->setChecked(createProjImage);
     ui->checkBoxKinect->setChecked(false);
-
 
     this->displayCloud(m_pc);
 }
@@ -447,50 +452,50 @@ void MainWindow::on_btnSavePointcloud_clicked()
     pcl::io::savePCDFileBinary(cloudName.str(), pc_save);
 }
 
-void MainWindow::on_btnVoxelize_clicked()
+void MainWindow::on_btnVoxelize_2_clicked()
 {
     voxelize = !voxelize;
-    ui->btnVoxelize->setChecked(voxelize);
+    ui->btnVoxelize_2->setChecked(voxelize);
     this->applyVoxelization(m_pc);
     this->displayCloud(m_pc);
 }
 
-void MainWindow::on_btnSegmentate_clicked()
+void MainWindow::on_btnSegmentate_2_clicked()
 {
     segmentate = !segmentate;
-    ui->btnSegmentate->setChecked(segmentate);
+    ui->btnSegmentate_2->setChecked(segmentate);
     this->applySegmentation(m_pc);
     this->displayCloud(m_pc);
 }
 
-void MainWindow::on_btnPassthrough_clicked()
+void MainWindow::on_btnPassthrough_2_clicked()
 {
     passthrough = !passthrough;
-    ui->btnPassthrough->setChecked(passthrough);
+    ui->btnPassthrough_2->setChecked(passthrough);
     this->applyPassthrough(m_pc);
     this->displayCloud(m_pc);
 }
 
-void MainWindow::on_btnHull_clicked()
+void MainWindow::on_btnHull_2_clicked()
 {
     hull = !hull;
-    ui->btnHull->setChecked(hull);
+    ui->btnHull_2->setChecked(hull);
     this->applyHull(m_pc);
     this->displayCloud(m_pc);
 }
 
-void MainWindow::on_btnTransform_clicked()
+void MainWindow::on_btnTransform_2_clicked()
 {
     transform = !transform;
-    ui->btnTransform->setChecked(transform);
+    ui->btnTransform_2->setChecked(transform);
     this->applyTransformation(m_pc);
     this->displayCloud(m_pc);
 }
 
-void MainWindow::on_btnCreateProjImage_clicked()
+void MainWindow::on_btnCreateProjImage_2_clicked()
 {
     createProjImage = !createProjImage;
-    ui->btnCreateProjImage->setChecked(createProjImage);
+    ui->btnCreateProjImage_2->setChecked(createProjImage);
     createProjectionImage();
 }
 
@@ -1006,7 +1011,7 @@ void MainWindow::on_btnCreateImgFromGUI_clicked()
     vtkRGBimage->GetDimensions(dimsRGBImage);
     cv::Mat cvImageRGB(dimsRGBImage[1], dimsRGBImage[0], CV_8UC3, vtkRGBimage->GetScalarPointer());
     cout << "dims1 = " << dimsRGBImage[1] << " dims2 = " << dimsRGBImage[0] << endl;
-    cv::cvtColor( cvImageRGB, cvImageRGB, CV_BGR2RGB); //convert color
+//    cv::cvtColor( cvImageRGB, cvImageRGB, CV_BGR2RGB); //convert color
     cv::flip( cvImageRGB, cvImageRGB, 0); //align axis with visualizer
     cv::Rect roi(0,0,848,480);
     Mat croppedImage = cvImageRGB(roi).clone();
@@ -1016,3 +1021,81 @@ void MainWindow::on_btnCreateImgFromGUI_clicked()
     cv::namedWindow( windowNameRGBImage, cv::WINDOW_AUTOSIZE);
     cv::imshow( windowNameRGBImage, croppedImage);
 }
+
+void MainWindow::on_sliderPass_min_valueChanged(int value)
+{
+    double val = value / 100.0;
+    double2line(*ui->linePass_min, val);
+}
+
+void MainWindow::on_sliderPass_max_valueChanged(int value)
+{
+    double val = value / 100.0;
+    double2line(*ui->linePass_max, val);
+}
+
+void MainWindow::on_linePass_min_textEdited(const QString &arg1)
+{
+    int val = (int)(100.0 * line2double(*ui->linePass_min));
+    ui->sliderPass_min->setValue(val);
+}
+
+void MainWindow::on_linePass_max_textEdited(const QString &arg1)
+{
+    int val = (int)(100.0 * line2double(*ui->linePass_max));
+    ui->sliderPass_max->setValue(val);
+}
+
+void MainWindow::on_btnSegmentate_clicked()
+{
+    //deactivate kinect input
+    ui->checkBoxKinect->setChecked(false);
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
+    cloud = m_pc->makeShared();
+
+    //apply passthrough filter
+    this->applyPassthrough(cloud);
+
+    //apply plane segmentation
+    this->applySegmentation(cloud);
+
+    //list selectable planes
+    ui->comboBoxPlanes->clear();
+    for( int i = 0; i<segmentedPlanes.size(); i++ ) {
+        stringstream ss;
+        ss << "Plane " << i;
+        ui->comboBoxPlanes->addItem(QString::fromStdString(ss.str()));
+    }
+}
+
+void MainWindow::on_comboBoxPlanes_activated(int index)
+{
+    if(!segmentedPlanes.empty() && index < segmentedPlanes.size()) {
+        m_pc = segmentedPlanes.at(index).makeShared();
+        displayCloud(m_pc);
+    }
+}
+
+void MainWindow::on_btnFilterPlane_clicked()
+{
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
+    cloud = m_pc->makeShared();
+
+    if(line2double(*ui->lineVoxRes) > 0.0)
+        this->applyVoxelization(cloud);
+
+    this->applyHull(cloud);
+    m_pc = cloud->makeShared();
+    displayCloud(cloud);
+}
+
+void MainWindow::on_btnCreateProjImage_clicked()
+{
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
+    cloud = m_pc->makeShared();
+
+    this->applyTransformation(cloud);
+    this->createProjectionImage();
+}
+
