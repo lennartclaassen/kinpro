@@ -19,7 +19,9 @@ QtROS::QtROS(int argc, char *argv[], const char* node_name) {
     this->it        = new image_transport::ImageTransport(*nh);
 
 //    sub = nh->subscribe<sensor_msgs::PointCloud2>("/camera/depth_registered/points", 1, &QtROS::callback, this);
-    sub = nh->subscribe< pcl::PointCloud<pcl::PointXYZRGB> >("/camera/depth_registered/points", 1, &QtROS::callback, this);
+    pc_sub = nh->subscribe< pcl::PointCloud<pcl::PointXYZRGB> >("/camera/depth_registered/points", 1, &QtROS::pointcloudCallback, this);
+    pos_sub = nh->subscribe< nav_msgs::Odometry >("/odometry/filtered", 1, &QtROS::positionCallback, this);
+
 
     image_publisher = it->advertise("/raspberry_image", 1);
 
@@ -50,7 +52,7 @@ void QtROS::run() {
     emit rosShutdown();
 }
 
-void QtROS::callback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg)
+void QtROS::pointcloudCallback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg)
 {
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclCloud = msg->makeShared();
 //    Eigen::Vector3i vec = msg->at(0).getRGBVector3i();
@@ -60,6 +62,10 @@ void QtROS::callback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg)
 //    BOOST_FOREACH (const pcl::PointXYZ& pt, msg->points)
 //      printf ("\t(%f, %f, %f)\n", pt.x, pt.y, pt.z);
     emit pointCloudReceived(*pclCloud);
+}
+
+void QtROS::positionCallback(const nav_msgs::Odometry::ConstPtr& msg) {
+    emit positionReceived(*msg);
 }
 
 void QtROS::publishImage() {

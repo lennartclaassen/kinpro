@@ -198,8 +198,6 @@ class MainWindow: public QMainWindow {
 
         void on_btnSetCamViewPos_clicked();
 
-        void on_btnTogglecloud_clicked();
-
         void on_btnGetCamParams_clicked();
 
         void on_btnSetCamParams_clicked();
@@ -226,9 +224,24 @@ class MainWindow: public QMainWindow {
 
         void on_btnLoadModel_clicked();
 
+        void on_btnSetCamTrafo_clicked();
+
+        void on_btnModelShow_clicked();
+
+        void on_btnModelHide_clicked();
+
+        void on_btnModelDel_clicked();
+
+        void on_btnPCShow_clicked();
+
+        void on_btnPCHide_clicked();
+
+        void on_btnPCDel_clicked();
+
 public slots:
 
         void newPointCloud(pcl::PointCloud<pcl::PointXYZRGB> pc);
+        void newPosition(nav_msgs::Odometry msg);
 
     private:
 
@@ -259,23 +272,29 @@ public slots:
         void double2line(QLineEdit& line, double value) { (&line)->setText(QString::number(value)); }
         void float2line(QLineEdit& line, float value)   { (&line)->setText(QString::number(value)); }
 
+        void updateModelIndex();
+        void updatePCIndex();
+
+        struct actorEntry { vtkSmartPointer<vtkActor> actor; std::string id; bool visible;};
+        struct PCEntry { pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud; std::string id; bool visible;};
+        std::vector< PCEntry > PCVec;
+        std::vector< actorEntry > modelVec;
+
         bool displayRGBCloud;
 
         Eigen::Matrix3f R_cam2projVTK;
+        Eigen::Vector3f t_cam2projVTK;
         Eigen::Matrix4f T_cam2projVTK;
+        Eigen::Matrix3f R_world2camVTK;
+        Eigen::Vector3f t_world2camVTK;
+        Eigen::Matrix4f T_world2camVTK;
+        Eigen::Matrix4f T_world2projVTK;
         Eigen::Matrix3f T_intrProjVTK;
         Eigen::Matrix4f T_cam2proj;
         Eigen::Matrix3f T_intrProj;
 
         vector< vector<cv::Point> > projectionContour;
         cv::Mat projectorImage;
-
-        double computeCloudResolution(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &cloud);
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_cube;
-
-        std::string toggleCloudName;
-
-
 };
 
 #endif // _KINPRO_MAIN_WINDOW_H

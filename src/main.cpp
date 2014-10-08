@@ -22,6 +22,7 @@ int main(int argc, char **argv) {
     QApplication app(argc, argv);
     qRegisterMetaType< cv::Mat >("cv::Mat");
     qRegisterMetaType< pcl::PointCloud<pcl::PointXYZRGB> >("pcl::PointCloud<pcl::PointXYZRGB>");
+    qRegisterMetaType< nav_msgs::Odometry >("nav_msgs::Odometry");
 
 
     // create the ROS Node
@@ -34,6 +35,7 @@ int main(int argc, char **argv) {
     // signals and slots
     app.connect(&gui,   SIGNAL(signalProjectImage(cv::Mat)), &qtRos, SLOT(slotProjectImage(cv::Mat)));
     app.connect(&qtRos, SIGNAL(pointCloudReceived(pcl::PointCloud<pcl::PointXYZRGB>)), &gui, SLOT(newPointCloud(pcl::PointCloud<pcl::PointXYZRGB>)));
+    app.connect(&qtRos, SIGNAL(positionReceived(nav_msgs::Odometry)), &gui, SLOT(newPosition(nav_msgs::Odometry)));
 
     //app.connect(&app,   SIGNAL(lastWindowClosed()), &app, SLOT(quit()));
     //app.connect(&qtRos, SIGNAL(rosShutdown()), &app, SLOT(quit()));

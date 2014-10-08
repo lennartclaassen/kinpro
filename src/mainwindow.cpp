@@ -55,22 +55,64 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     this->setTransformations();
 
-    toggleCloudName = string("pointcloud.pcd");
 //    this->on_btnLoadPointcloud_clicked();
 }
 
 MainWindow::~MainWindow() {
 }
 
+void MainWindow::newPosition(nav_msgs::Odometry msg)
+{
+    cout << "new position received" << endl;
+
+    t_world2camVTK(0) = msg.pose.pose.position.x;
+    t_world2camVTK(1) = msg.pose.pose.position.y;
+    t_world2camVTK(2) = msg.pose.pose.position.z;
+
+//    float rollWorld2Cam, pitchWorld2Cam, yawWorld2Cam;
+//    yawWorld2Cam = line2float(*ui->lineCamTrafoYaw)*M_PI/180.0;
+//    pitchWorld2Cam = line2float(*ui->lineCamTrafoPitch)*M_PI/180.0;
+//    rollWorld2Cam = line2float(*ui->lineCamTrafoRoll)*M_PI/180.0;
+//    Eigen::AngleAxisf rollAngleWorld2Cam(rollWorld2Cam, Eigen::Vector3f::UnitX());
+//    Eigen::AngleAxisf yawAngleWorld2Cam(yawWorld2Cam, Eigen::Vector3f::UnitZ());
+//    Eigen::AngleAxisf pitchAngleWorld2Cam(pitchWorld2Cam, Eigen::Vector3f::UnitY());
+
+    Eigen::Quaternion<float> qWorld2Cam;
+    qWorld2Cam.x() = msg.pose.pose.orientation.x;
+    qWorld2Cam.y() = msg.pose.pose.orientation.y;
+    qWorld2Cam.z() = msg.pose.pose.orientation.z;
+    qWorld2Cam.w() = msg.pose.pose.orientation.w;
+
+    R_world2camVTK = qWorld2Cam.matrix();
+
+    T_world2camVTK <<   R_world2camVTK(0,0),    R_world2camVTK(0,1),    R_world2camVTK(0,2),    t_world2camVTK(0),
+                        R_world2camVTK(1,0),    R_world2camVTK(1,1),    R_world2camVTK(1,2),    t_world2camVTK(1),
+                        R_world2camVTK(2,0),    R_world2camVTK(2,1),    R_world2camVTK(2,2),    t_world2camVTK(2),
+                        0,                      0,                      0,                      1;
+
+    T_world2projVTK = T_world2camVTK * T_cam2projVTK;
+
+    pclWidget->vis->setCameraParameters(T_intrProjVTK, T_world2projVTK);
+    ui->qvtkWidget->update();
+
+}
+
 void MainWindow::loadPointCloud(string filename) {
     PointCloud<PointXYZRGB> pc_load;
     pcl::io::loadPCDFile(filename, pc_load);
 
-    m_pc = pc_load.makeShared();
+    PCEntry entry;
+    entry.cloud = pc_load.makeShared();
+    entry.id = filename;
+    entry.visible = true;
+    PCVec.push_back(entry);
+//    m_pc = pc_load.makeShared();
 
     ui->checkBoxKinect->setChecked(false);
 
-    this->displayCloud(m_pc);
+//    this->displayCloud(m_pc);
+    this->displayCloud(PCVec.back().cloud, PCVec.back().id);
+    this->updatePCIndex();
 }
 
 void MainWindow::savePointCloud(string filename) {
@@ -86,7 +128,7 @@ void MainWindow::displayCloud(PointCloud<PointXYZRGB>::Ptr pc, string id) { //on
             pclWidget->vis->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, id);
 //            pclWidget->vis->addPointCloud<pcl::PointXYZRGB>(pc, id);
 
-            ROS_INFO("Adding new cloud");
+            ROS_INFO("Adding new RGB cloud");
         }
     }else {
         if(!pclWidget->vis->updatePointCloud<pcl::PointXYZRGB>(pc, id)) {      //adding <pcl::PointXYZRGB> leads to ignoring color values
@@ -104,7 +146,7 @@ void MainWindow::newPointCloud(PointCloud<PointXYZRGB> pc) {
     if(ui->checkBoxKinect->isChecked()) {
             m_pc = pc.makeShared();
             this->processCloud(m_pc);
-            this->displayCloud(m_pc);
+            this->displayCloud(m_pc, "kinect");
     }
 }
 
@@ -115,19 +157,42 @@ void MainWindow::processCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
 
 void MainWindow::setTransformations()
 {
-    float tx, ty, tz;
-    tx = line2float(*ui->lineTransCamProjX);            //TODO: load calibration values
-    ty = line2float(*ui->lineTransCamProjY);
-    tz = line2float(*ui->lineTransCamProjZ);
+    t_cam2projVTK(0) = line2float(*ui->lineTransCamProjX);            //TODO: load calibration values
+    t_cam2projVTK(1) = line2float(*ui->lineTransCamProjY);
+    t_cam2projVTK(2) = line2float(*ui->lineTransCamProjZ);
 
     R_cam2projVTK <<    line2float(*ui->lineRotCamProj_00),     line2float(*ui->lineRotCamProj_01),     line2float(*ui->lineRotCamProj_02),
                         line2float(*ui->lineRotCamProj_10),     line2float(*ui->lineRotCamProj_11),     line2float(*ui->lineRotCamProj_12),
                         line2float(*ui->lineRotCamProj_20),     line2float(*ui->lineRotCamProj_21),     line2float(*ui->lineRotCamProj_22);
 
-    T_cam2projVTK <<    R_cam2projVTK(0,0),     R_cam2projVTK(0,1),     R_cam2projVTK(0,2),     tx,
-                        R_cam2projVTK(1,0),     R_cam2projVTK(1,1),     R_cam2projVTK(1,2),     ty,
-                        R_cam2projVTK(2,0),     R_cam2projVTK(2,1),     R_cam2projVTK(2,2),     tz,
+    T_cam2projVTK <<    R_cam2projVTK(0,0),     R_cam2projVTK(0,1),     R_cam2projVTK(0,2),     t_cam2projVTK(0),
+                        R_cam2projVTK(1,0),     R_cam2projVTK(1,1),     R_cam2projVTK(1,2),     t_cam2projVTK(1),
+                        R_cam2projVTK(2,0),     R_cam2projVTK(2,1),     R_cam2projVTK(2,2),     t_cam2projVTK(2),
                         0,                      0,                      0,                      1;
+
+    float rollWorld2Cam, pitchWorld2Cam, yawWorld2Cam;
+    t_world2camVTK(0) = line2float(*ui->lineCamTrafoX);
+    t_world2camVTK(1) = line2float(*ui->lineCamTrafoY);
+    t_world2camVTK(2) = line2float(*ui->lineCamTrafoZ);
+
+    yawWorld2Cam = line2float(*ui->lineCamTrafoYaw)*M_PI/180.0;
+    pitchWorld2Cam = line2float(*ui->lineCamTrafoPitch)*M_PI/180.0;
+    rollWorld2Cam = line2float(*ui->lineCamTrafoRoll)*M_PI/180.0;
+    Eigen::AngleAxisf rollAngleWorld2Cam(rollWorld2Cam, Eigen::Vector3f::UnitX());
+    Eigen::AngleAxisf yawAngleWorld2Cam(yawWorld2Cam, Eigen::Vector3f::UnitZ());
+    Eigen::AngleAxisf pitchAngleWorld2Cam(pitchWorld2Cam, Eigen::Vector3f::UnitY());
+
+    Eigen::Quaternion<float> qWorld2Cam = rollAngleWorld2Cam * pitchAngleWorld2Cam * yawAngleWorld2Cam;
+
+    cout << "q.x = " << qWorld2Cam.x() << endl << "q.y = " << qWorld2Cam.y() << endl << "q.z = " << qWorld2Cam.z() << endl << "q.w = " << qWorld2Cam.w() << endl;
+
+    R_world2camVTK = qWorld2Cam.matrix();
+
+    T_world2camVTK <<   R_world2camVTK(0,0),    R_world2camVTK(0,1),    R_world2camVTK(0,2),    t_world2camVTK(0),
+                        R_world2camVTK(1,0),    R_world2camVTK(1,1),    R_world2camVTK(1,2),    t_world2camVTK(1),
+                        R_world2camVTK(2,0),    R_world2camVTK(2,1),    R_world2camVTK(2,2),    t_world2camVTK(2),
+                        0,                      0,                      0,                      1;
+
 
     T_intrProjVTK <<    line2float(*ui->lineIntrinsicParamsProj_fx),   0,                                             line2float(*ui->lineIntrinsicParamsProj_cx),
                         0,                                             line2float(*ui->lineIntrinsicParamsProj_fy),   line2float(*ui->lineIntrinsicParamsProj_cy),
@@ -135,7 +200,7 @@ void MainWindow::setTransformations()
 
     T_cam2proj <<   0.9999,    -0.0104,    -0.0106,     0.027,
                     0.0073,     0.9661,    -0.2582,     0.049,
-                    0.0129,     0.2581,     0.9660,      0.020,
+                    0.0129,     0.2581,     0.9660,     0.020,
                     0,          0,          0,          1;
 
     T_intrProj <<   1515.51089,     0,              437.37754,
@@ -364,8 +429,18 @@ void MainWindow::on_btnSetCamView_clicked()
     Eigen::Matrix3f rotMatIR2RGB;
     rotMatIR2RGB = q.matrix();
 
+    Eigen::Matrix4f T_IR2RGB;
+
+    T_IR2RGB <<         rotMatIR2RGB(0,0),  rotMatIR2RGB(0,1), rotMatIR2RGB(0,2), 0,
+                        rotMatIR2RGB(1,0),  rotMatIR2RGB(1,1), rotMatIR2RGB(1,2), 0,
+                        rotMatIR2RGB(2,0),  rotMatIR2RGB(2,1), rotMatIR2RGB(2,2), 0,
+                        0,                  0,                 0,                 1;
+
+
+    T_world2projVTK = T_world2camVTK * T_IR2RGB * T_cam2projVTK;
+
     Eigen::Matrix3f rotMatIR2Projector;
-    rotMatIR2Projector = rotMatIR2RGB * R_cam2projVTK;
+    rotMatIR2Projector = R_world2camVTK * rotMatIR2RGB * R_cam2projVTK;
 
     Eigen::Matrix4f extrinsicParams;
     extrinsicParams <<  rotMatIR2Projector(0,0), rotMatIR2Projector(0,1), rotMatIR2Projector(0,2), tx,
@@ -373,8 +448,29 @@ void MainWindow::on_btnSetCamView_clicked()
                         rotMatIR2Projector(2,0), rotMatIR2Projector(2,1), rotMatIR2Projector(2,2), tz,
                         0,                       0,                       0,                       1;
 
-    pclWidget->vis->setCameraParameters(T_intrProjVTK, extrinsicParams);
+    pclWidget->vis->setCameraParameters(T_intrProjVTK, T_world2projVTK);
     ui->qvtkWidget->update();
+}
+
+void MainWindow::on_btnSetCamTrafo_clicked()
+{
+    float rollW, pitchW, yawW;
+    float txW, tyW, tzW;
+    txW = line2float(*ui->lineCamTrafoX);
+    tyW = line2float(*ui->lineCamTrafoY);
+    tzW = line2float(*ui->lineCamTrafoZ);
+
+    yawW = line2float(*ui->lineCamTrafoYaw)*M_PI/180.0;
+    pitchW = line2float(*ui->lineCamTrafoPitch)*M_PI/180.0;
+    rollW = line2float(*ui->lineCamTrafoRoll)*M_PI/180.0;
+    Eigen::AngleAxisf rollAngleW(rollW, Eigen::Vector3f::UnitX());
+    Eigen::AngleAxisf yawAngleW(yawW, Eigen::Vector3f::UnitZ());
+    Eigen::AngleAxisf pitchAngleW(pitchW, Eigen::Vector3f::UnitY());
+
+    Eigen::Quaternion<float> qW = rollAngleW * pitchAngleW * yawAngleW;
+
+    Eigen::Matrix3f rotMatWorld2Cam;
+    rotMatWorld2Cam = qW.matrix();
 }
 
 void MainWindow::on_btnLoadPointcloud_clicked()
@@ -436,14 +532,14 @@ void MainWindow::on_btnResetExtrRot_clicked()
 
 void MainWindow::on_btnResetExtrTrans_clicked()
 {
-    //original transformation params from camera calibration
-//    ui->lineTransCamProjX->setText("0.027");
-//    ui->lineTransCamProjY->setText("0.049");
-//    ui->lineTransCamProjZ->setText("0.020");
-    //modified transformation params for vtk camera positioning (projector view)
-    ui->lineTransCamProjX->setText("-0.027");
-    ui->lineTransCamProjY->setText("-0.049");
-    ui->lineTransCamProjZ->setText("-0.020");
+    //original transformation params from camera calibration (working if Transformation matrix is used)
+    ui->lineTransCamProjX->setText("0.027");
+    ui->lineTransCamProjY->setText("0.049");
+    ui->lineTransCamProjZ->setText("0.020");
+    //modified transformation params for vtk camera positioning (projector view) if rotation matrix is used
+//    ui->lineTransCamProjX->setText("-0.027");
+//    ui->lineTransCamProjY->setText("-0.049");
+//    ui->lineTransCamProjZ->setText("-0.020");
 }
 
 void MainWindow::on_btnSetCamViewPos_clicked()
@@ -577,22 +673,6 @@ void MainWindow::on_btnResetCamParams_clicked()
     double2line(*ui->lineCamParamsWinPosY, 0.0);
 }
 
-void MainWindow::on_btnTogglecloud_clicked()
-{
-    std::stringstream cloudName;
-    cloudName << toggleCloudName;
-    PointCloud<PointXYZRGB> pc_load;
-    pcl::io::loadPCDFile(cloudName.str(), pc_load);
-    m_pc = pc_load.makeShared();
-    this->displayCloud(m_pc);
-
-    if(!strcmp(toggleCloudName.c_str(), "pointcloud.pcd")) {
-        toggleCloudName = string("pointcloud_dark.pcd");
-    }else {
-        toggleCloudName = string("pointcloud.pcd");
-    }
-}
-
 void MainWindow::on_btnCreateImgFromGUI_clicked()
 {
     vtkSmartPointer<vtkRenderWindow> renderWindow = pclWidget->vis->getRenderWindow();
@@ -700,29 +780,6 @@ void MainWindow::on_btnLoadModel_clicked()
     const char *cstr = actorname.c_str();
     cout << "Reading: " << filename << endl;
 
-    vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
-
-//    vtkSmartPointer<vtkTexture> texture = vtkSmartPointer<vtkTexture>::New();
-//    vtkDataSet *pDataset;
-//    vtkActorCollection *actors = importer->GetRenderer()->GetActors();
-//    actors->InitTraversal();
-//    pDataset = actors->GetNextActor()->GetMapper()->GetInput();
-//    vtkPolyData *polyData = vtkPolyData::SafeDownCast(pDataset);
-//    polyData->Update();
-
-//    // Renderer
-//    vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-//    mapper->SetInput(polyData);
-//    vtkSmartPointer<vtkActor> texturedQuad = vtkSmartPointer<vtkActor>::New();
-//    texturedQuad->SetMapper(mapper);
-//    texturedQuad->SetTexture(texture);
-
-//    // Visualize the textured plane
-//    renderer->AddActor(texturedQuad);
-//    renderer->SetBackground(0.2,0.5,0.6); // Background color white
-//    renderer->ResetCamera();
-
-
 //    vtkSmartPointer<vtkPLYReader> reader = vtkSmartPointer<vtkPLYReader>::New();
     vtkSmartPointer<vtkOBJReader> reader = vtkSmartPointer<vtkOBJReader>::New();
 //    vtkSmartPointer<vtkSTLReader> reader = vtkSmartPointer<vtkSTLReader>::New();
@@ -736,14 +793,107 @@ void MainWindow::on_btnLoadModel_clicked()
 
     vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
     actor->SetMapper(mapper);
+//    actor->AddPosition(2.5, 1.0, 0.0);
 //    double color[3] = {0.89,0.81,0.34};
 //    actor->GetProperty()->SetColor(color);
 
 //    renderer->AddActor(actor);
 //    renderer->SetBackground(0.3, 0.6, 0.3); // Background color green
 
+    actorEntry entry;
+    entry.actor = actor;
+    entry.id = filename;
+    entry.visible = true;
+    modelVec.push_back(entry);
     pclWidget->vis->addActorToRenderer(actor);
 //    getRenderWindow()->AddRenderer(renderer);
 //    ui->qvtkWidget->GetRenderWindow()->AddRenderer(renderer);
     ui->qvtkWidget->update();
+    this->updateModelIndex();
+}
+
+void MainWindow::updateModelIndex()
+{
+    ui->comboBoxModelSelect->clear();
+    for(int i = 0; i< modelVec.size(); i++) {
+        ui->comboBoxModelSelect->addItem(QString::fromStdString(modelVec.at(i).id));
+    }
+}
+
+void MainWindow::on_btnModelShow_clicked()
+{
+    int id = ui->comboBoxModelSelect->currentIndex();
+    if(!modelVec.empty()) {
+        if(!modelVec.at(id).visible) {
+            pclWidget->vis->addActorToRenderer(modelVec.at(id).actor);
+            modelVec.at(id).visible = true;
+            ui->qvtkWidget->update();
+        }
+    }
+}
+
+void MainWindow::on_btnModelHide_clicked()
+{
+    int id = ui->comboBoxModelSelect->currentIndex();
+    if(!modelVec.empty()) {
+        if(modelVec.at(id).visible) {
+            pclWidget->vis->removeActorFromRenderer(modelVec.at(id).actor);
+            modelVec.at(id).visible = false;
+            ui->qvtkWidget->update();
+        }
+    }
+}
+
+void MainWindow::on_btnModelDel_clicked()
+{
+    int id = ui->comboBoxModelSelect->currentIndex();
+    if(!modelVec.empty()) {
+        pclWidget->vis->removeActorFromRenderer(modelVec.at(id).actor);
+        modelVec.erase(modelVec.begin()+id);
+        this->updateModelIndex();
+        ui->qvtkWidget->update();
+    }
+}
+
+void MainWindow::updatePCIndex()
+{
+    ui->comboBoxPCSelect->clear();
+    for(int i = 0; i < PCVec.size(); i++) {
+        ui->comboBoxPCSelect->addItem(QString::fromStdString(PCVec.at(i).id));
+    }
+}
+
+void MainWindow::on_btnPCShow_clicked()
+{
+    int id = ui->comboBoxPCSelect->currentIndex();
+    if(!PCVec.empty()) {
+        if(!PCVec.at(id).visible) {
+            displayCloud(PCVec.at(id).cloud, PCVec.at(id).id);
+            PCVec.at(id).visible = true;
+            ui->qvtkWidget->update();
+        }
+    }
+}
+
+void MainWindow::on_btnPCHide_clicked()
+{
+    int id = ui->comboBoxPCSelect->currentIndex();
+    if(!PCVec.empty()) {
+        if(PCVec.at(id).visible) {
+            pclWidget->vis->removePointCloud(PCVec.at(id).id);
+            PCVec.at(id).visible = false;
+            ui->qvtkWidget->update();
+        }
+    }
+}
+
+void MainWindow::on_btnPCDel_clicked()
+{
+    int id = ui->comboBoxPCSelect->currentIndex();
+    if(!PCVec.empty()) {
+        pclWidget->vis->removePointCloud(PCVec.at(id).id);
+        PCVec.erase(PCVec.begin()+id);
+        this->updatePCIndex();
+        ui->qvtkWidget->update();
+    }
 }

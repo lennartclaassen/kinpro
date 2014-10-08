@@ -32,6 +32,8 @@
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/Image.h>
 
+#include <nav_msgs/Odometry.h>
+
 #include <image_transport/image_transport.h>
 
 #include <opencv2/opencv.hpp>
@@ -52,6 +54,7 @@ class QtROS: public QThread {
         void rosShutdown();
 
         void pointCloudReceived(pcl::PointCloud<pcl::PointXYZRGB> pc);
+        void positionReceived(nav_msgs::Odometry msg);
 
     public slots:
 
@@ -81,14 +84,16 @@ class QtROS: public QThread {
          */
         void run();
 
-        void callback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg);
+        void pointcloudCallback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg);
+        void positionCallback(const nav_msgs::Odometry::ConstPtr& msg);
 
     private:
 
         ros::NodeHandle* nh;
         image_transport::ImageTransport* it;
         image_transport::Publisher image_publisher;
-        ros::Subscriber sub;
+        ros::Subscriber pc_sub;
+        ros::Subscriber pos_sub;
 
         pcl::PointCloud<pcl::PointXYZRGB> pclCloud;
         sensor_msgs::Image projectorImg;
