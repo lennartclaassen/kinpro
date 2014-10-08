@@ -253,9 +253,7 @@ cd /opt/ros/indigo/bin
 
 rosrun image_view image_view image:=/camera/rgb/image_raw
 # right click saves images to current directory
-
 # if saved images are grayscale there will be a conversion error when using the matlab toolbox. Just remove the BGR2GRAY conversion in the file throwing the error
------
 
 ### Setting locale settings for vtk file importing
 sudo gedit /etc/default/locale 
@@ -263,3 +261,10 @@ changed
 LC_NUMERIC="de_DE.UTF-8"
 to
 LC_NUMERIC="C"
+
+### Modifications to PCL
+added
+#define private public
+#define protected public 
+to usr/include/pcl1.7/pcl/visualization/pcl_viewer.h
+to enable adding of actor to the pclVis renderer

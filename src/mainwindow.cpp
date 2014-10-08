@@ -29,37 +29,6 @@ using namespace std;
 using namespace pcl;
 using namespace cv;
 
-VTKImporter::VTKImporter() {
-    import();
-}
-
-VTKImporter::~VTKImporter() {
-}
-
-int VTKImporter::import() {
-    std::string filename = std::string("bridge.wrl");
-    cout << "Reading: " << filename << endl;
-
-    vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
-    vtkSmartPointer<vtkRenderWindow> renderWindow = vtkSmartPointer<vtkRenderWindow>::New();
-    renderWindow->AddRenderer(renderer);
-
-    vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
-    renderWindowInteractor->SetRenderWindow(renderWindow);
-
-    // VRML Import
-    vtkSmartPointer<vtkVRMLImporter> importer = vtkSmartPointer<vtkVRMLImporter>::New();
-    importer->SetFileName ( filename.c_str() );
-    importer->Read();
-    importer->SetRenderWindow(renderWindow);
-    importer->Update();
-
-    renderWindow->Render();
-    renderWindowInteractor->Start();
-
-    return 0;
-}
-
 VTKPointCloudWidget::VTKPointCloudWidget(QWidget *parent) : QVTKWidget(parent)
 {
     vis = new visualization::PCLVisualizer("vis", false);
@@ -78,6 +47,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     ui->setupUi(this);
 
     pclWidget = new VTKPointCloudWidget();
+    ui->qvtkWidget->SetRenderWindow (pclWidget->vis->getRenderWindow());
+
 
     displayRGBCloud = true;
     projectorImage = cv::Mat::zeros(480, 848, CV_8UC3);
@@ -95,66 +66,11 @@ void MainWindow::loadPointCloud(string filename) {
     PointCloud<PointXYZRGB> pc_load;
     pcl::io::loadPCDFile(filename, pc_load);
 
-    float resolution = 0.01f;
-
-    pcl::octree::OctreePointCloudSearch<pcl::PointXYZRGB> octree (resolution);
-
-    octree.setInputCloud (pc_load.makeShared());
-    octree.addPointsFromInputCloud ();
-
-    pcl::PointXYZRGB searchPoint;
-
-    searchPoint.x = 0.5f;
-    searchPoint.y = 0.2f;
-    searchPoint.z = 1.5f;
-
-    // Neighbors within voxel search
-
-    std::vector<int> pointIdxVec;
-
-    if (octree.voxelSearch (searchPoint, pointIdxVec))
-    {
-        std::cout << "Neighbors within voxel search at (" << searchPoint.x
-                  << " " << searchPoint.y
-                  << " " << searchPoint.z << ")"
-                  << std::endl;
-
-        for (size_t i = 0; i < pointIdxVec.size (); ++i)
-            std::cout << "    " << pc_load.points[pointIdxVec[i]].x
-                      << " " << pc_load.points[pointIdxVec[i]].y
-                      << " " << pc_load.points[pointIdxVec[i]].z << std::endl;
-    }
-
-    //how many occupied cells do we have in the tree?
-//    std::list<octomap::OcTreeVolume> occupiedCells;
-    std::vector<pcl::PointXYZRGB, Eigen::aligned_allocator<pcl::PointXYZRGB> > voxelIndices;
-//    tree.getOccupied(occupiedCells);
-    octree.getOccupiedVoxelCenters(voxelIndices);
-
-    //cloud to store the points
-    pcl::PointCloud<pcl::PointXYZRGB> cloud;
-    cloud.points.resize(voxelIndices.size());
-
-    std::vector<pcl::PointXYZRGB, Eigen::aligned_allocator<pcl::PointXYZRGB> >::iterator it;
-//    std::list<octomap::OcTreeVolume>::iterator it;
-    int i=0;
-    for (it = voxelIndices.begin(); it != voxelIndices.end(); ++it, i++)
-    {
-        //add point in point cloud
-        cloud.points[i].x = it->x;
-        cloud.points[i].y = it->y;
-        cloud.points[i].z = it->z;
-        cloud.points[i].r = it->r;
-        cloud.points[i].g = it->g;
-        cloud.points[i].b = it->b;
-    }
-
-    m_pc = cloud.makeShared();
-//    m_pc = pc_load.makeShared();
+    m_pc = pc_load.makeShared();
 
     ui->checkBoxKinect->setChecked(false);
 
-    this->displayCloud(m_pc, ui->lineLoadActor->text().toStdString().c_str());
+    this->displayCloud(m_pc);
 }
 
 void MainWindow::savePointCloud(string filename) {
@@ -170,7 +86,6 @@ void MainWindow::displayCloud(PointCloud<PointXYZRGB>::Ptr pc, string id) { //on
             pclWidget->vis->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, id);
 //            pclWidget->vis->addPointCloud<pcl::PointXYZRGB>(pc, id);
 
-            ui->qvtkWidget->SetRenderWindow (pclWidget->vis->getRenderWindow());
             ROS_INFO("Adding new cloud");
         }
     }else {
@@ -181,7 +96,7 @@ void MainWindow::displayCloud(PointCloud<PointXYZRGB>::Ptr pc, string id) { //on
         }
     }
 
-    ui->qvtkWidget->SetRenderWindow (pclWidget->vis->getRenderWindow());
+//    ui->qvtkWidget->SetRenderWindow (pclWidget->vis->getRenderWindow());
     ui->qvtkWidget->update();
 }
 
@@ -785,40 +700,7 @@ void MainWindow::on_btnLoadModel_clicked()
     const char *cstr = actorname.c_str();
     cout << "Reading: " << filename << endl;
 
-//    vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
-//    vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor = ui->qvtkWidget->GetInteractor();
-//    renderWindowInteractor->SetRenderWindow(ui->qvtkWidget->GetRenderWindow());
-
-//    pcl::PointCloud<pcl::PointXYZRGB> cloud;
-//    pcl::io::loadPLYFile(filename, cloud);
-//    m_pc = cloud.makeShared();
-//    this->displayCloud(m_pc);
-
-//    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
-//    pcl::PolygonMesh triangles;
-//    pcl::io::loadPolygonFilePLY(filename, triangles);
-//    for(int i = 0; i < triangles.cloud.data.size(); i++){
-//        cout << int(triangles.cloud.data.at(i)) << endl;
-//    }
-//    pcl::fromPCLPointCloud2(triangles.cloud, *cloud);
-//    pclWidget->vis->addPointCloud( cloud, "plyCloud0cloud" );
-
-////    pclWidget->vis->addModelFromPLYFile(filename);
-//    ui->qvtkWidget->SetRenderWindow (pclWidget->vis->getRenderWindow());
-//    ui->qvtkWidget->update();
-
-
     vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
-
-    // VRML Import
-//    vtkSmartPointer<vtkVRMLImporter> importer = vtkSmartPointer<vtkVRMLImporter>::New();
-//    importer->SetFileName ( filename.c_str() );
-//    importer->Read();
-////    vtkObject *defObj = vtkObject::New();
-////    defObj = importer->GetVRMLDEFObject(cstr);
-
-
-
 
 //    vtkSmartPointer<vtkTexture> texture = vtkSmartPointer<vtkTexture>::New();
 //    vtkDataSet *pDataset;
@@ -841,32 +723,7 @@ void MainWindow::on_btnLoadModel_clicked()
 //    renderer->ResetCamera();
 
 
-
-
-//    if (defObj == NULL)
-//    {
-//        std::ofstream of;
-//        std::cout << "Cannot locate actor " << cstr << " in " << filename << std::endl;
-//        std::ofstream out("out.txt");
-//        std::streambuf *coutbuf = std::cout.rdbuf(); //save old buf
-//        std::cout.rdbuf(out.rdbuf()); //redirect std::cout to out.txt!
-//        importer->Print(cout);
-//        std::cout.rdbuf(coutbuf); //reset to standard output again
-//        std::cout << out << " test" << endl;
-//    }else {
-
-//        vtkActor* actor = static_cast <vtkActor*> (defObj);
-//        double color[3] = {0.89,0.81,0.34};
-//        actor->GetProperty()->SetColor(color);
-//        actor->SetScale(2.0);
-//        actor->GetProperty()->SetRepresentationToWireframe();
-//        renderer->AddActor(actor);
-
-//    }
-
-
-
-
+//    vtkSmartPointer<vtkPLYReader> reader = vtkSmartPointer<vtkPLYReader>::New();
     vtkSmartPointer<vtkOBJReader> reader = vtkSmartPointer<vtkOBJReader>::New();
 //    vtkSmartPointer<vtkSTLReader> reader = vtkSmartPointer<vtkSTLReader>::New();
 
@@ -882,19 +739,11 @@ void MainWindow::on_btnLoadModel_clicked()
 //    double color[3] = {0.89,0.81,0.34};
 //    actor->GetProperty()->SetColor(color);
 
-    renderer->AddActor(actor);
-    renderer->SetBackground(0.3, 0.6, 0.3); // Background color green
+//    renderer->AddActor(actor);
+//    renderer->SetBackground(0.3, 0.6, 0.3); // Background color green
 
-
-
-
-
-
-
-
-    ui->qvtkWidget->GetRenderWindow()->AddRenderer(renderer);
-////    renderer->SetRenderWindow(ui->qvtkWidget->GetRenderWindow());
-
-
+    pclWidget->vis->addActorToRenderer(actor);
+//    getRenderWindow()->AddRenderer(renderer);
+//    ui->qvtkWidget->GetRenderWindow()->AddRenderer(renderer);
     ui->qvtkWidget->update();
 }

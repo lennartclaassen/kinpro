@@ -127,16 +127,6 @@
 
 #define Instantiate( obj, class ) vtkSmartPointer<class> obj = vtkSmartPointer<class>::New();
 
-class VTKImporter {
-public:
-    VTKImporter();
-
-    ~VTKImporter();
-
-private:
-    int import();
-};
-
 class VTKPointCloudWidget: QVTKWidget
 {
 
@@ -179,7 +169,6 @@ class MainWindow: public QMainWindow {
         ~MainWindow();
 
         VTKPointCloudWidget* pclWidget;
-        VTKImporter* importer;
 
     signals:
 
