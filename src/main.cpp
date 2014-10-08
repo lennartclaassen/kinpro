@@ -17,6 +17,8 @@
  */
 int main(int argc, char **argv) {
 
+//    VTKImporter* importer = new VTKImporter();
+
     QApplication app(argc, argv);
     qRegisterMetaType< cv::Mat >("cv::Mat");
     qRegisterMetaType< pcl::PointCloud<pcl::PointXYZRGB> >("pcl::PointCloud<pcl::PointXYZRGB>");

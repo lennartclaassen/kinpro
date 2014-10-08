@@ -141,6 +141,8 @@ sudo apt-get install xsltproc
 cd ~/catkin_workspace/src
 git clone https://github.com/lennartclaassen/octomaps.git
 # Export blender models as .x3d (y axis forward, z axis up)
+# convert blender files to .vrml format
+xsltproc -o outputFile.wrl X3dToVrml97.xslt inputFile.x3d
 
 ### Arduino
 sudo apt-get remove brltty # -> may interfer with arduino
@@ -252,4 +254,12 @@ cd /opt/ros/indigo/bin
 rosrun image_view image_view image:=/camera/rgb/image_raw
 # right click saves images to current directory
 
-# if saved images are grayscale there will be a conversion error when using the matlab toolbox. Just remove the BGR2GRAY conversion in the file throwing the error 
+# if saved images are grayscale there will be a conversion error when using the matlab toolbox. Just remove the BGR2GRAY conversion in the file throwing the error
+-----
+
+### Setting locale settings for vtk file importing
+sudo gedit /etc/default/locale 
+changed
+LC_NUMERIC="de_DE.UTF-8"
+to
+LC_NUMERIC="C"

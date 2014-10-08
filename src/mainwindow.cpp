@@ -29,6 +29,37 @@ using namespace std;
 using namespace pcl;
 using namespace cv;
 
+VTKImporter::VTKImporter() {
+    import();
+}
+
+VTKImporter::~VTKImporter() {
+}
+
+int VTKImporter::import() {
+    std::string filename = std::string("bridge.wrl");
+    cout << "Reading: " << filename << endl;
+
+    vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
+    vtkSmartPointer<vtkRenderWindow> renderWindow = vtkSmartPointer<vtkRenderWindow>::New();
+    renderWindow->AddRenderer(renderer);
+
+    vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
+    renderWindowInteractor->SetRenderWindow(renderWindow);
+
+    // VRML Import
+    vtkSmartPointer<vtkVRMLImporter> importer = vtkSmartPointer<vtkVRMLImporter>::New();
+    importer->SetFileName ( filename.c_str() );
+    importer->Read();
+    importer->SetRenderWindow(renderWindow);
+    importer->Update();
+
+    renderWindow->Render();
+    renderWindowInteractor->Start();
+
+    return 0;
+}
+
 VTKPointCloudWidget::VTKPointCloudWidget(QWidget *parent) : QVTKWidget(parent)
 {
     vis = new visualization::PCLVisualizer("vis", false);
@@ -41,35 +72,94 @@ VTKPointCloudWidget::~VTKPointCloudWidget() {
 /* METHODS */
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
+//    importer = new VTKImporter();
+
     ui = new Ui::MainWindow();
     ui->setupUi(this);
 
     pclWidget = new VTKPointCloudWidget();
 
     displayRGBCloud = true;
-    imgReady = true;
     projectorImage = cv::Mat::zeros(480, 848, CV_8UC3);
-
-    voxelize = false;
-    passthrough = false;
-    segmentate = false;
-    hull = false;
-    transform = false;
-    createProjImage = false;
-
-    connect(ui->checkBoxRGBCloud, SIGNAL(toggled(bool)), this, SLOT(toggleRGB(bool)));
 
     this->setTransformations();
 
     toggleCloudName = string("pointcloud.pcd");
-    this->on_btnLoadPointcloud_clicked();
+//    this->on_btnLoadPointcloud_clicked();
 }
 
 MainWindow::~MainWindow() {
 }
 
-void MainWindow::toggleRGB(bool state) {
-    this->displayRGBCloud = state;
+void MainWindow::loadPointCloud(string filename) {
+    PointCloud<PointXYZRGB> pc_load;
+    pcl::io::loadPCDFile(filename, pc_load);
+
+    float resolution = 0.01f;
+
+    pcl::octree::OctreePointCloudSearch<pcl::PointXYZRGB> octree (resolution);
+
+    octree.setInputCloud (pc_load.makeShared());
+    octree.addPointsFromInputCloud ();
+
+    pcl::PointXYZRGB searchPoint;
+
+    searchPoint.x = 0.5f;
+    searchPoint.y = 0.2f;
+    searchPoint.z = 1.5f;
+
+    // Neighbors within voxel search
+
+    std::vector<int> pointIdxVec;
+
+    if (octree.voxelSearch (searchPoint, pointIdxVec))
+    {
+        std::cout << "Neighbors within voxel search at (" << searchPoint.x
+                  << " " << searchPoint.y
+                  << " " << searchPoint.z << ")"
+                  << std::endl;
+
+        for (size_t i = 0; i < pointIdxVec.size (); ++i)
+            std::cout << "    " << pc_load.points[pointIdxVec[i]].x
+                      << " " << pc_load.points[pointIdxVec[i]].y
+                      << " " << pc_load.points[pointIdxVec[i]].z << std::endl;
+    }
+
+    //how many occupied cells do we have in the tree?
+//    std::list<octomap::OcTreeVolume> occupiedCells;
+    std::vector<pcl::PointXYZRGB, Eigen::aligned_allocator<pcl::PointXYZRGB> > voxelIndices;
+//    tree.getOccupied(occupiedCells);
+    octree.getOccupiedVoxelCenters(voxelIndices);
+
+    //cloud to store the points
+    pcl::PointCloud<pcl::PointXYZRGB> cloud;
+    cloud.points.resize(voxelIndices.size());
+
+    std::vector<pcl::PointXYZRGB, Eigen::aligned_allocator<pcl::PointXYZRGB> >::iterator it;
+//    std::list<octomap::OcTreeVolume>::iterator it;
+    int i=0;
+    for (it = voxelIndices.begin(); it != voxelIndices.end(); ++it, i++)
+    {
+        //add point in point cloud
+        cloud.points[i].x = it->x;
+        cloud.points[i].y = it->y;
+        cloud.points[i].z = it->z;
+        cloud.points[i].r = it->r;
+        cloud.points[i].g = it->g;
+        cloud.points[i].b = it->b;
+    }
+
+    m_pc = cloud.makeShared();
+//    m_pc = pc_load.makeShared();
+
+    ui->checkBoxKinect->setChecked(false);
+
+    this->displayCloud(m_pc, ui->lineLoadActor->text().toStdString().c_str());
+}
+
+void MainWindow::savePointCloud(string filename) {
+    PointCloud<PointXYZRGB> pc_save(*m_pc);
+    pcl::io::savePCDFileBinary(filename, pc_save);
 }
 
 void MainWindow::displayCloud(PointCloud<PointXYZRGB>::Ptr pc, string id) { //only the pointcloud with the specified id is updated; default is "cloud"
@@ -78,7 +168,7 @@ void MainWindow::displayCloud(PointCloud<PointXYZRGB>::Ptr pc, string id) { //on
             pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(pc);
             pclWidget->vis->addPointCloud<pcl::PointXYZRGB>(pc, rgb, id);
             pclWidget->vis->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, id);
-            pclWidget->vis->addPointCloud<pcl::PointXYZRGB>(pc, id);
+//            pclWidget->vis->addPointCloud<pcl::PointXYZRGB>(pc, id);
 
             ui->qvtkWidget->SetRenderWindow (pclWidget->vis->getRenderWindow());
             ROS_INFO("Adding new cloud");
@@ -87,11 +177,11 @@ void MainWindow::displayCloud(PointCloud<PointXYZRGB>::Ptr pc, string id) { //on
         if(!pclWidget->vis->updatePointCloud<pcl::PointXYZRGB>(pc, id)) {      //adding <pcl::PointXYZRGB> leads to ignoring color values
             pclWidget->vis->addPointCloud<pcl::PointXYZRGB>(pc, id);
 
-            ui->qvtkWidget->SetRenderWindow (pclWidget->vis->getRenderWindow());
             ROS_INFO("Adding new cloud");
         }
     }
 
+    ui->qvtkWidget->SetRenderWindow (pclWidget->vis->getRenderWindow());
     ui->qvtkWidget->update();
 }
 
@@ -105,23 +195,7 @@ void MainWindow::newPointCloud(PointCloud<PointXYZRGB> pc) {
 
 void MainWindow::processCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
 {
-    if(passthrough)
-        applyPassthrough(cloud);
 
-    if(voxelize)
-        applyVoxelization(cloud);
-
-    if(segmentate)
-        applySegmentation(cloud);
-
-    if(hull)
-        applyHull(cloud);
-
-    if(transform)
-        applyTransformation(cloud);
-
-    if(createProjImage)
-        createProjectionImage();
 }
 
 void MainWindow::setTransformations()
@@ -135,10 +209,10 @@ void MainWindow::setTransformations()
                         line2float(*ui->lineRotCamProj_10),     line2float(*ui->lineRotCamProj_11),     line2float(*ui->lineRotCamProj_12),
                         line2float(*ui->lineRotCamProj_20),     line2float(*ui->lineRotCamProj_21),     line2float(*ui->lineRotCamProj_22);
 
-    T_cam2projVTK <<    line2float(*ui->lineRotCamProj_00),     line2float(*ui->lineRotCamProj_01),     line2float(*ui->lineRotCamProj_02),     tx,
-                        line2float(*ui->lineRotCamProj_10),     line2float(*ui->lineRotCamProj_11),     line2float(*ui->lineRotCamProj_12),     ty,
-                        line2float(*ui->lineRotCamProj_20),     line2float(*ui->lineRotCamProj_21),     line2float(*ui->lineRotCamProj_22),     tz,
-                        0,                                      0,                                      0,                                      1;
+    T_cam2projVTK <<    R_cam2projVTK(0,0),     R_cam2projVTK(0,1),     R_cam2projVTK(0,2),     tx,
+                        R_cam2projVTK(1,0),     R_cam2projVTK(1,1),     R_cam2projVTK(1,2),     ty,
+                        R_cam2projVTK(2,0),     R_cam2projVTK(2,1),     R_cam2projVTK(2,2),     tz,
+                        0,                      0,                      0,                      1;
 
     T_intrProjVTK <<    line2float(*ui->lineIntrinsicParamsProj_fx),   0,                                             line2float(*ui->lineIntrinsicParamsProj_cx),
                         0,                                             line2float(*ui->lineIntrinsicParamsProj_fy),   line2float(*ui->lineIntrinsicParamsProj_cy),
@@ -200,12 +274,10 @@ void MainWindow::applySegmentation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
 //    proj.setModelCoefficients (coefficients);
 //    proj.filter (*cloud);
 
-    //testing multi plane segmentation
+    //multi plane segmentation
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr  cloud_plane (new pcl::PointCloud<pcl::PointXYZRGB> ()),
                                             cloud_plane_proj (new pcl::PointCloud<pcl::PointXYZRGB> ()),
-                                            cloud_f (new pcl::PointCloud<pcl::PointXYZRGB> ()),
-                                            cloud_hull (new pcl::PointCloud<pcl::PointXYZRGB> ()),
-                                            cloud_all_planes (new pcl::PointCloud<pcl::PointXYZRGB> ());
+                                            cloud_f (new pcl::PointCloud<pcl::PointXYZRGB> ());
     segmentedPlanes.clear();
 
     int nr_points = (int) cloud->points.size ();
@@ -225,32 +297,23 @@ void MainWindow::applySegmentation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
         extract.setInputCloud (cloud);
         extract.setIndices (inliers);
         extract.setNegative (false);
+        extract.filter (*cloud_plane);
 
         pcl::ProjectInliers<pcl::PointXYZRGB> proj;
         proj.setModelType(pcl::SACMODEL_PLANE);
         proj.setInputCloud(cloud);
         proj.setModelCoefficients(coefficients);
         proj.setIndices(inliers);
-        proj.filter(*cloud_plane);
+        proj.filter(*cloud_plane_proj);
 
         // Get the points associated with the planar surface
-        extract.filter (*cloud_plane_proj);
-        segmentedPlanes.push_back(*cloud_plane);
-//        std::cout << "PointCloud representing the planar component: " << cloud_plane->points.size () << " data points." << std::endl;
+        segmentedPlanes.push_back(*cloud_plane_proj);
 
-//        pcl::ConvexHull<pcl::PointXYZRGB> chull;
-//        chull.setInputCloud (cloud_plane);
-//        chull.setComputeAreaVolume(true);
-//        chull.reconstruct (*cloud_hull);
-//        double area = chull.getTotalArea();
-//        if(area < 0.06 && area > 0.03)
-            *cloud_all_planes += *cloud_plane;
         // Remove the planar inliers, extract the rest
         extract.setNegative (true);
         extract.filter (*cloud_f);
         *cloud = *cloud_f;
     }
-//    *cloud = *cloud_all_planes;
 }
 
 void MainWindow::applyHull(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
@@ -259,13 +322,11 @@ void MainWindow::applyHull(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
         pcl::ConvexHull<pcl::PointXYZRGB> chull;
         chull.setInputCloud (cloud);
         chull.reconstruct (*cloud);
-//        cout << "Convex hull has: " << cloud_hull->points.size () << " data points." << std::endl;
     }else if(ui->radioConcave->isChecked()) {
         pcl::ConcaveHull<pcl::PointXYZRGB> chull;
         chull.setInputCloud (cloud);
         chull.setAlpha (line2double(*ui->lineHullAlpha));
         chull.reconstruct (*cloud);
-//        cout << "Concave hull has: " << cloud_hull->points.size () << " data points." << std::endl;
     }
 }
 
@@ -278,27 +339,20 @@ void MainWindow::applyTransformation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
     vector<Eigen::Vector2f> pixVec;
 
     for(int i=0; i<cloud->points.size(); i++) {
+        //create homogenous vector of 3D contour points
         p_cam3D_hom << cloud->points.at(i).x, cloud->points.at(i).y, cloud->points.at(i).z, 1;
 
         //transform 3D points to 3D projector coordinates
         p_proj3D_hom = T_cam2proj * p_cam3D_hom;
-//        cout << p_proj3D_hom << endl;
-
         p_proj3D << p_proj3D_hom(0), p_proj3D_hom(1), p_proj3D_hom(2);
-//        cout << p_proj3D << endl;
 
-        //transform 3D projector coordinates to 2D projector coordinates
+        //transform 2D points to 2D projector pixel values
         p_proj2D_hom = T_intrProj * p_proj3D;
-//        cout << p_proj2D_hom << endl;
-
         p_proj2D << p_proj2D_hom(0), p_proj2D_hom(1);
-//        cout << p_proj2D << endl << endl;
-
         pixVec.push_back(p_proj2D);
     }
 
     vector<Point> pVec;
-
     for(int i=0; i<pixVec.size(); i++) {
         int x = (int)pixVec.at(i)(0);
         int y = (int)pixVec.at(i)(1);
@@ -355,21 +409,11 @@ void MainWindow::showProjectionImage()
     cv::waitKey(1);
 }
 
-void MainWindow::on_btnSetCamView_clicked()
-{
-    double posX, posY, posZ, X_foc, Y_foc, Z_foc, X_up, Y_up, Z_up;
-    posX = line2double(*ui->lineX);
-    posY = line2double(*ui->lineY);
-    posZ = line2double(*ui->lineZ);
-    X_foc = line2double(*ui->lineX_foc);
-    Y_foc = line2double(*ui->lineY_foc);
-    Z_foc = line2double(*ui->lineZ_foc);
-    X_up = line2double(*ui->lineX_up);
-    Y_up = line2double(*ui->lineY_up);
-    Z_up = line2double(*ui->lineZ_up);
 
-    pclWidget->vis->setCameraPosition(posX, posY, posZ, X_foc, Y_foc, Z_foc, X_up, Y_up, Z_up);
-    ui->qvtkWidget->update();
+
+void MainWindow::on_checkBoxRGBCloud_toggled(bool checked)
+{
+    this->displayRGBCloud = checked;
 }
 
 void MainWindow::on_checkBoxCoordSys_toggled(bool checked)
@@ -383,7 +427,7 @@ void MainWindow::on_checkBoxCoordSys_toggled(bool checked)
 
 }
 
-void MainWindow::on_btnSetCamParams_clicked()
+void MainWindow::on_btnSetCamView_clicked()
 {
     this->setTransformations();
 
@@ -423,24 +467,8 @@ void MainWindow::on_btnLoadPointcloud_clicked()
     std::stringstream cloudName;
     string lineTxt = ui->lineLoadPointcloud->text().toStdString();
     cloudName << lineTxt;
-    PointCloud<PointXYZRGB> pc_load;
-    pcl::io::loadPCDFile(cloudName.str(), pc_load);
-    m_pc = pc_load.makeShared();
-    passthrough = false;
-    segmentate = false;
-    voxelize = false;
-    hull = false;
-    transform = false;
-    createProjImage = false;
-    ui->btnPassthrough_2->setChecked(passthrough);
-    ui->btnSegmentate_2->setChecked(segmentate);
-    ui->btnHull_2->setChecked(voxelize);
-    ui->btnVoxelize_2->setChecked(hull);
-    ui->btnTransform_2->setChecked(transform);
-    ui->btnCreateProjImage_2->setChecked(createProjImage);
-    ui->checkBoxKinect->setChecked(false);
 
-    this->displayCloud(m_pc);
+    this->loadPointCloud(cloudName.str());
 }
 
 void MainWindow::on_btnSavePointcloud_clicked()
@@ -448,373 +476,13 @@ void MainWindow::on_btnSavePointcloud_clicked()
     std::stringstream cloudName;
     string lineTxt = ui->lineSavePointcloud->text().toStdString();
     cloudName << lineTxt;
-    PointCloud<PointXYZRGB> pc_save(*m_pc);
-    pcl::io::savePCDFileBinary(cloudName.str(), pc_save);
-}
 
-void MainWindow::on_btnVoxelize_2_clicked()
-{
-    voxelize = !voxelize;
-    ui->btnVoxelize_2->setChecked(voxelize);
-    this->applyVoxelization(m_pc);
-    this->displayCloud(m_pc);
-}
-
-void MainWindow::on_btnSegmentate_2_clicked()
-{
-    segmentate = !segmentate;
-    ui->btnSegmentate_2->setChecked(segmentate);
-    this->applySegmentation(m_pc);
-    this->displayCloud(m_pc);
-}
-
-void MainWindow::on_btnPassthrough_2_clicked()
-{
-    passthrough = !passthrough;
-    ui->btnPassthrough_2->setChecked(passthrough);
-    this->applyPassthrough(m_pc);
-    this->displayCloud(m_pc);
-}
-
-void MainWindow::on_btnHull_2_clicked()
-{
-    hull = !hull;
-    ui->btnHull_2->setChecked(hull);
-    this->applyHull(m_pc);
-    this->displayCloud(m_pc);
-}
-
-void MainWindow::on_btnTransform_2_clicked()
-{
-    transform = !transform;
-    ui->btnTransform_2->setChecked(transform);
-    this->applyTransformation(m_pc);
-    this->displayCloud(m_pc);
-}
-
-void MainWindow::on_btnCreateProjImage_2_clicked()
-{
-    createProjImage = !createProjImage;
-    ui->btnCreateProjImage_2->setChecked(createProjImage);
-    createProjectionImage();
+    this->savePointCloud(cloudName.str());
 }
 
 void MainWindow::on_btnTransformApply_clicked()
 {
     this->setTransformations();
-}
-
-
-double MainWindow::computeCloudResolution(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &cloud)
-{
-    double res = 0.0;
-    int n_points = 0;
-    int nres;
-    std::vector<int> indices (2);
-    std::vector<float> sqr_distances (2);
-    pcl::search::KdTree<pcl::PointXYZRGB> tree;
-    tree.setInputCloud (cloud);
-
-    cout << "Cloud size is: " << cloud->size() << endl;
-
-    for (size_t i = 0; i < cloud->size (); ++i)
-    {
-        if (! pcl_isfinite ((*cloud)[i].x))
-        {
-            continue;
-        }
-        //Considering the second neighbor since the first is the point itself.
-        nres = tree.nearestKSearch (i, 2, indices, sqr_distances);
-        if (nres == 2)
-        {
-            res += sqrt (sqr_distances[1]);
-            ++n_points;
-        }
-    }
-    if (n_points != 0)
-    {
-        res /= n_points;
-    }
-    return res;
-}
-
-void MainWindow::on_btnCorrGroup_clicked()
-{
-    std::string model_filename_ = std::string("calibration_cube.pcd");
-
-    //Algorithm params
-    bool show_keypoints_ (true);
-    bool show_correspondences_ (true);
-    bool use_cloud_resolution_ (false);
-    bool use_hough_ (true);
-    float model_ss_ (line2float(*ui->lineModelSS));
-    float scene_ss_ (line2float(*ui->lineSceneSS));
-    float rf_rad_ (line2float(*ui->lineRFRad));
-    float descr_rad_ (line2float(*ui->lineDescrRad));
-    float cg_size_ (line2float(*ui->lineCGSize));
-    float cg_thresh_ (line2float(*ui->lineCGThresh));
-
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr model (new pcl::PointCloud<pcl::PointXYZRGB> ());
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr model_keypoints (new pcl::PointCloud<pcl::PointXYZRGB> ());
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr scene (new pcl::PointCloud<pcl::PointXYZRGB> ());
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr scene_keypoints (new pcl::PointCloud<pcl::PointXYZRGB> ());
-    pcl::PointCloud<pcl::Normal>::Ptr model_normals (new pcl::PointCloud<pcl::Normal> ());
-    pcl::PointCloud<pcl::Normal>::Ptr scene_normals (new pcl::PointCloud<pcl::Normal> ());
-    pcl::PointCloud<pcl::SHOT352>::Ptr model_descriptors (new pcl::PointCloud<pcl::SHOT352> ());
-    pcl::PointCloud<pcl::SHOT352>::Ptr scene_descriptors (new pcl::PointCloud<pcl::SHOT352> ());
-
-//    //  Load clouds
-//    pcl::PointCloud<pcl::PointXYZ>::Ptr load_model (new pcl::PointCloud<pcl::PointXYZ> ());
-//    if (pcl::io::loadPCDFile (model_filename_, *load_model) < 0)
-//    {
-//      std::cout << "Error loading model cloud." << std::endl;
-//    }
-//    pcl::copyPointCloud(*load_model, *model);
-
-    model = m_cube->makeShared();
-
-    scene = m_pc->makeShared();
-
-    //  Set up resolution invariance
-    if (use_cloud_resolution_)
-    {
-        float resolution = static_cast<float> (this->computeCloudResolution (model));
-        if (resolution != 0.0f)
-        {
-            model_ss_   *= resolution;
-            scene_ss_   *= resolution;
-            rf_rad_     *= resolution;
-            descr_rad_  *= resolution;
-            cg_size_    *= resolution;
-        }
-
-        std::cout << "Model resolution:       " << resolution << std::endl;
-        std::cout << "Model sampling size:    " << model_ss_ << std::endl;
-        std::cout << "Scene sampling size:    " << scene_ss_ << std::endl;
-        std::cout << "LRF support radius:     " << rf_rad_ << std::endl;
-        std::cout << "SHOT descriptor radius: " << descr_rad_ << std::endl;
-        std::cout << "Clustering bin size:    " << cg_size_ << std::endl << std::endl;
-    }
-
-    //  Compute Normals
-    pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> norm_est;
-    norm_est.setKSearch (10);
-    norm_est.setInputCloud (model);
-    norm_est.compute (*model_normals);
-
-    norm_est.setInputCloud (scene);
-    norm_est.compute (*scene_normals);
-
-    //  Downsample Clouds to Extract keypoints
-    pcl::PointCloud<int> sampled_indices;
-
-    pcl::UniformSampling<pcl::PointXYZRGB> uniform_sampling;
-    uniform_sampling.setInputCloud (model);
-    uniform_sampling.setRadiusSearch (model_ss_);
-    uniform_sampling.compute (sampled_indices);
-    pcl::copyPointCloud (*model, sampled_indices.points, *model_keypoints);
-    std::cout << "Model total points: " << model->size () << "; Selected Keypoints: " << model_keypoints->size () << std::endl;
-
-    uniform_sampling.setInputCloud (scene);
-    uniform_sampling.setRadiusSearch (scene_ss_);
-    uniform_sampling.compute (sampled_indices);
-    pcl::copyPointCloud (*scene, sampled_indices.points, *scene_keypoints);
-    std::cout << "Scene total points: " << scene->size () << "; Selected Keypoints: " << scene_keypoints->size () << std::endl;
-
-    //  Compute Descriptor for keypoints
-    pcl::SHOTEstimationOMP<pcl::PointXYZRGB, pcl::Normal, pcl::SHOT352> descr_est;
-    descr_est.setRadiusSearch (descr_rad_);
-
-    descr_est.setInputCloud (model_keypoints);
-    descr_est.setInputNormals (model_normals);
-    descr_est.setSearchSurface (model);
-    descr_est.compute (*model_descriptors);
-
-    descr_est.setInputCloud (scene_keypoints);
-    descr_est.setInputNormals (scene_normals);
-    descr_est.setSearchSurface (scene);
-    descr_est.compute (*scene_descriptors);
-
-    //  Find Model-Scene Correspondences with KdTree
-    pcl::CorrespondencesPtr model_scene_corrs (new pcl::Correspondences ());
-
-    pcl::KdTreeFLANN<pcl::SHOT352> match_search;
-    match_search.setInputCloud (model_descriptors);
-
-    //  For each scene keypoint descriptor, find nearest neighbor into the model keypoints descriptor cloud and add it to the correspondences vector.
-    for (size_t i = 0; i < scene_descriptors->size (); ++i)
-    {
-        std::vector<int> neigh_indices (1);
-        std::vector<float> neigh_sqr_dists (1);
-        if (!pcl_isfinite (scene_descriptors->at (i).descriptor[0])) //skipping NaNs
-        {
-            continue;
-        }
-        int found_neighs = match_search.nearestKSearch (scene_descriptors->at (i), 1, neigh_indices, neigh_sqr_dists);
-        if(found_neighs == 1 && neigh_sqr_dists[0] < 0.25f) //  add match only if the squared descriptor distance is less than 0.25 (SHOT descriptor distances are between 0 and 1 by design)
-        {
-            pcl::Correspondence corr (neigh_indices[0], static_cast<int> (i), neigh_sqr_dists[0]);
-            model_scene_corrs->push_back (corr);
-        }
-    }
-    std::cout << "Correspondences found: " << model_scene_corrs->size () << std::endl;
-
-    //  Actual Clustering
-    std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > rototranslations;
-    std::vector<pcl::Correspondences> clustered_corrs;
-
-    //  Using Hough3D
-    if (use_hough_)
-    {
-        //
-        //  Compute (Keypoints) Reference Frames only for Hough
-        //
-        pcl::PointCloud<pcl::ReferenceFrame>::Ptr model_rf (new pcl::PointCloud<pcl::ReferenceFrame> ());
-        pcl::PointCloud<pcl::ReferenceFrame>::Ptr scene_rf (new pcl::PointCloud<pcl::ReferenceFrame> ());
-
-        pcl::BOARDLocalReferenceFrameEstimation<pcl::PointXYZRGB, pcl::Normal, pcl::ReferenceFrame> rf_est;
-        rf_est.setFindHoles (true);
-        rf_est.setRadiusSearch (rf_rad_);
-
-        rf_est.setInputCloud (model_keypoints);
-        rf_est.setInputNormals (model_normals);
-        rf_est.setSearchSurface (model);
-        rf_est.compute (*model_rf);
-
-        rf_est.setInputCloud (scene_keypoints);
-        rf_est.setInputNormals (scene_normals);
-        rf_est.setSearchSurface (scene);
-        rf_est.compute (*scene_rf);
-
-        //  Clustering
-        pcl::Hough3DGrouping<pcl::PointXYZRGB, pcl::PointXYZRGB, pcl::ReferenceFrame, pcl::ReferenceFrame> clusterer;
-        clusterer.setHoughBinSize (cg_size_);
-        clusterer.setHoughThreshold (cg_thresh_);
-        clusterer.setUseInterpolation (true);
-        clusterer.setUseDistanceWeight (false);
-
-        clusterer.setInputCloud (model_keypoints);
-        clusterer.setInputRf (model_rf);
-        clusterer.setSceneCloud (scene_keypoints);
-        clusterer.setSceneRf (scene_rf);
-        clusterer.setModelSceneCorrespondences (model_scene_corrs);
-
-        //clusterer.cluster (clustered_corrs);
-        clusterer.recognize (rototranslations, clustered_corrs);
-    }
-    else // Using GeometricConsistency
-    {
-        pcl::GeometricConsistencyGrouping<pcl::PointXYZRGB, pcl::PointXYZRGB> gc_clusterer;
-        gc_clusterer.setGCSize (cg_size_);
-        gc_clusterer.setGCThreshold (cg_thresh_);
-
-        gc_clusterer.setInputCloud (model_keypoints);
-        gc_clusterer.setSceneCloud (scene_keypoints);
-        gc_clusterer.setModelSceneCorrespondences (model_scene_corrs);
-
-        //gc_clusterer.cluster (clustered_corrs);
-        gc_clusterer.recognize (rototranslations, clustered_corrs);
-    }
-
-    //  Output results
-    std::cout << "Model instances found: " << rototranslations.size () << std::endl;
-    for (size_t i = 0; i < rototranslations.size (); ++i)
-    {
-        std::cout << "\n    Instance " << i + 1 << ":" << std::endl;
-        std::cout << "        Correspondences belonging to this instance: " << clustered_corrs[i].size () << std::endl;
-
-        // Print the rotation matrix and translation vector
-        Eigen::Matrix3f rotation = rototranslations[i].block<3,3>(0, 0);
-        Eigen::Vector3f translation = rototranslations[i].block<3,1>(0, 3);
-
-        printf ("\n");
-        printf ("            | %6.3f %6.3f %6.3f | \n", rotation (0,0), rotation (0,1), rotation (0,2));
-        printf ("        R = | %6.3f %6.3f %6.3f | \n", rotation (1,0), rotation (1,1), rotation (1,2));
-        printf ("            | %6.3f %6.3f %6.3f | \n", rotation (2,0), rotation (2,1), rotation (2,2));
-        printf ("\n");
-        printf ("        t = < %0.3f, %0.3f, %0.3f >\n", translation (0), translation (1), translation (2));
-    }
-
-}
-
-void MainWindow::on_btnGenerateCube_clicked()
-{
-    pcl::PointCloud<pcl::PointXYZ> cube;
-    pcl::PointCloud<pcl::PointXYZRGB> cubeRGB;
-
-    double stepSize = ui->lineCubeRes->text().toDouble();
-    double sideLength = 0.21;
-
-    int cnt_max = (int)(sideLength / (stepSize));
-
-    for(int i=0; i<=cnt_max; i++) {
-        for(int j=0; j<=cnt_max; j++) {
-            if(j == 0 || j == cnt_max || i == 0 || i == cnt_max){
-                for(int k=0; k<=cnt_max; k++) {
-                   cube.push_back(PointXYZ((float)(i*stepSize), (float)(j*stepSize), (float)(k*stepSize)));
-                }
-            }else {
-                cube.push_back(PointXYZ((float)(i*stepSize), (float)(j*stepSize), 0.0));
-                cube.push_back(PointXYZ((float)(i*stepSize), (float)(j*stepSize), 0.21));
-            }
-        }
-    }
-    copyPointCloud(cube, cubeRGB);
-    m_cube = cubeRGB.makeShared();
-    displayCloud(m_cube);
-}
-
-void MainWindow::on_btnSaveCube_clicked()
-{
-    std::stringstream cloudName;
-    cloudName << "cube.pcd";
-    PointCloud<PointXYZRGB> pc_save(*m_cube);
-    pcl::io::savePCDFileBinary(cloudName.str(), pc_save);
-}
-
-void MainWindow::on_btnOrgConComp_clicked()
-{
-    pcl::IntegralImageNormalEstimation<PointXYZRGB, pcl::Normal> ne;
-    pcl::PointCloud<pcl::Normal>::Ptr normal_cloud (new pcl::PointCloud<pcl::Normal>);
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr  cloud_plane (new pcl::PointCloud<pcl::PointXYZRGB> ());
-
-    ne.setInputCloud (m_pc);
-    ne.compute (*normal_cloud);
-    pcl::OrganizedMultiPlaneSegmentation<pcl::PointXYZRGB, pcl::Normal, pcl::Label> mps;
-    // Set up Organized Multi Plane Segmentation
-    mps.setMinInliers (10000);
-    mps.setAngularThreshold (pcl::deg2rad (3.0)); //3 degrees
-    mps.setDistanceThreshold (0.02); //2cm}
-    mps.setInputNormals (normal_cloud);
-    mps.setInputCloud (m_pc);
-
-    std::vector<pcl::PlanarRegion<PointXYZRGB>, Eigen::aligned_allocator<pcl::PlanarRegion<PointXYZRGB> > > regions;
-    std::vector<pcl::ModelCoefficients> model_coefficients;
-    std::vector<pcl::PointIndices> inlier_indices;
-    pcl::PointCloud<pcl::Label>::Ptr labels (new pcl::PointCloud<pcl::Label>);
-    std::vector<pcl::PointIndices> label_indices;
-    std::vector<pcl::PointIndices> boundary_indices;
-    mps.segment(model_coefficients, inlier_indices);
-    pcl::PointIndices::Ptr indices_ptr (new pcl::PointIndices );
-
-//    for(int i = 0 ; i< inlier_indices.size(); i++) {
-//        indices_ptr->indices = inlier_indices.at(i).indices;
-//        cout << "size: " << indices_ptr->indices.size() << endl;
-//    }
-    indices_ptr->indices = inlier_indices.at(0).indices;
-
-        // Extract the planar inliers from the input cloud
-        pcl::ExtractIndices<pcl::PointXYZRGB> extract;
-        extract.setInputCloud (m_pc);
-        extract.setIndices (indices_ptr);
-        extract.setNegative (false);
-
-        // Get the points associated with the planar surface
-        extract.filter (*cloud_plane);
-        *m_pc = *cloud_plane;
-//        this->displayCloud(m_pc);
-
-
 }
 
 void MainWindow::on_btnResetIntrFoc_clicked()
@@ -863,41 +531,54 @@ void MainWindow::on_btnResetExtrTrans_clicked()
     ui->lineTransCamProjZ->setText("-0.020");
 }
 
+void MainWindow::on_btnSetCamViewPos_clicked()
+{
+    double posX, posY, posZ, X_foc, Y_foc, Z_foc, X_up, Y_up, Z_up;
+    posX = line2double(*ui->lineX);
+    posY = line2double(*ui->lineY);
+    posZ = line2double(*ui->lineZ);
+    X_foc = line2double(*ui->lineX_foc);
+    Y_foc = line2double(*ui->lineY_foc);
+    Z_foc = line2double(*ui->lineZ_foc);
+    X_up = line2double(*ui->lineX_up);
+    Y_up = line2double(*ui->lineY_up);
+    Z_up = line2double(*ui->lineZ_up);
+
+    pclWidget->vis->setCameraPosition(posX, posY, posZ, X_foc, Y_foc, Z_foc, X_up, Y_up, Z_up);
+    ui->qvtkWidget->update();
+}
+
 void MainWindow::on_btnGetCamParams_clicked()
 {
     vector<pcl::visualization::Camera> camVec;
     pclWidget->vis->getCameras(camVec);
     if(!camVec.empty()) {
+
         //focal
         double2line(*ui->lineCamParamsFocX, camVec.at(0).focal[0]);
         double2line(*ui->lineCamParamsFocY, camVec.at(0).focal[1]);
         double2line(*ui->lineCamParamsFocZ, camVec.at(0).focal[2]);
-
         cout << "Focal\t\t" << camVec.at(0).focal[0] << "\t" << camVec.at(0).focal[1] << "\t" << camVec.at(0).focal[2] << endl;
 
         //position
         double2line(*ui->lineCamParamsPosX, camVec.at(0).pos[0]);
         double2line(*ui->lineCamParamsPosY, camVec.at(0).pos[1]);
         double2line(*ui->lineCamParamsPosZ, camVec.at(0).pos[2]);
-
         cout << "Position\t" << camVec.at(0).pos[0] << "\t" << camVec.at(0).pos[1] << "\t" << camVec.at(0).pos[2] << endl;
 
         //view
         double2line(*ui->lineCamParamsViewX, camVec.at(0).view[0]);
         double2line(*ui->lineCamParamsViewY, camVec.at(0).view[1]);
         double2line(*ui->lineCamParamsViewZ, camVec.at(0).view[2]);
-
         cout << "View\t\t" << camVec.at(0).view[0] << "\t" << camVec.at(0).view[1] << "\t" << camVec.at(0).view[2] << endl;
 
         //clipping
         double2line(*ui->lineCamParamsClipX, camVec.at(0).clip[0]);
         double2line(*ui->lineCamParamsClipY, camVec.at(0).clip[1]);
-
         cout << "Clipping\t" << camVec.at(0).view[0] << "\t" << camVec.at(0).view[1] << "\t" << camVec.at(0).view[2] << endl;
 
         //FOV Y
         double2line(*ui->lineCamParamsFovY, camVec.at(0).fovy);
-
         cout << "FOV y\t\t" << camVec.at(0).fovy << endl;
 
         //window size
@@ -910,7 +591,7 @@ void MainWindow::on_btnGetCamParams_clicked()
     }
 }
 
-void MainWindow::on_btnSetCamParamsTest_clicked()
+void MainWindow::on_btnSetCamParams_clicked()
 {
     pcl::visualization::Camera cam;
 
@@ -948,7 +629,7 @@ void MainWindow::on_btnSetCamParamsTest_clicked()
     ui->qvtkWidget->update();
 }
 
-void MainWindow::on_btnResetCamParams_2_clicked()
+void MainWindow::on_btnResetCamParams_clicked()
 {
     //focal
     double2line(*ui->lineCamParamsFocX, -0.0164);
@@ -1003,18 +684,16 @@ void MainWindow::on_btnCreateImgFromGUI_clicked()
     vtkSmartPointer<vtkWindowToImageFilter> windowToImageFilter = vtkSmartPointer<vtkWindowToImageFilter>::New();
     windowToImageFilter->SetInput( renderWindow );
 
-    //get rgb-image
+    //get image
     windowToImageFilter->SetInputBufferTypeToRGB();
     windowToImageFilter->Update();
-    vtkImageData* vtkRGBimage = windowToImageFilter->GetOutput();
-    int dimsRGBImage[3];
-    vtkRGBimage->GetDimensions(dimsRGBImage);
-    cv::Mat cvImageRGB(dimsRGBImage[1], dimsRGBImage[0], CV_8UC3, vtkRGBimage->GetScalarPointer());
-    cout << "dims1 = " << dimsRGBImage[1] << " dims2 = " << dimsRGBImage[0] << endl;
-//    cv::cvtColor( cvImageRGB, cvImageRGB, CV_BGR2RGB); //convert color
-    cv::flip( cvImageRGB, cvImageRGB, 0); //align axis with visualizer
-    cv::Rect roi(0,0,848,480);
-    Mat croppedImage = cvImageRGB(roi).clone();
+    vtkImageData* vtkimage = windowToImageFilter->GetOutput();
+    int dimsImage[3];
+    vtkimage->GetDimensions(dimsImage);
+    cv::Mat cvImage(dimsImage[1], dimsImage[0], CV_8UC3, vtkimage->GetScalarPointer());
+    cv::flip( cvImage, cvImage, 0); //align axis with visualizer
+    cv::Rect roi(0,0,848,480);      //TODO projector size param
+    Mat croppedImage = cvImage(roi).clone();
 
     //visualize
     const std::string windowNameRGBImage = "vtkRGBImage";
@@ -1099,3 +778,123 @@ void MainWindow::on_btnCreateProjImage_clicked()
     this->createProjectionImage();
 }
 
+void MainWindow::on_btnLoadModel_clicked()
+{
+    string filename = ui->lineLoadModel->text().toStdString();
+    string actorname = ui->lineLoadActor->text().toStdString();
+    const char *cstr = actorname.c_str();
+    cout << "Reading: " << filename << endl;
+
+//    vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
+//    vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor = ui->qvtkWidget->GetInteractor();
+//    renderWindowInteractor->SetRenderWindow(ui->qvtkWidget->GetRenderWindow());
+
+//    pcl::PointCloud<pcl::PointXYZRGB> cloud;
+//    pcl::io::loadPLYFile(filename, cloud);
+//    m_pc = cloud.makeShared();
+//    this->displayCloud(m_pc);
+
+//    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
+//    pcl::PolygonMesh triangles;
+//    pcl::io::loadPolygonFilePLY(filename, triangles);
+//    for(int i = 0; i < triangles.cloud.data.size(); i++){
+//        cout << int(triangles.cloud.data.at(i)) << endl;
+//    }
+//    pcl::fromPCLPointCloud2(triangles.cloud, *cloud);
+//    pclWidget->vis->addPointCloud( cloud, "plyCloud0cloud" );
+
+////    pclWidget->vis->addModelFromPLYFile(filename);
+//    ui->qvtkWidget->SetRenderWindow (pclWidget->vis->getRenderWindow());
+//    ui->qvtkWidget->update();
+
+
+    vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
+
+    // VRML Import
+//    vtkSmartPointer<vtkVRMLImporter> importer = vtkSmartPointer<vtkVRMLImporter>::New();
+//    importer->SetFileName ( filename.c_str() );
+//    importer->Read();
+////    vtkObject *defObj = vtkObject::New();
+////    defObj = importer->GetVRMLDEFObject(cstr);
+
+
+
+
+//    vtkSmartPointer<vtkTexture> texture = vtkSmartPointer<vtkTexture>::New();
+//    vtkDataSet *pDataset;
+//    vtkActorCollection *actors = importer->GetRenderer()->GetActors();
+//    actors->InitTraversal();
+//    pDataset = actors->GetNextActor()->GetMapper()->GetInput();
+//    vtkPolyData *polyData = vtkPolyData::SafeDownCast(pDataset);
+//    polyData->Update();
+
+//    // Renderer
+//    vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+//    mapper->SetInput(polyData);
+//    vtkSmartPointer<vtkActor> texturedQuad = vtkSmartPointer<vtkActor>::New();
+//    texturedQuad->SetMapper(mapper);
+//    texturedQuad->SetTexture(texture);
+
+//    // Visualize the textured plane
+//    renderer->AddActor(texturedQuad);
+//    renderer->SetBackground(0.2,0.5,0.6); // Background color white
+//    renderer->ResetCamera();
+
+
+
+
+//    if (defObj == NULL)
+//    {
+//        std::ofstream of;
+//        std::cout << "Cannot locate actor " << cstr << " in " << filename << std::endl;
+//        std::ofstream out("out.txt");
+//        std::streambuf *coutbuf = std::cout.rdbuf(); //save old buf
+//        std::cout.rdbuf(out.rdbuf()); //redirect std::cout to out.txt!
+//        importer->Print(cout);
+//        std::cout.rdbuf(coutbuf); //reset to standard output again
+//        std::cout << out << " test" << endl;
+//    }else {
+
+//        vtkActor* actor = static_cast <vtkActor*> (defObj);
+//        double color[3] = {0.89,0.81,0.34};
+//        actor->GetProperty()->SetColor(color);
+//        actor->SetScale(2.0);
+//        actor->GetProperty()->SetRepresentationToWireframe();
+//        renderer->AddActor(actor);
+
+//    }
+
+
+
+
+    vtkSmartPointer<vtkOBJReader> reader = vtkSmartPointer<vtkOBJReader>::New();
+//    vtkSmartPointer<vtkSTLReader> reader = vtkSmartPointer<vtkSTLReader>::New();
+
+    reader->SetFileName(filename.c_str());
+    reader->Update();
+
+    // Visualize
+    vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    mapper->SetInputConnection(reader->GetOutputPort());
+
+    vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
+    actor->SetMapper(mapper);
+//    double color[3] = {0.89,0.81,0.34};
+//    actor->GetProperty()->SetColor(color);
+
+    renderer->AddActor(actor);
+    renderer->SetBackground(0.3, 0.6, 0.3); // Background color green
+
+
+
+
+
+
+
+
+    ui->qvtkWidget->GetRenderWindow()->AddRenderer(renderer);
+////    renderer->SetRenderWindow(ui->qvtkWidget->GetRenderWindow());
+
+
+    ui->qvtkWidget->update();
+}

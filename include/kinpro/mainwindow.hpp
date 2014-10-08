@@ -60,12 +60,23 @@
 #include <vtkSliderRepresentation2D.h>
 #include <vtkSmartPointer.h>
 #include <vtkSphereSource.h>
+#include <vtkVRMLImporter.h>
 #include <vtkWindowToImageFilter.h>
 #include <QVTKWidget.h>
+
+#include <vtkVersion.h>
+#include <vtkDataSet.h>
+#include <vtkActorCollection.h>
+#include <vtkPolyData.h>
+#include <vtkPolyDataNormals.h>
+#include <vtkRendererCollection.h>
+#include <vtkLight.h>
+#include <vtkPolyDataWriter.h>
 
 // PCL
 #include <pcl/common/common.h>
 #include <pcl/common/transforms.h>
+#include <pcl/compression/octree_pointcloud_compression.h>
 #include <pcl/console/parse.h>
 #include <pcl/correspondence.h>
 #include <pcl/features/board.h>
@@ -78,6 +89,8 @@
 #include <pcl/filters/project_inliers.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
+#include <pcl/io/ply_io.h>
+#include <pcl/io/vtk_lib_io.h>
 #include <pcl/keypoints/uniform_sampling.h>
 #include <pcl/kdtree/impl/kdtree_flann.hpp>
 #include <pcl/kdtree/kdtree.h>
@@ -113,6 +126,16 @@
 #include <boost/foreach.hpp>
 
 #define Instantiate( obj, class ) vtkSmartPointer<class> obj = vtkSmartPointer<class>::New();
+
+class VTKImporter {
+public:
+    VTKImporter();
+
+    ~VTKImporter();
+
+private:
+    int import();
+};
 
 class VTKPointCloudWidget: QVTKWidget
 {
@@ -156,6 +179,7 @@ class MainWindow: public QMainWindow {
         ~MainWindow();
 
         VTKPointCloudWidget* pclWidget;
+        VTKImporter* importer;
 
     signals:
 
@@ -163,37 +187,17 @@ class MainWindow: public QMainWindow {
 
 
     private slots:
-        void toggleRGB(bool state);
-        void on_btnSetCamView_clicked();
+        void on_checkBoxRGBCloud_toggled(bool checked);
+
         void on_checkBoxCoordSys_toggled(bool checked);
 
-        void on_btnSetCamParams_clicked();
+        void on_btnSetCamView_clicked();
 
         void on_btnSavePointcloud_clicked();
 
         void on_btnLoadPointcloud_clicked();
 
-        void on_btnSegmentate_2_clicked();
-
-        void on_btnPassthrough_2_clicked();
-
-        void on_btnTransform_2_clicked();
-
-        void on_btnHull_2_clicked();
-
         void on_btnTransformApply_clicked();
-
-        void on_btnVoxelize_2_clicked();
-
-        void on_btnCreateProjImage_2_clicked();
-
-        void on_btnCorrGroup_clicked();
-
-        void on_btnGenerateCube_clicked();
-
-        void on_btnSaveCube_clicked();
-
-        void on_btnOrgConComp_clicked();
 
         void on_btnResetIntrFoc_clicked();
 
@@ -203,13 +207,15 @@ class MainWindow: public QMainWindow {
 
         void on_btnResetExtrTrans_clicked();
 
-        void on_btnGetCamParams_clicked();
-
-        void on_btnSetCamParamsTest_clicked();
-
-        void on_btnResetCamParams_2_clicked();
+        void on_btnSetCamViewPos_clicked();
 
         void on_btnTogglecloud_clicked();
+
+        void on_btnGetCamParams_clicked();
+
+        void on_btnSetCamParams_clicked();
+
+        void on_btnResetCamParams_clicked();
 
         void on_btnCreateImgFromGUI_clicked();
 
@@ -229,6 +235,7 @@ class MainWindow: public QMainWindow {
 
         void on_btnFilterPlane_clicked();
 
+        void on_btnLoadModel_clicked();
 
 public slots:
 
@@ -241,6 +248,8 @@ public slots:
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_bg;
         vector<pcl::PointCloud<pcl::PointXYZRGB> >segmentedPlanes;
 
+        void loadPointCloud(std::string filename = std::string("pointcloud.pcd"));
+        void savePointCloud(std::string filename = std::string("pointcloud.pcd"));
         void setRenderWindowVis2Qt();
         void displayCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc, std::string id = std::string("cloud"));
         void setTransformations();
@@ -262,14 +271,6 @@ public slots:
         void float2line(QLineEdit& line, float value)   { (&line)->setText(QString::number(value)); }
 
         bool displayRGBCloud;
-        bool imgReady;
-
-        bool voxelize;
-        bool passthrough;
-        bool segmentate;
-        bool hull;
-        bool transform;
-        bool createProjImage;
 
         Eigen::Matrix3f R_cam2projVTK;
         Eigen::Matrix4f T_cam2projVTK;
