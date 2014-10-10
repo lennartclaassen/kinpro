@@ -65,32 +65,32 @@ void MainWindow::newPosition(nav_msgs::Odometry msg)
 {
     cout << "new position received" << endl;
 
-    t_world2camVTK(0) = msg.pose.pose.position.x;
-    t_world2camVTK(1) = msg.pose.pose.position.y;
-    t_world2camVTK(2) = msg.pose.pose.position.z;
+    t_world2camlinkVTK(0) = msg.pose.pose.position.x;
+    t_world2camlinkVTK(1) = msg.pose.pose.position.y;
+    t_world2camlinkVTK(2) = msg.pose.pose.position.z;
 
-//    float rollWorld2Cam, pitchWorld2Cam, yawWorld2Cam;
-//    yawWorld2Cam = line2float(*ui->lineCamTrafoYaw)*M_PI/180.0;
-//    pitchWorld2Cam = line2float(*ui->lineCamTrafoPitch)*M_PI/180.0;
-//    rollWorld2Cam = line2float(*ui->lineCamTrafoRoll)*M_PI/180.0;
-//    Eigen::AngleAxisf rollAngleWorld2Cam(rollWorld2Cam, Eigen::Vector3f::UnitX());
-//    Eigen::AngleAxisf yawAngleWorld2Cam(yawWorld2Cam, Eigen::Vector3f::UnitZ());
-//    Eigen::AngleAxisf pitchAngleWorld2Cam(pitchWorld2Cam, Eigen::Vector3f::UnitY());
+//    float rollworld2camlink, pitchworld2camlink, yawworld2camlink;
+//    yawworld2camlink = line2float(*ui->lineCamTrafoYaw)*M_PI/180.0;
+//    pitchworld2camlink = line2float(*ui->lineCamTrafoPitch)*M_PI/180.0;
+//    rollworld2camlink = line2float(*ui->lineCamTrafoRoll)*M_PI/180.0;
+//    Eigen::AngleAxisf rollAngleworld2camlink(rollworld2camlink, Eigen::Vector3f::UnitX());
+//    Eigen::AngleAxisf yawAngleworld2camlink(yawworld2camlink, Eigen::Vector3f::UnitZ());
+//    Eigen::AngleAxisf pitchAngleworld2camlink(pitchworld2camlink, Eigen::Vector3f::UnitY());
 
-    Eigen::Quaternion<float> qWorld2Cam;
-    qWorld2Cam.x() = msg.pose.pose.orientation.x;
-    qWorld2Cam.y() = msg.pose.pose.orientation.y;
-    qWorld2Cam.z() = msg.pose.pose.orientation.z;
-    qWorld2Cam.w() = msg.pose.pose.orientation.w;
+    Eigen::Quaternion<float> qworld2camlink;
+    qworld2camlink.x() = msg.pose.pose.orientation.x;
+    qworld2camlink.y() = msg.pose.pose.orientation.y;
+    qworld2camlink.z() = msg.pose.pose.orientation.z;
+    qworld2camlink.w() = msg.pose.pose.orientation.w;
 
-    R_world2camVTK = qWorld2Cam.matrix();
+    R_world2camlinkVTK = qworld2camlink.matrix();
 
-    T_world2camVTK <<   R_world2camVTK(0,0),    R_world2camVTK(0,1),    R_world2camVTK(0,2),    t_world2camVTK(0),
-                        R_world2camVTK(1,0),    R_world2camVTK(1,1),    R_world2camVTK(1,2),    t_world2camVTK(1),
-                        R_world2camVTK(2,0),    R_world2camVTK(2,1),    R_world2camVTK(2,2),    t_world2camVTK(2),
-                        0,                      0,                      0,                      1;
+    T_world2camlinkVTK <<   R_world2camlinkVTK(0,0),    R_world2camlinkVTK(0,1),    R_world2camlinkVTK(0,2),    t_world2camlinkVTK(0),
+                            R_world2camlinkVTK(1,0),    R_world2camlinkVTK(1,1),    R_world2camlinkVTK(1,2),    t_world2camlinkVTK(1),
+                            R_world2camlinkVTK(2,0),    R_world2camlinkVTK(2,1),    R_world2camlinkVTK(2,2),    t_world2camlinkVTK(2),
+                            0,                      0,                      0,                      1;
 
-    T_world2projVTK = T_world2camVTK * T_cam2projVTK;
+    T_world2projVTK = T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK * T_VTKcam;
 
     pclWidget->vis->setCameraParameters(T_intrProjVTK, T_world2projVTK);
     ui->qvtkWidget->update();
@@ -101,18 +101,46 @@ void MainWindow::loadPointCloud(string filename) {
     PointCloud<PointXYZRGB> pc_load;
     pcl::io::loadPCDFile(filename, pc_load);
 
-    PCEntry entry;
-    entry.cloud = pc_load.makeShared();
-    entry.id = filename;
-    entry.visible = true;
-    PCVec.push_back(entry);
-//    m_pc = pc_load.makeShared();
+    //transform cloud from rgb frame to world frame
+    if(ui->checkBoxCalibMode->isChecked()) {
+        m_pc = pc_load.makeShared();
+        ui->checkBoxKinect->setChecked(false);
+        this->displayCloud(m_pc);
+    }else {
 
-    ui->checkBoxKinect->setChecked(false);
+        pcl::transformPointCloud(pc_load, pc_load, T_world2camVTK);
 
-//    this->displayCloud(m_pc);
-    this->displayCloud(PCVec.back().cloud, PCVec.back().id);
-    this->updatePCIndex();
+        PCEntry entry;
+        entry.cloud = pc_load.makeShared();
+        int cnt = 1;
+        bool nameIsValid = false;
+        stringstream newName;
+        newName << filename;
+        if(!PCVec.empty()){
+            while(!nameIsValid) {
+                for(int i = 0; i < PCVec.size(); i++) {
+                    string currentID = PCVec.at(i).id;
+                    if(!strcmp(currentID.c_str(), newName.str().c_str())) {
+                        newName.str(std::string());;
+                        newName << filename << " (" << cnt << ")";
+                        break;
+                    }else if(i==PCVec.size()-1) {
+                        nameIsValid = true;
+                    }
+                }
+                cnt++;
+            }
+        }else {
+            nameIsValid = true;
+        }
+        entry.id = newName.str();
+        entry.visible = true;
+        PCVec.push_back(entry);
+
+        ui->checkBoxKinect->setChecked(false);
+        this->displayCloud(PCVec.back().cloud, PCVec.back().id);
+        this->updatePCIndex();
+    }
 }
 
 void MainWindow::savePointCloud(string filename) {
@@ -128,13 +156,13 @@ void MainWindow::displayCloud(PointCloud<PointXYZRGB>::Ptr pc, string id) { //on
             pclWidget->vis->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, id);
 //            pclWidget->vis->addPointCloud<pcl::PointXYZRGB>(pc, id);
 
-            ROS_INFO("Adding new RGB cloud");
+            cout << "Adding new RGB cloud" << endl;
         }
     }else {
         if(!pclWidget->vis->updatePointCloud<pcl::PointXYZRGB>(pc, id)) {      //adding <pcl::PointXYZRGB> leads to ignoring color values
             pclWidget->vis->addPointCloud<pcl::PointXYZRGB>(pc, id);
 
-            ROS_INFO("Adding new cloud");
+            cout<< "Adding new cloud" << endl;
         }
     }
 
@@ -152,11 +180,63 @@ void MainWindow::newPointCloud(PointCloud<PointXYZRGB> pc) {
 
 void MainWindow::processCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
 {
-
+    //transform cloud from rgb_frame to world frame
+    pcl::transformPointCloud(*cloud, *cloud, T_world2camVTK);
 }
 
 void MainWindow::setTransformations()
 {
+    //transformation from world to camera_link
+    float rollworld2camlink, pitchworld2camlink, yawworld2camlink;
+    t_world2camlinkVTK(0) = line2float(*ui->lineCamTrafoX);
+    t_world2camlinkVTK(1) = line2float(*ui->lineCamTrafoY);
+    t_world2camlinkVTK(2) = line2float(*ui->lineCamTrafoZ);
+
+    yawworld2camlink = line2float(*ui->lineCamTrafoYaw)*M_PI/180.0;
+    pitchworld2camlink = line2float(*ui->lineCamTrafoPitch)*M_PI/180.0;
+    rollworld2camlink = line2float(*ui->lineCamTrafoRoll)*M_PI/180.0;
+    Eigen::AngleAxisf yawAngleworld2camlink(yawworld2camlink, Eigen::Vector3f::UnitZ());
+    Eigen::AngleAxisf pitchAngleworld2camlink(pitchworld2camlink, Eigen::Vector3f::UnitY());
+    Eigen::AngleAxisf rollAngleworld2camlink(rollworld2camlink, Eigen::Vector3f::UnitX());
+
+    Eigen::Quaternion<float> qworld2camlink = yawAngleworld2camlink * pitchAngleworld2camlink * rollAngleworld2camlink;
+
+//    cout << "q.x = " << qworld2camlink.x() << endl << "q.y = " << qworld2camlink.y() << endl << "q.z = " << qworld2camlink.z() << endl << "q.w = " << qworld2camlink.w() << endl;
+
+    R_world2camlinkVTK = qworld2camlink.matrix();
+
+    T_world2camlinkVTK <<   R_world2camlinkVTK(0,0),    R_world2camlinkVTK(0,1),    R_world2camlinkVTK(0,2),    t_world2camlinkVTK(0),
+                            R_world2camlinkVTK(1,0),    R_world2camlinkVTK(1,1),    R_world2camlinkVTK(1,2),    t_world2camlinkVTK(1),
+                            R_world2camlinkVTK(2,0),    R_world2camlinkVTK(2,1),    R_world2camlinkVTK(2,2),    t_world2camlinkVTK(2),
+                            0,                          0,                          0,                          1;
+
+
+    //transformation from camera_link to camera_rgb_optical_frame
+    t_camlink2camVTK(0) = 0.0;
+    t_camlink2camVTK(1) = -0.045;
+    t_camlink2camVTK(2) = 0.0;
+
+    float rollcamlink2cam, pitchcamlink2cam, yawcamlink2cam;
+    yawcamlink2cam = -(M_PI/2);
+    pitchcamlink2cam = 0.0;
+    rollcamlink2cam = -(M_PI/2);
+    Eigen::AngleAxisf yawAnglecamlink2cam(yawcamlink2cam, Eigen::Vector3f::UnitZ());
+    Eigen::AngleAxisf pitchAnglecamlink2cam(pitchcamlink2cam, Eigen::Vector3f::UnitY());
+    Eigen::AngleAxisf rollAnglecamlink2cam(rollcamlink2cam, Eigen::Vector3f::UnitX());
+
+    Eigen::Quaternion<float> qcamlink2cam = yawAnglecamlink2cam * pitchAnglecamlink2cam * rollAnglecamlink2cam;
+
+//    cout << "q.x = " << qcamlink2cam.x() << endl << "q.y = " << qcamlink2cam.y() << endl << "q.z = " << qcamlink2cam.z() << endl << "q.w = " << qcamlink2cam.w() << endl;
+
+    R_camlink2camVTK = qcamlink2cam.matrix();
+
+    T_camlink2camVTK << R_camlink2camVTK(0,0),  R_camlink2camVTK(0,1),  R_camlink2camVTK(0,2),  t_camlink2camVTK(0),
+                        R_camlink2camVTK(1,0),  R_camlink2camVTK(1,1),  R_camlink2camVTK(1,2),  t_camlink2camVTK(1),
+                        R_camlink2camVTK(2,0),  R_camlink2camVTK(2,1),  R_camlink2camVTK(2,2),  t_camlink2camVTK(2),
+                        0,                      0,                      0,                      1;
+
+
+    //transfromation from camera_rgb_optical_frame to projector frame
     t_cam2projVTK(0) = line2float(*ui->lineTransCamProjX);            //TODO: load calibration values
     t_cam2projVTK(1) = line2float(*ui->lineTransCamProjY);
     t_cam2projVTK(2) = line2float(*ui->lineTransCamProjZ);
@@ -170,42 +250,107 @@ void MainWindow::setTransformations()
                         R_cam2projVTK(2,0),     R_cam2projVTK(2,1),     R_cam2projVTK(2,2),     t_cam2projVTK(2),
                         0,                      0,                      0,                      1;
 
-    float rollWorld2Cam, pitchWorld2Cam, yawWorld2Cam;
-    t_world2camVTK(0) = line2float(*ui->lineCamTrafoX);
-    t_world2camVTK(1) = line2float(*ui->lineCamTrafoY);
-    t_world2camVTK(2) = line2float(*ui->lineCamTrafoZ);
 
-    yawWorld2Cam = line2float(*ui->lineCamTrafoYaw)*M_PI/180.0;
-    pitchWorld2Cam = line2float(*ui->lineCamTrafoPitch)*M_PI/180.0;
-    rollWorld2Cam = line2float(*ui->lineCamTrafoRoll)*M_PI/180.0;
-    Eigen::AngleAxisf rollAngleWorld2Cam(rollWorld2Cam, Eigen::Vector3f::UnitX());
-    Eigen::AngleAxisf yawAngleWorld2Cam(yawWorld2Cam, Eigen::Vector3f::UnitZ());
-    Eigen::AngleAxisf pitchAngleWorld2Cam(pitchWorld2Cam, Eigen::Vector3f::UnitY());
-
-    Eigen::Quaternion<float> qWorld2Cam = rollAngleWorld2Cam * pitchAngleWorld2Cam * yawAngleWorld2Cam;
-
-    cout << "q.x = " << qWorld2Cam.x() << endl << "q.y = " << qWorld2Cam.y() << endl << "q.z = " << qWorld2Cam.z() << endl << "q.w = " << qWorld2Cam.w() << endl;
-
-    R_world2camVTK = qWorld2Cam.matrix();
-
-    T_world2camVTK <<   R_world2camVTK(0,0),    R_world2camVTK(0,1),    R_world2camVTK(0,2),    t_world2camVTK(0),
-                        R_world2camVTK(1,0),    R_world2camVTK(1,1),    R_world2camVTK(1,2),    t_world2camVTK(1),
-                        R_world2camVTK(2,0),    R_world2camVTK(2,1),    R_world2camVTK(2,2),    t_world2camVTK(2),
-                        0,                      0,                      0,                      1;
+    //transformation from world to camera_rgb_optical_frame
+    T_world2camVTK = T_world2camlinkVTK * T_camlink2camVTK;
 
 
+    //transformation for VTK camera (180° yaw)
+    Eigen::AngleAxisf yawAngleVTKcam(M_PI, Eigen::Vector3f::UnitZ());
+    Eigen::AngleAxisf pitchAngleVTKcam(0.0, Eigen::Vector3f::UnitY());
+    Eigen::AngleAxisf rollAngleVTKcam(0.0, Eigen::Vector3f::UnitX());
+
+    Eigen::Quaternion<float> qVTKcam= yawAngleVTKcam* pitchAngleVTKcam * rollAngleVTKcam;
+
+//    cout << "q.x = " << qVTKcam.x() << endl << "q.y = " << qVTKcam.y() << endl << "q.z = " << qVTKcam.z() << endl << "q.w = " << qVTKcam.w() << endl;
+
+    R_VTKcam = qVTKcam.matrix();
+
+    T_VTKcam << R_VTKcam(0,0),  R_VTKcam(0,1),  R_VTKcam(0,2),  0,
+                R_VTKcam(1,0),  R_VTKcam(1,1),  R_VTKcam(1,2),  0,
+                R_VTKcam(2,0),  R_VTKcam(2,1),  R_VTKcam(2,2),  0,
+                0,              0,              0,              1;
+
+
+    //transformation from world to projector
+/********** FOR TESTING
+//    Eigen::Matrix4f first, second, last;
+//    if(ui->comboBoxMatMult1->currentIndex() == 0){
+//        first = T_world2camlinkVTK;
+//    }else if(ui->comboBoxMatMult1->currentIndex() == 1){
+//        first = T_camlink2camVTK;
+//    }else if(ui->comboBoxMatMult1->currentIndex() == 2){
+//        first = T_cam2projVTK;
+//    }else if(ui->comboBoxMatMult1->currentIndex() == 3){
+//        first = T_world2camlinkVTK.inverse();
+//    }else if(ui->comboBoxMatMult1->currentIndex() == 4){
+//        first = T_camlink2camVTK.inverse();
+//    }else if(ui->comboBoxMatMult1->currentIndex() == 5){
+//        first = T_cam2projVTK.inverse();
+//    }else if(ui->comboBoxMatMult1->currentIndex() == 6){
+//        first = Eigen::Matrix4f::Identity();
+//    }
+
+//    if(ui->comboBoxMatMult2->currentIndex() == 0){
+//        second = T_world2camlinkVTK;
+//    }else if(ui->comboBoxMatMult2->currentIndex() == 1){
+//        second = T_camlink2camVTK;
+//    }else if(ui->comboBoxMatMult2->currentIndex() == 2){
+//        second = T_cam2projVTK;
+//    }else if(ui->comboBoxMatMult2->currentIndex() == 3){
+//        second = T_world2camlinkVTK.inverse();
+//    }else if(ui->comboBoxMatMult2->currentIndex() == 4){
+//        second = T_camlink2camVTK.inverse();
+//    }else if(ui->comboBoxMatMult2->currentIndex() == 5){
+//        second = T_cam2projVTK.inverse();
+//    }else if(ui->comboBoxMatMult2->currentIndex() == 6){
+//        second = Eigen::Matrix4f::Identity();
+//    }
+
+//    if(ui->comboBoxMatMult3->currentIndex() == 0){
+//        last = T_world2camlinkVTK;
+//    }else if(ui->comboBoxMatMult3->currentIndex() == 1){
+//        last = T_camlink2camVTK;
+//    }else if(ui->comboBoxMatMult3->currentIndex() == 2){
+//        last = T_cam2projVTK;
+//    }else if(ui->comboBoxMatMult3->currentIndex() == 3){
+//        last = T_world2camlinkVTK.inverse();
+//    }else if(ui->comboBoxMatMult3->currentIndex() == 4){
+//        last = T_camlink2camVTK.inverse();
+//    }else if(ui->comboBoxMatMult3->currentIndex() == 5){
+//        last = T_cam2projVTK.inverse();
+//    }else if(ui->comboBoxMatMult3->currentIndex() == 6){
+//        last = Eigen::Matrix4f::Identity();
+//    }
+
+//    T_world2camVTK = first * second;
+//    T_world2projVTK = first * second * last;
+**********/
+    T_world2projVTK = T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK * T_VTKcam;
+
+
+    //intrinsic projector transformation for use with VTK
     T_intrProjVTK <<    line2float(*ui->lineIntrinsicParamsProj_fx),   0,                                             line2float(*ui->lineIntrinsicParamsProj_cx),
                         0,                                             line2float(*ui->lineIntrinsicParamsProj_fy),   line2float(*ui->lineIntrinsicParamsProj_cy),
                         0,                                             0,                                             1;
 
-    T_cam2proj <<   0.9999,    -0.0104,    -0.0106,     0.027,
-                    0.0073,     0.9661,    -0.2582,     0.049,
-                    0.0129,     0.2581,     0.9660,     0.020,
-                    0,          0,          0,          1;
 
+    //intrinsic projector transformation from calibration used for calibration validation
     T_intrProj <<   1515.51089,     0,              437.37754,
                     0,              1447.40731,     515.55742,
                     0,              0,              1;
+
+
+
+
+    //might be redundant if same tansformation as T_cam2projVTK is used
+//    T_cam2proj <<   0.9999,    -0.0104,    -0.0106,     0.027,
+//                    0.0073,     0.9661,    -0.2582,     0.049,
+//                    0.0129,     0.2581,     0.9660,     0.020,
+//                    0,          0,          0,          1;
+    T_cam2proj = T_cam2projVTK;
+
+
 }
 
 void MainWindow::applyPassthrough(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
@@ -323,12 +468,12 @@ void MainWindow::applyTransformation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr clou
         p_cam3D_hom << cloud->points.at(i).x, cloud->points.at(i).y, cloud->points.at(i).z, 1;
 
         //transform 3D points to 3D projector coordinates
-        p_proj3D_hom = T_cam2proj * p_cam3D_hom;
+        p_proj3D_hom = T_cam2proj.inverse() * p_cam3D_hom;
         p_proj3D << p_proj3D_hom(0), p_proj3D_hom(1), p_proj3D_hom(2);
 
         //transform 2D points to 2D projector pixel values
         p_proj2D_hom = T_intrProj * p_proj3D;
-        p_proj2D << p_proj2D_hom(0), p_proj2D_hom(1);
+        p_proj2D << p_proj2D_hom(0)/p_proj2D_hom(2), p_proj2D_hom(1)/p_proj2D_hom(2);
         pixVec.push_back(p_proj2D);
     }
 
@@ -389,6 +534,26 @@ void MainWindow::showProjectionImage()
     cv::waitKey(1);
 }
 
+void MainWindow::createProjectionImageFromGUI()
+{
+    this->projectorImage = cv::Mat::zeros(480, 848, CV_8UC3);
+    vtkSmartPointer<vtkRenderWindow> renderWindow = ui->qvtkWidget->GetRenderWindow();
+    vtkSmartPointer<vtkWindowToImageFilter> windowToImageFilter = vtkSmartPointer<vtkWindowToImageFilter>::New();
+    windowToImageFilter->SetInput( renderWindow );
+
+    //get image
+    windowToImageFilter->SetInputBufferTypeToRGB();
+    windowToImageFilter->Update();
+    vtkImageData* vtkimage = windowToImageFilter->GetOutput();
+    int dimsImage[3];
+    vtkimage->GetDimensions(dimsImage);
+    cv::Mat cvImage(dimsImage[1], dimsImage[0], CV_8UC3, vtkimage->GetScalarPointer());
+    cv::cvtColor( cvImage, cvImage, CV_RGB2BGR); //convert color
+    cv::flip( cvImage, cvImage, 0); //align axis with visualizer
+    cv::Rect roi(0,0,848,480);      //TODO projector size param
+    this->projectorImage = cvImage(roi).clone();
+}
+
 
 
 void MainWindow::on_checkBoxRGBCloud_toggled(bool checked)
@@ -410,43 +575,6 @@ void MainWindow::on_checkBoxCoordSys_toggled(bool checked)
 void MainWindow::on_btnSetCamView_clicked()
 {
     this->setTransformations();
-
-    float roll, pitch, yaw;
-    float tx, ty, tz;
-    tx = line2float(*ui->lineTransCamProjX);
-    ty = line2float(*ui->lineTransCamProjY);
-    tz = line2float(*ui->lineTransCamProjZ);
-
-    yaw = line2float(*ui->lineYaw)*M_PI/180.0;
-    pitch = line2float(*ui->linePitch)*M_PI/180.0;
-    roll = line2float(*ui->lineRoll)*M_PI/180.0;
-    Eigen::AngleAxisf rollAngle(roll, Eigen::Vector3f::UnitX());
-    Eigen::AngleAxisf yawAngle(yaw, Eigen::Vector3f::UnitZ());
-    Eigen::AngleAxisf pitchAngle(pitch, Eigen::Vector3f::UnitY());
-
-    Eigen::Quaternion<float> q = rollAngle * pitchAngle * yawAngle;
-
-    Eigen::Matrix3f rotMatIR2RGB;
-    rotMatIR2RGB = q.matrix();
-
-    Eigen::Matrix4f T_IR2RGB;
-
-    T_IR2RGB <<         rotMatIR2RGB(0,0),  rotMatIR2RGB(0,1), rotMatIR2RGB(0,2), 0,
-                        rotMatIR2RGB(1,0),  rotMatIR2RGB(1,1), rotMatIR2RGB(1,2), 0,
-                        rotMatIR2RGB(2,0),  rotMatIR2RGB(2,1), rotMatIR2RGB(2,2), 0,
-                        0,                  0,                 0,                 1;
-
-
-    T_world2projVTK = T_world2camVTK * T_IR2RGB * T_cam2projVTK;
-
-    Eigen::Matrix3f rotMatIR2Projector;
-    rotMatIR2Projector = R_world2camVTK * rotMatIR2RGB * R_cam2projVTK;
-
-    Eigen::Matrix4f extrinsicParams;
-    extrinsicParams <<  rotMatIR2Projector(0,0), rotMatIR2Projector(0,1), rotMatIR2Projector(0,2), tx,
-                        rotMatIR2Projector(1,0), rotMatIR2Projector(1,1), rotMatIR2Projector(1,2), ty,
-                        rotMatIR2Projector(2,0), rotMatIR2Projector(2,1), rotMatIR2Projector(2,2), tz,
-                        0,                       0,                       0,                       1;
 
     pclWidget->vis->setCameraParameters(T_intrProjVTK, T_world2projVTK);
     ui->qvtkWidget->update();
@@ -518,28 +646,39 @@ void MainWindow::on_btnResetIntrPrinc_clicked()
 
 void MainWindow::on_btnResetExtrRot_clicked()
 {
-    //original transformation params from camera calibration
+    //original transformation params from camera calibration interpreted as [row; row; row]
+//    ui->lineRotCamProj_00->setText("0.9999");
+//    ui->lineRotCamProj_01->setText("-0.0104");
+//    ui->lineRotCamProj_02->setText("-0.0106");
+//    ui->lineRotCamProj_10->setText("0.0073");
+//    ui->lineRotCamProj_11->setText("0.9661");
+//    ui->lineRotCamProj_12->setText("-0.2582");
+//    ui->lineRotCamProj_20->setText("0.0129");
+//    ui->lineRotCamProj_21->setText("0.2581");
+//    ui->lineRotCamProj_22->setText("0.9660");
+
+    //original transformation params from camera calibration interpreted as [column; column; column]
     ui->lineRotCamProj_00->setText("0.9999");
-    ui->lineRotCamProj_01->setText("-0.0104");
-    ui->lineRotCamProj_02->setText("-0.0106");
-    ui->lineRotCamProj_10->setText("0.0073");
+    ui->lineRotCamProj_01->setText("0.0073");
+    ui->lineRotCamProj_02->setText("0.0129");
+    ui->lineRotCamProj_10->setText("-0.0104");
     ui->lineRotCamProj_11->setText("0.9661");
-    ui->lineRotCamProj_12->setText("-0.2582");
-    ui->lineRotCamProj_20->setText("0.0129");
-    ui->lineRotCamProj_21->setText("0.2581");
+    ui->lineRotCamProj_12->setText("0.2581");
+    ui->lineRotCamProj_20->setText("-0.0106");
+    ui->lineRotCamProj_21->setText("-0.2582");
     ui->lineRotCamProj_22->setText("0.9660");
 }
 
 void MainWindow::on_btnResetExtrTrans_clicked()
 {
-    //original transformation params from camera calibration (working if Transformation matrix is used)
-    ui->lineTransCamProjX->setText("0.027");
-    ui->lineTransCamProjY->setText("0.049");
-    ui->lineTransCamProjZ->setText("0.020");
-    //modified transformation params for vtk camera positioning (projector view) if rotation matrix is used
-//    ui->lineTransCamProjX->setText("-0.027");
-//    ui->lineTransCamProjY->setText("-0.049");
-//    ui->lineTransCamProjZ->setText("-0.020");
+    //modified transformation params from camera calibration
+//    ui->lineTransCamProjX->setText("0.027");
+//    ui->lineTransCamProjY->setText("0.049");
+//    ui->lineTransCamProjZ->setText("0.020");
+    //original transformation params for vtk camera positioning
+    ui->lineTransCamProjX->setText("-0.027");
+    ui->lineTransCamProjY->setText("-0.049");
+    ui->lineTransCamProjZ->setText("-0.020");
 }
 
 void MainWindow::on_btnSetCamViewPos_clicked()
@@ -675,25 +814,9 @@ void MainWindow::on_btnResetCamParams_clicked()
 
 void MainWindow::on_btnCreateImgFromGUI_clicked()
 {
-    vtkSmartPointer<vtkRenderWindow> renderWindow = pclWidget->vis->getRenderWindow();
-    vtkSmartPointer<vtkWindowToImageFilter> windowToImageFilter = vtkSmartPointer<vtkWindowToImageFilter>::New();
-    windowToImageFilter->SetInput( renderWindow );
+    this->createProjectionImageFromGUI();
 
-    //get image
-    windowToImageFilter->SetInputBufferTypeToRGB();
-    windowToImageFilter->Update();
-    vtkImageData* vtkimage = windowToImageFilter->GetOutput();
-    int dimsImage[3];
-    vtkimage->GetDimensions(dimsImage);
-    cv::Mat cvImage(dimsImage[1], dimsImage[0], CV_8UC3, vtkimage->GetScalarPointer());
-    cv::flip( cvImage, cvImage, 0); //align axis with visualizer
-    cv::Rect roi(0,0,848,480);      //TODO projector size param
-    Mat croppedImage = cvImage(roi).clone();
-
-    //visualize
-    const std::string windowNameRGBImage = "vtkRGBImage";
-    cv::namedWindow( windowNameRGBImage, cv::WINDOW_AUTOSIZE);
-    cv::imshow( windowNameRGBImage, croppedImage);
+    this->showProjectionImage();
 }
 
 void MainWindow::on_sliderPass_min_valueChanged(int value)
@@ -802,7 +925,28 @@ void MainWindow::on_btnLoadModel_clicked()
 
     actorEntry entry;
     entry.actor = actor;
-    entry.id = filename;
+    int cnt = 1;
+    bool nameIsValid = false;
+    stringstream newName;
+    newName << filename;
+    if(!modelVec.empty()){
+        while(!nameIsValid) {
+            for(int i = 0; i < modelVec.size(); i++) {
+                string currentID = modelVec.at(i).id;
+                if(!strcmp(currentID.c_str(), newName.str().c_str())) {
+                    newName.str(std::string());;
+                    newName << filename << " (" << cnt << ")";
+                    break;
+                }else if(i==modelVec.size()-1) {
+                    nameIsValid = true;
+                }
+            }
+            cnt++;
+        }
+    }else {
+        nameIsValid = true;
+    }
+    entry.id = newName.str();
     entry.visible = true;
     modelVec.push_back(entry);
     pclWidget->vis->addActorToRenderer(actor);
@@ -827,6 +971,7 @@ void MainWindow::on_btnModelShow_clicked()
         if(!modelVec.at(id).visible) {
             pclWidget->vis->addActorToRenderer(modelVec.at(id).actor);
             modelVec.at(id).visible = true;
+            updateModelButtons();
             ui->qvtkWidget->update();
         }
     }
@@ -839,6 +984,7 @@ void MainWindow::on_btnModelHide_clicked()
         if(modelVec.at(id).visible) {
             pclWidget->vis->removeActorFromRenderer(modelVec.at(id).actor);
             modelVec.at(id).visible = false;
+            updateModelButtons();
             ui->qvtkWidget->update();
         }
     }
@@ -852,6 +998,25 @@ void MainWindow::on_btnModelDel_clicked()
         modelVec.erase(modelVec.begin()+id);
         this->updateModelIndex();
         ui->qvtkWidget->update();
+    }
+}
+
+void MainWindow::updateModelButtons() {
+    if(!modelVec.empty()) {
+        if(modelVec.at(ui->comboBoxModelSelect->currentIndex()).visible) {
+            ui->btnModelShow->setDisabled(true);
+            ui->btnModelHide->setEnabled(true);
+        }else {
+            ui->btnModelShow->setEnabled(true);
+            ui->btnModelHide->setDisabled(true);
+        }
+    }
+}
+
+void MainWindow::on_comboBoxModelSelect_currentIndexChanged(int index)
+{
+    if(index >= 0){
+        updateModelButtons();
     }
 }
 
@@ -870,6 +1035,7 @@ void MainWindow::on_btnPCShow_clicked()
         if(!PCVec.at(id).visible) {
             displayCloud(PCVec.at(id).cloud, PCVec.at(id).id);
             PCVec.at(id).visible = true;
+            updatePCButtons();
             ui->qvtkWidget->update();
         }
     }
@@ -882,6 +1048,7 @@ void MainWindow::on_btnPCHide_clicked()
         if(PCVec.at(id).visible) {
             pclWidget->vis->removePointCloud(PCVec.at(id).id);
             PCVec.at(id).visible = false;
+            updatePCButtons();
             ui->qvtkWidget->update();
         }
     }
@@ -895,5 +1062,24 @@ void MainWindow::on_btnPCDel_clicked()
         PCVec.erase(PCVec.begin()+id);
         this->updatePCIndex();
         ui->qvtkWidget->update();
+    }
+}
+
+void MainWindow::updatePCButtons() {
+    if(!PCVec.empty()) {
+        if(PCVec.at(ui->comboBoxPCSelect->currentIndex()).visible) {
+            ui->btnPCShow->setDisabled(true);
+            ui->btnPCHide->setEnabled(true);
+        }else {
+            ui->btnPCShow->setEnabled(true);
+            ui->btnPCHide->setDisabled(true);
+        }
+    }
+}
+
+void MainWindow::on_comboBoxPCSelect_currentIndexChanged(int index)
+{
+    if(index >= 0){
+        updatePCButtons();
     }
 }

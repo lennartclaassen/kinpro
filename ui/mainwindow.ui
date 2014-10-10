@@ -24,7 +24,7 @@
      </rect>
     </property>
     <property name="currentIndex">
-     <number>1</number>
+     <number>0</number>
     </property>
     <widget class="QWidget" name="tab_controls">
      <attribute name="title">
@@ -105,6 +105,19 @@
        </property>
        <property name="text">
         <string>Kinect</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="checkBoxCalibMode">
+       <property name="geometry">
+        <rect>
+         <x>100</x>
+         <y>20</y>
+         <width>151</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Calibration Mode</string>
        </property>
       </widget>
      </widget>
@@ -606,7 +619,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>0.020</string>
+         <string>-0.020</string>
         </property>
        </widget>
        <widget class="QLineEdit" name="lineTransCamProjY">
@@ -619,7 +632,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>0.049</string>
+         <string>-0.049</string>
         </property>
        </widget>
        <widget class="QLabel" name="labelTransCamProjZ">
@@ -658,7 +671,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>0.027</string>
+         <string>-0.027</string>
         </property>
        </widget>
        <widget class="QLabel" name="labelTransCamProjX">
@@ -723,7 +736,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>-0.0104</string>
+         <string>0.0073</string>
         </property>
        </widget>
        <widget class="QLineEdit" name="lineRotCamProj_02">
@@ -736,7 +749,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>-0.0106</string>
+         <string>0.0129</string>
         </property>
        </widget>
        <widget class="QLineEdit" name="lineRotCamProj_11">
@@ -762,7 +775,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>0.0073</string>
+         <string>-0.0104</string>
         </property>
        </widget>
        <widget class="QLineEdit" name="lineRotCamProj_12">
@@ -775,7 +788,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>-0.2582</string>
+         <string>0.2581</string>
         </property>
        </widget>
        <widget class="QLineEdit" name="lineRotCamProj_20">
@@ -788,7 +801,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>0.0129</string>
+         <string>-0.0106</string>
         </property>
        </widget>
        <widget class="QLineEdit" name="lineRotCamProj_22">
@@ -814,7 +827,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>0.2581</string>
+         <string>-0.2582</string>
         </property>
        </widget>
        <widget class="QPushButton" name="btnResetExtrRot">
@@ -1101,7 +1114,7 @@
         </rect>
        </property>
        <property name="text">
-        <string>180</string>
+        <string>0</string>
        </property>
       </widget>
       <widget class="QLabel" name="labelPitch">
@@ -1312,6 +1325,141 @@
         <string>x</string>
        </property>
       </widget>
+     </widget>
+     <widget class="QComboBox" name="comboBoxMatMult1">
+      <property name="geometry">
+       <rect>
+        <x>480</x>
+        <y>240</y>
+        <width>111</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <item>
+       <property name="text">
+        <string>world2camlink</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>camlink2cam</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>cam2proj</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>camlink2world</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>cam2camlink</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>proj2cam</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Identity</string>
+       </property>
+      </item>
+     </widget>
+     <widget class="QComboBox" name="comboBoxMatMult2">
+      <property name="geometry">
+       <rect>
+        <x>600</x>
+        <y>240</y>
+        <width>111</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <item>
+       <property name="text">
+        <string>world2camlink</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>camlink2cam</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>cam2proj</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>camlink2world</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>cam2camlink</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>proj2cam</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Identity</string>
+       </property>
+      </item>
+     </widget>
+     <widget class="QComboBox" name="comboBoxMatMult3">
+      <property name="geometry">
+       <rect>
+        <x>720</x>
+        <y>240</y>
+        <width>111</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <item>
+       <property name="text">
+        <string>world2camlink</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>camlink2cam</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>cam2proj</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>camlink2world</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>cam2camlink</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>proj2cam</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Identity</string>
+       </property>
+      </item>
      </widget>
     </widget>
     <widget class="QWidget" name="tab_camView">

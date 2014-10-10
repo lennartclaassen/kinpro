@@ -125,6 +125,9 @@
 // Boost
 #include <boost/foreach.hpp>
 
+//Eigen
+#include <eigen3/Eigen/LU>
+
 #define Instantiate( obj, class ) vtkSmartPointer<class> obj = vtkSmartPointer<class>::New();
 
 class VTKPointCloudWidget: QVTKWidget
@@ -238,6 +241,10 @@ class MainWindow: public QMainWindow {
 
         void on_btnPCDel_clicked();
 
+        void on_comboBoxPCSelect_currentIndexChanged(int index);
+
+        void on_comboBoxModelSelect_currentIndexChanged(int index);
+
 public slots:
 
         void newPointCloud(pcl::PointCloud<pcl::PointXYZRGB> pc);
@@ -263,6 +270,7 @@ public slots:
         void applyTransformation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
         void createProjectionImage();
         void showProjectionImage();
+        void createProjectionImageFromGUI();
 
         int line2int(QLineEdit& line)       { return (&line)->text().toInt(); }
         double line2double(QLineEdit& line) { return (&line)->text().toDouble(); }
@@ -273,7 +281,9 @@ public slots:
         void float2line(QLineEdit& line, float value)   { (&line)->setText(QString::number(value)); }
 
         void updateModelIndex();
+        void updateModelButtons();
         void updatePCIndex();
+        void updatePCButtons();
 
         struct actorEntry { vtkSmartPointer<vtkActor> actor; std::string id; bool visible;};
         struct PCEntry { pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud; std::string id; bool visible;};
@@ -282,15 +292,42 @@ public slots:
 
         bool displayRGBCloud;
 
+        //transformation from camera coordinates (rgb frame) to projector coordinates
         Eigen::Matrix3f R_cam2projVTK;
         Eigen::Vector3f t_cam2projVTK;
         Eigen::Matrix4f T_cam2projVTK;
+
+        //transformation from world coordinates to camera_link
+        Eigen::Matrix3f R_world2camlinkVTK;
+        Eigen::Vector3f t_world2camlinkVTK;
+        Eigen::Matrix4f T_world2camlinkVTK;
+
+        //transformation from camera_link to camera_rgb_optical_frame
+        Eigen::Matrix3f R_camlink2camVTK;
+        Eigen::Vector3f t_camlink2camVTK;
+        Eigen::Matrix4f T_camlink2camVTK;
+
+        //transformation from world coordinates to camera coordinates (rgb frame)
+        //combines the tf transformations "world -> camera_link" and "camera_link -> camera_rgb_optical_frame"
         Eigen::Matrix3f R_world2camVTK;
         Eigen::Vector3f t_world2camVTK;
         Eigen::Matrix4f T_world2camVTK;
+
+        //transformation for VTK camera
+        Eigen::Matrix3f R_VTKcam;
+        Eigen::Matrix4f T_VTKcam;
+
+        //transfromation from world coordinates to projector coordinates
         Eigen::Matrix4f T_world2projVTK;
+
+        //intrinsic projector transformation (differs from calibration values due to VTK visualization specifics)
         Eigen::Matrix3f T_intrProjVTK;
+
+        //transformation from camera coordinates (rgb frame) to projector coordinates
+        //TODO: same as T_cam2projVTK?
         Eigen::Matrix4f T_cam2proj;
+
+        //intrinsic projector transformation from calibration
         Eigen::Matrix3f T_intrProj;
 
         vector< vector<cv::Point> > projectionContour;
