@@ -80,6 +80,10 @@ sudo apt-get install ros-indigo-octovis
 ### robot_pose_ekf
 sudo apt-get install ros-indigo-robot-pose-ekf
 
+### robot_localization
+sudo apt-get install ros-indigo-gps-common
+git clone https://github.com/cra-ros-pkg/robot_localization.git --branch acceleration
+
 ### humanoid navigation preparation
 sudo apt-get install ros-indigo-map-server
 sudo apt-get install ros-indigo-dynamic-edt-3d

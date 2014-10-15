@@ -95,6 +95,14 @@ void MainWindow::newPosition(nav_msgs::Odometry msg)
     pclWidget->vis->setCameraParameters(T_intrProjVTK, T_world2projVTK);
     ui->qvtkWidget->update();
 
+    this->createProjectionImageFromGUI();
+
+    if(ui->checkBoxShowProjImage->isChecked())
+        showProjectionImage();
+
+    if(ui->checkBoxPubImage->isChecked())
+        emit signalProjectImage(this->projectorImage);
+
 }
 
 void MainWindow::loadPointCloud(string filename) {
@@ -564,7 +572,7 @@ void MainWindow::on_checkBoxRGBCloud_toggled(bool checked)
 void MainWindow::on_checkBoxCoordSys_toggled(bool checked)
 {
     if(checked){
-        pclWidget->vis->addCoordinateSystem(0.5,0.0,0.0,0.0);
+        pclWidget->vis->addCoordinateSystem(0.5,1.0,0.0,0.0);
     }else{
         pclWidget->vis->removeCoordinateSystem();
     }
