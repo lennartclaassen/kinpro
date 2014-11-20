@@ -18,9 +18,12 @@ QtROS::QtROS(int argc, char *argv[], const char* node_name) {
     this->nh        = new ros::NodeHandle;
     this->it        = new image_transport::ImageTransport(*nh);
 
-//    sub = nh->subscribe<sensor_msgs::PointCloud2>("/camera/depth_registered/points", 1, &QtROS::callback, this);
     pc_sub = nh->subscribe< pcl::PointCloud<pcl::PointXYZRGB> >("/camera/depth_registered/points", 1, &QtROS::pointcloudCallback, this);
     pos_sub = nh->subscribe< nav_msgs::Odometry >("/odometry/filtered", 1, &QtROS::positionCallback, this);
+
+//    octomapClient = nh->serviceClient<octomap_msgs::BoundingBoxQuery>("/octomap_server_node/clear_bbx");
+
+    pc_pub = nh->advertise< pcl::PointCloud<pcl::PointXYZRGB> >("cloud_in", 1);
 
 
     image_publisher = it->advertise("/raspberry_image", 1);
@@ -42,7 +45,7 @@ QtROS::~QtROS() {
 
 
 void QtROS::run() {
-    ros::Rate rate(50);
+    ros::Rate rate(30);
 
     while(ros::ok()){
 
@@ -55,12 +58,6 @@ void QtROS::run() {
 void QtROS::pointcloudCallback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg)
 {
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclCloud = msg->makeShared();
-//    Eigen::Vector3i vec = msg->at(0).getRGBVector3i();
-//    printf ("r= %d, g= %d, b= %d\n", vec[0], vec[1], vec[2]);
-//    pcl::fromROSMsg(*msg, pclCloud);
-//    printf ("PCL cloud generated: width = %d, height = %d\n", pclCloud.width, pclCloud.height);
-//    BOOST_FOREACH (const pcl::PointXYZ& pt, msg->points)
-//      printf ("\t(%f, %f, %f)\n", pt.x, pt.y, pt.z);
     emit pointCloudReceived(*pclCloud);
 }
 
@@ -69,8 +66,6 @@ void QtROS::positionCallback(const nav_msgs::Odometry::ConstPtr& msg) {
 }
 
 void QtROS::publishImage() {
-
-    // === PUBLISH ===
     image_publisher.publish(this->projectorImg);
 }
 
@@ -85,4 +80,8 @@ void QtROS::slotProjectImage(cv::Mat img) {
     this->projectorImg.step = img.cols * img.channels();
 
     this->publishImage();
+}
+
+void QtROS::slotPublishPointcloud(pcl::PointCloud<pcl::PointXYZRGB> pc) {
+    pc_pub.publish(pc);
 }

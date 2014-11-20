@@ -34,8 +34,10 @@ int main(int argc, char **argv) {
 
     // signals and slots
     app.connect(&gui,   SIGNAL(signalProjectImage(cv::Mat)), &qtRos, SLOT(slotProjectImage(cv::Mat)));
+    app.connect(&gui,   SIGNAL(signalPublishPointcloud(pcl::PointCloud<pcl::PointXYZRGB>)), &qtRos, SLOT(slotPublishPointcloud(pcl::PointCloud<pcl::PointXYZRGB>)));
     app.connect(&qtRos, SIGNAL(pointCloudReceived(pcl::PointCloud<pcl::PointXYZRGB>)), &gui, SLOT(newPointCloud(pcl::PointCloud<pcl::PointXYZRGB>)));
     app.connect(&qtRos, SIGNAL(positionReceived(nav_msgs::Odometry)), &gui, SLOT(newPosition(nav_msgs::Odometry)));
+
 
     //app.connect(&app,   SIGNAL(lastWindowClosed()), &app, SLOT(quit()));
     //app.connect(&qtRos, SIGNAL(rosShutdown()), &app, SLOT(quit()));

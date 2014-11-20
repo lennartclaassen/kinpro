@@ -55,6 +55,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     this->setTransformations();
 
+    this->waitForLines = false;
+
 //    this->on_btnLoadPointcloud_clicked();
 }
 
@@ -63,45 +65,83 @@ MainWindow::~MainWindow() {
 
 void MainWindow::newPosition(nav_msgs::Odometry msg)
 {
-    cout << "new position received" << endl;
+    if(ui->checkBoxUsePosSig->isChecked()) {
 
-    t_world2camlinkVTK(0) = msg.pose.pose.position.x;
-    t_world2camlinkVTK(1) = msg.pose.pose.position.y;
-    t_world2camlinkVTK(2) = msg.pose.pose.position.z;
+        cout << "new position received" << endl;
 
-//    float rollworld2camlink, pitchworld2camlink, yawworld2camlink;
-//    yawworld2camlink = line2float(*ui->lineCamTrafoYaw)*M_PI/180.0;
-//    pitchworld2camlink = line2float(*ui->lineCamTrafoPitch)*M_PI/180.0;
-//    rollworld2camlink = line2float(*ui->lineCamTrafoRoll)*M_PI/180.0;
-//    Eigen::AngleAxisf rollAngleworld2camlink(rollworld2camlink, Eigen::Vector3f::UnitX());
-//    Eigen::AngleAxisf yawAngleworld2camlink(yawworld2camlink, Eigen::Vector3f::UnitZ());
-//    Eigen::AngleAxisf pitchAngleworld2camlink(pitchworld2camlink, Eigen::Vector3f::UnitY());
+        bool transformOK = false;
 
-    Eigen::Quaternion<float> qworld2camlink;
-    qworld2camlink.x() = msg.pose.pose.orientation.x;
-    qworld2camlink.y() = msg.pose.pose.orientation.y;
-    qworld2camlink.z() = msg.pose.pose.orientation.z;
-    qworld2camlink.w() = msg.pose.pose.orientation.w;
+        tf::TransformListener ls;
+        tf::StampedTransform transform;
+        try{
+            string targetFrame, sourceFrame;
+            targetFrame = string("/map");
+            sourceFrame = string("/odom");
 
-    R_world2camlinkVTK = qworld2camlink.matrix();
+            ls.waitForTransform(targetFrame, sourceFrame, ros::Time(0), ros::Duration(0.2));
+            ls.lookupTransform(targetFrame, sourceFrame, ros::Time(0), transform);
+            transformOK = true;
+            ui->checkBoxUsePosSig->setChecked(false);
 
-    T_world2camlinkVTK <<   R_world2camlinkVTK(0,0),    R_world2camlinkVTK(0,1),    R_world2camlinkVTK(0,2),    t_world2camlinkVTK(0),
-                            R_world2camlinkVTK(1,0),    R_world2camlinkVTK(1,1),    R_world2camlinkVTK(1,2),    t_world2camlinkVTK(1),
-                            R_world2camlinkVTK(2,0),    R_world2camlinkVTK(2,1),    R_world2camlinkVTK(2,2),    t_world2camlinkVTK(2),
-                            0,                      0,                      0,                      1;
+            t_map2worldVTK(0) = transform.getOrigin().x();
+            t_map2worldVTK(1) = transform.getOrigin().y();
+            t_map2worldVTK(2) = transform.getOrigin().z();
 
-    T_world2projVTK = T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK * T_VTKcam;
+            Eigen::Quaternion<float> qmap2world;
+            qmap2world.x() = transform.getRotation().x();
+            qmap2world.y() = transform.getRotation().y();
+            qmap2world.z() = transform.getRotation().z();
+            qmap2world.w() = transform.getRotation().w();
 
-    pclWidget->vis->setCameraParameters(T_intrProjVTK, T_world2projVTK);
-    ui->qvtkWidget->update();
+            R_map2worldVTK = qmap2world.matrix();
 
-    this->createProjectionImageFromGUI();
+            this->setTransformationMatrix(R_map2worldVTK, t_map2worldVTK, T_map2worldVTK);
 
-    if(ui->checkBoxShowProjImage->isChecked())
-        showProjectionImage();
+        }catch(tf::TransformException& ex){
+            ROS_ERROR_STREAM( "Transform error for map to odom transform: " << ex.what());
+        }
 
-    if(ui->checkBoxPubImage->isChecked())
-        emit signalProjectImage(this->projectorImage);
+        if(transformOK) {
+
+            t_world2camlinkVTK(0) = msg.pose.pose.position.x;
+            t_world2camlinkVTK(1) = msg.pose.pose.position.y;
+            t_world2camlinkVTK(2) = msg.pose.pose.position.z;
+
+            //    float rollworld2camlink, pitchworld2camlink, yawworld2camlink;
+            //    yawworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoYaw));
+            //    pitchworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoPitch));
+            //    rollworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoRoll));
+            //    Eigen::AngleAxisf rollAngleworld2camlink(rollworld2camlink, Eigen::Vector3f::UnitX());
+            //    Eigen::AngleAxisf yawAngleworld2camlink(yawworld2camlink, Eigen::Vector3f::UnitZ());
+            //    Eigen::AngleAxisf pitchAngleworld2camlink(pitchworld2camlink, Eigen::Vector3f::UnitY());
+
+            Eigen::Quaternion<float> qworld2camlink;
+            qworld2camlink.x() = msg.pose.pose.orientation.x;
+            qworld2camlink.y() = msg.pose.pose.orientation.y;
+            qworld2camlink.z() = msg.pose.pose.orientation.z;
+            qworld2camlink.w() = msg.pose.pose.orientation.w;
+
+            R_world2camlinkVTK = qworld2camlink.matrix();
+
+            T_world2camlinkVTK <<   R_world2camlinkVTK(0,0),    R_world2camlinkVTK(0,1),    R_world2camlinkVTK(0,2),    t_world2camlinkVTK(0),
+                    R_world2camlinkVTK(1,0),    R_world2camlinkVTK(1,1),    R_world2camlinkVTK(1,2),    t_world2camlinkVTK(1),
+                    R_world2camlinkVTK(2,0),    R_world2camlinkVTK(2,1),    R_world2camlinkVTK(2,2),    t_world2camlinkVTK(2),
+                    0,                          0,                          0,                          1;
+
+            T_world2projVTK = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK * T_VTKcam;
+
+            pclWidget->vis->setCameraParameters(T_intrProjVTK, T_world2projVTK);
+            ui->qvtkWidget->update();
+
+            this->createProjectionImageFromGUI();
+
+            if(ui->checkBoxShowProjImage->isChecked())
+                showProjectionImage();
+
+            if(ui->checkBoxPubImage->isChecked())
+                emit signalProjectImage(this->projectorImage);
+        }
+    }
 
 }
 
@@ -116,7 +156,8 @@ void MainWindow::loadPointCloud(string filename) {
         this->displayCloud(m_pc);
     }else {
 
-        pcl::transformPointCloud(pc_load, pc_load, T_world2camVTK);
+        if(ui->checkBoxTransformPointcloud->isChecked())
+            pcl::transformPointCloud(pc_load, pc_load, T_world2camVTK);
 
         PCEntry entry;
         entry.cloud = pc_load.makeShared();
@@ -143,6 +184,8 @@ void MainWindow::loadPointCloud(string filename) {
         }
         entry.id = newName.str();
         entry.visible = true;
+        entry.positionXYZ = Eigen::Vector3f(0,0,0);
+        entry.orientationYPR = Eigen::Vector3f(0,0,0);
         PCVec.push_back(entry);
 
         ui->checkBoxKinect->setChecked(false);
@@ -200,23 +243,26 @@ void MainWindow::setTransformations()
     t_world2camlinkVTK(1) = line2float(*ui->lineCamTrafoY);
     t_world2camlinkVTK(2) = line2float(*ui->lineCamTrafoZ);
 
-    yawworld2camlink = line2float(*ui->lineCamTrafoYaw)*M_PI/180.0;
-    pitchworld2camlink = line2float(*ui->lineCamTrafoPitch)*M_PI/180.0;
-    rollworld2camlink = line2float(*ui->lineCamTrafoRoll)*M_PI/180.0;
-    Eigen::AngleAxisf yawAngleworld2camlink(yawworld2camlink, Eigen::Vector3f::UnitZ());
-    Eigen::AngleAxisf pitchAngleworld2camlink(pitchworld2camlink, Eigen::Vector3f::UnitY());
-    Eigen::AngleAxisf rollAngleworld2camlink(rollworld2camlink, Eigen::Vector3f::UnitX());
+    yawworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoYaw));
+    pitchworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoPitch));
+    rollworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoRoll));
 
-    Eigen::Quaternion<float> qworld2camlink = yawAngleworld2camlink * pitchAngleworld2camlink * rollAngleworld2camlink;
+//    Eigen::AngleAxisf yawAngleworld2camlink(yawworld2camlink, Eigen::Vector3f::UnitZ());
+//    Eigen::AngleAxisf pitchAngleworld2camlink(pitchworld2camlink, Eigen::Vector3f::UnitY());
+//    Eigen::AngleAxisf rollAngleworld2camlink(rollworld2camlink, Eigen::Vector3f::UnitX());
+
+//    Eigen::Quaternion<float> qworld2camlink = yawAngleworld2camlink * pitchAngleworld2camlink * rollAngleworld2camlink;
 
 //    cout << "q.x = " << qworld2camlink.x() << endl << "q.y = " << qworld2camlink.y() << endl << "q.z = " << qworld2camlink.z() << endl << "q.w = " << qworld2camlink.w() << endl;
 
-    R_world2camlinkVTK = qworld2camlink.matrix();
+//    R_world2camlinkVTK = qworld2camlink.matrix();
+    this->setRotationMatrixFromYPR(yawworld2camlink, pitchworld2camlink, rollworld2camlink, R_world2camlinkVTK);
 
-    T_world2camlinkVTK <<   R_world2camlinkVTK(0,0),    R_world2camlinkVTK(0,1),    R_world2camlinkVTK(0,2),    t_world2camlinkVTK(0),
-                            R_world2camlinkVTK(1,0),    R_world2camlinkVTK(1,1),    R_world2camlinkVTK(1,2),    t_world2camlinkVTK(1),
-                            R_world2camlinkVTK(2,0),    R_world2camlinkVTK(2,1),    R_world2camlinkVTK(2,2),    t_world2camlinkVTK(2),
-                            0,                          0,                          0,                          1;
+//    T_world2camlinkVTK <<   R_world2camlinkVTK(0,0),    R_world2camlinkVTK(0,1),    R_world2camlinkVTK(0,2),    t_world2camlinkVTK(0),
+//                            R_world2camlinkVTK(1,0),    R_world2camlinkVTK(1,1),    R_world2camlinkVTK(1,2),    t_world2camlinkVTK(1),
+//                            R_world2camlinkVTK(2,0),    R_world2camlinkVTK(2,1),    R_world2camlinkVTK(2,2),    t_world2camlinkVTK(2),
+//                            0,                          0,                          0,                          1;
+    this->setTransformationMatrix(R_world2camlinkVTK, t_world2camlinkVTK, T_world2camlinkVTK);
 
 
     //transformation from camera_link to camera_rgb_optical_frame
@@ -228,20 +274,23 @@ void MainWindow::setTransformations()
     yawcamlink2cam = -(M_PI/2);
     pitchcamlink2cam = 0.0;
     rollcamlink2cam = -(M_PI/2);
-    Eigen::AngleAxisf yawAnglecamlink2cam(yawcamlink2cam, Eigen::Vector3f::UnitZ());
-    Eigen::AngleAxisf pitchAnglecamlink2cam(pitchcamlink2cam, Eigen::Vector3f::UnitY());
-    Eigen::AngleAxisf rollAnglecamlink2cam(rollcamlink2cam, Eigen::Vector3f::UnitX());
+//    Eigen::AngleAxisf yawAnglecamlink2cam(yawcamlink2cam, Eigen::Vector3f::UnitZ());
+//    Eigen::AngleAxisf pitchAnglecamlink2cam(pitchcamlink2cam, Eigen::Vector3f::UnitY());
+//    Eigen::AngleAxisf rollAnglecamlink2cam(rollcamlink2cam, Eigen::Vector3f::UnitX());
 
-    Eigen::Quaternion<float> qcamlink2cam = yawAnglecamlink2cam * pitchAnglecamlink2cam * rollAnglecamlink2cam;
+//    Eigen::Quaternion<float> qcamlink2cam = yawAnglecamlink2cam * pitchAnglecamlink2cam * rollAnglecamlink2cam;
 
-//    cout << "q.x = " << qcamlink2cam.x() << endl << "q.y = " << qcamlink2cam.y() << endl << "q.z = " << qcamlink2cam.z() << endl << "q.w = " << qcamlink2cam.w() << endl;
+////    cout << "q.x = " << qcamlink2cam.x() << endl << "q.y = " << qcamlink2cam.y() << endl << "q.z = " << qcamlink2cam.z() << endl << "q.w = " << qcamlink2cam.w() << endl;
 
-    R_camlink2camVTK = qcamlink2cam.matrix();
+//    R_camlink2camVTK = qcamlink2cam.matrix();
+    this->setRotationMatrixFromYPR(yawcamlink2cam, pitchcamlink2cam, rollcamlink2cam, R_camlink2camVTK);
 
-    T_camlink2camVTK << R_camlink2camVTK(0,0),  R_camlink2camVTK(0,1),  R_camlink2camVTK(0,2),  t_camlink2camVTK(0),
-                        R_camlink2camVTK(1,0),  R_camlink2camVTK(1,1),  R_camlink2camVTK(1,2),  t_camlink2camVTK(1),
-                        R_camlink2camVTK(2,0),  R_camlink2camVTK(2,1),  R_camlink2camVTK(2,2),  t_camlink2camVTK(2),
-                        0,                      0,                      0,                      1;
+
+//    T_camlink2camVTK << R_camlink2camVTK(0,0),  R_camlink2camVTK(0,1),  R_camlink2camVTK(0,2),  t_camlink2camVTK(0),
+//                        R_camlink2camVTK(1,0),  R_camlink2camVTK(1,1),  R_camlink2camVTK(1,2),  t_camlink2camVTK(1),
+//                        R_camlink2camVTK(2,0),  R_camlink2camVTK(2,1),  R_camlink2camVTK(2,2),  t_camlink2camVTK(2),
+//                        0,                      0,                      0,                      1;
+    this->setTransformationMatrix(R_camlink2camVTK, t_camlink2camVTK, T_camlink2camVTK);
 
 
     //transfromation from camera_rgb_optical_frame to projector frame
@@ -253,31 +302,33 @@ void MainWindow::setTransformations()
                         line2float(*ui->lineRotCamProj_10),     line2float(*ui->lineRotCamProj_11),     line2float(*ui->lineRotCamProj_12),
                         line2float(*ui->lineRotCamProj_20),     line2float(*ui->lineRotCamProj_21),     line2float(*ui->lineRotCamProj_22);
 
-    T_cam2projVTK <<    R_cam2projVTK(0,0),     R_cam2projVTK(0,1),     R_cam2projVTK(0,2),     t_cam2projVTK(0),
-                        R_cam2projVTK(1,0),     R_cam2projVTK(1,1),     R_cam2projVTK(1,2),     t_cam2projVTK(1),
-                        R_cam2projVTK(2,0),     R_cam2projVTK(2,1),     R_cam2projVTK(2,2),     t_cam2projVTK(2),
-                        0,                      0,                      0,                      1;
-
+//    T_cam2projVTK <<    R_cam2projVTK(0,0),     R_cam2projVTK(0,1),     R_cam2projVTK(0,2),     t_cam2projVTK(0),
+//                        R_cam2projVTK(1,0),     R_cam2projVTK(1,1),     R_cam2projVTK(1,2),     t_cam2projVTK(1),
+//                        R_cam2projVTK(2,0),     R_cam2projVTK(2,1),     R_cam2projVTK(2,2),     t_cam2projVTK(2),
+//                        0,                      0,                      0,                      1;
+    this->setTransformationMatrix(R_cam2projVTK, t_cam2projVTK, T_cam2projVTK);
 
     //transformation from world to camera_rgb_optical_frame
     T_world2camVTK = T_world2camlinkVTK * T_camlink2camVTK;
 
 
     //transformation for VTK camera (180° yaw)
-    Eigen::AngleAxisf yawAngleVTKcam(M_PI, Eigen::Vector3f::UnitZ());
-    Eigen::AngleAxisf pitchAngleVTKcam(0.0, Eigen::Vector3f::UnitY());
-    Eigen::AngleAxisf rollAngleVTKcam(0.0, Eigen::Vector3f::UnitX());
+//    Eigen::AngleAxisf yawAngleVTKcam(M_PI, Eigen::Vector3f::UnitZ());
+//    Eigen::AngleAxisf pitchAngleVTKcam(0.0, Eigen::Vector3f::UnitY());
+//    Eigen::AngleAxisf rollAngleVTKcam(0.0, Eigen::Vector3f::UnitX());
 
-    Eigen::Quaternion<float> qVTKcam= yawAngleVTKcam* pitchAngleVTKcam * rollAngleVTKcam;
+//    Eigen::Quaternion<float> qVTKcam= yawAngleVTKcam* pitchAngleVTKcam * rollAngleVTKcam;
 
-//    cout << "q.x = " << qVTKcam.x() << endl << "q.y = " << qVTKcam.y() << endl << "q.z = " << qVTKcam.z() << endl << "q.w = " << qVTKcam.w() << endl;
+////    cout << "q.x = " << qVTKcam.x() << endl << "q.y = " << qVTKcam.y() << endl << "q.z = " << qVTKcam.z() << endl << "q.w = " << qVTKcam.w() << endl;
 
-    R_VTKcam = qVTKcam.matrix();
+//    R_VTKcam = qVTKcam.matrix();
+    this->setRotationMatrixFromYPR(M_PI, 0.0, 0.0, R_VTKcam);
 
-    T_VTKcam << R_VTKcam(0,0),  R_VTKcam(0,1),  R_VTKcam(0,2),  0,
-                R_VTKcam(1,0),  R_VTKcam(1,1),  R_VTKcam(1,2),  0,
-                R_VTKcam(2,0),  R_VTKcam(2,1),  R_VTKcam(2,2),  0,
-                0,              0,              0,              1;
+//    T_VTKcam << R_VTKcam(0,0),  R_VTKcam(0,1),  R_VTKcam(0,2),  0,
+//                R_VTKcam(1,0),  R_VTKcam(1,1),  R_VTKcam(1,2),  0,
+//                R_VTKcam(2,0),  R_VTKcam(2,1),  R_VTKcam(2,2),  0,
+//                0,              0,              0,              1;
+    this->setTransformationMatrix(R_VTKcam, Eigen::Vector3f(0,0,0), T_VTKcam);
 
 
     //transformation from world to projector
@@ -572,7 +623,7 @@ void MainWindow::on_checkBoxRGBCloud_toggled(bool checked)
 void MainWindow::on_checkBoxCoordSys_toggled(bool checked)
 {
     if(checked){
-        pclWidget->vis->addCoordinateSystem(0.5,1.0,0.0,0.0);
+        pclWidget->vis->addCoordinateSystem(0.5,0.0,0.0,0.0);
     }else{
         pclWidget->vis->removeCoordinateSystem();
     }
@@ -596,9 +647,9 @@ void MainWindow::on_btnSetCamTrafo_clicked()
     tyW = line2float(*ui->lineCamTrafoY);
     tzW = line2float(*ui->lineCamTrafoZ);
 
-    yawW = line2float(*ui->lineCamTrafoYaw)*M_PI/180.0;
-    pitchW = line2float(*ui->lineCamTrafoPitch)*M_PI/180.0;
-    rollW = line2float(*ui->lineCamTrafoRoll)*M_PI/180.0;
+    yawW = DEG2RAD(line2float(*ui->lineCamTrafoYaw));
+    pitchW = DEG2RAD(line2float(*ui->lineCamTrafoPitch));
+    rollW = DEG2RAD(line2float(*ui->lineCamTrafoRoll));
     Eigen::AngleAxisf rollAngleW(rollW, Eigen::Vector3f::UnitX());
     Eigen::AngleAxisf yawAngleW(yawW, Eigen::Vector3f::UnitZ());
     Eigen::AngleAxisf pitchAngleW(pitchW, Eigen::Vector3f::UnitY());
@@ -911,8 +962,8 @@ void MainWindow::on_btnLoadModel_clicked()
     const char *cstr = actorname.c_str();
     cout << "Reading: " << filename << endl;
 
-//    vtkSmartPointer<vtkPLYReader> reader = vtkSmartPointer<vtkPLYReader>::New();
-    vtkSmartPointer<vtkOBJReader> reader = vtkSmartPointer<vtkOBJReader>::New();
+    vtkSmartPointer<vtkPLYReader> reader = vtkSmartPointer<vtkPLYReader>::New();
+//    vtkSmartPointer<vtkOBJReader> reader = vtkSmartPointer<vtkOBJReader>::New();
 //    vtkSmartPointer<vtkSTLReader> reader = vtkSmartPointer<vtkSTLReader>::New();
 
     reader->SetFileName(filename.c_str());
@@ -1089,5 +1140,269 @@ void MainWindow::on_comboBoxPCSelect_currentIndexChanged(int index)
 {
     if(index >= 0){
         updatePCButtons();
+        setPCTransformationLines();
     }
+}
+
+void MainWindow::on_btnModelMove_clicked()
+{
+    this->moveModel();
+}
+
+void MainWindow::moveModel() {
+    if(!waitForLines) {
+        //move the model by the given values
+        double x,y,z,yaw,pitch,roll;
+
+        x = ui->spinBoxMoveObjX->value();
+        y = ui->spinBoxMoveObjY->value();
+        z = ui->spinBoxMoveObjZ->value();
+        yaw = ui->spinBoxMoveObjYaw->value();
+        pitch = ui->spinBoxMoveObjPitch->value();
+        roll = ui->spinBoxMoveObjRoll->value();
+
+        int id = ui->comboBoxModelSelect->currentIndex();
+        if(!modelVec.empty() && modelVec.size() > id) {
+            if(!modelVec.at(id).visible) {
+                cout << "Warning: model not visible!" << endl;
+            }
+            modelVec.at(id).actor->SetPosition(x, y, z);
+            modelVec.at(id).actor->SetOrientation(roll, pitch, yaw);
+            ui->qvtkWidget->update();
+        }
+    }
+}
+
+void MainWindow::on_btnPCMove_clicked()
+{
+    this->movePC();
+}
+
+void MainWindow::movePC() {
+    if(!waitForLines){
+        int id = ui->comboBoxPCSelect->currentIndex();
+        if(!PCVec.empty() && PCVec.size() > id) {
+            if(!PCVec.at(id).visible) {
+                cout << "Warning: pointcloud not visible!" << endl;
+            }
+
+            //copy the pointcloud to perform transformations
+            PointCloud<PointXYZRGB> pc;
+            pc = *PCVec.at(id).cloud;
+
+            //initialize transformation matrices
+            Eigen::Matrix3f rotMat, rotMat_inv;
+            Eigen::Matrix4f transform, transform_inv;
+            Eigen::Matrix4f curr_inv_transform;
+
+            //calculate and apply the inverse transformation to retrieve the original position
+            setRotationMatrixFromYPR(DEG2RAD(PCVec.at(id).orientationYPR), rotMat_inv);
+            setTransformationMatrix(rotMat_inv, PCVec.at(id).positionXYZ, transform_inv);
+            curr_inv_transform = transform_inv.inverse();
+            pcl::transformPointCloud(pc, pc, curr_inv_transform);
+
+            //update the PC entry with the new GUI parameters
+            PCVec.at(id).positionXYZ = Eigen::Vector3f(ui->spinBoxMovePCX->value(), ui->spinBoxMovePCY->value(), ui->spinBoxMovePCZ->value());
+            PCVec.at(id).orientationYPR = Eigen::Vector3f(ui->spinBoxMovePCYaw->value(), ui->spinBoxMovePCPitch->value(), ui->spinBoxMovePCRoll->value());
+
+            //calculate and apply the new transformation as specified by the GUI parameters
+            setRotationMatrixFromYPR(DEG2RAD(PCVec.at(id).orientationYPR), rotMat);
+            setTransformationMatrix(rotMat, PCVec.at(id).positionXYZ, transform);
+            pcl::transformPointCloud(pc, pc, transform);
+
+            //replace the original entry with the transformed pointcloud
+            *PCVec.at(id).cloud = pc;
+
+            //remove pointcloud before displaying the transformed pointcloud
+            pclWidget->vis->removePointCloud(PCVec.at(id).id);
+            displayCloud(PCVec.at(id).cloud, PCVec.at(id).id);
+
+            ui->qvtkWidget->update();
+        }
+    }
+
+}
+
+void MainWindow::setTransformationMatrix(Eigen::Matrix3f in_R, Eigen::Vector3f in_t, Eigen::Matrix4f &out_T) {
+    out_T <<    in_R(0,0),  in_R(0,1),  in_R(0,2),  in_t(0),
+                in_R(1,0),  in_R(1,1),  in_R(1,2),  in_t(1),
+                in_R(2,0),  in_R(2,1),  in_R(2,2),  in_t(2),
+                0,          0,          0,          1;
+}
+
+void MainWindow::setRotationMatrixFromYPR(float yaw, float pitch, float roll, Eigen::Matrix3f &out_R) {
+    Eigen::AngleAxisf yawAngle(yaw, Eigen::Vector3f::UnitZ());
+    Eigen::AngleAxisf pitchAngle(pitch, Eigen::Vector3f::UnitY());
+    Eigen::AngleAxisf rollAngle(roll, Eigen::Vector3f::UnitX());
+
+    Eigen::Quaternion<float> q = yawAngle * pitchAngle * rollAngle;
+
+    out_R = q.matrix();
+}
+
+void MainWindow::setRotationMatrixFromYPR(Eigen::Vector3f ypr, Eigen::Matrix3f &out_R) {
+    Eigen::AngleAxisf yawAngle(ypr(0), Eigen::Vector3f::UnitZ());
+    Eigen::AngleAxisf pitchAngle(ypr(1), Eigen::Vector3f::UnitY());
+    Eigen::AngleAxisf rollAngle(ypr(2), Eigen::Vector3f::UnitX());
+
+    Eigen::Quaternion<float> q = yawAngle * pitchAngle * rollAngle;
+
+    out_R = q.matrix();
+}
+
+void MainWindow::setIdentityMatrix(Eigen::Matrix3f &mat) {
+    Eigen::Matrix3f m;
+    m << 1, 0, 0, 0, 1, 0, 0, 0, 1;
+    mat = m;
+}
+
+void MainWindow::setIdentityMatrix(Eigen::Matrix4f &mat) {
+    Eigen::Matrix4f m;
+    m << 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1;
+    mat = m;
+}
+
+void MainWindow::on_btnMergeClouds_clicked()
+{
+    if(!PCVec.empty()) {
+        PointCloud<PointXYZRGB> pc_merged;
+        bool init = true;
+        for(size_t i = 0; i < PCVec.size(); i++) {
+            if(PCVec.at(i).visible) {
+                if(init) {
+                    pc_merged = *PCVec.at(i).cloud;
+                    init = false;
+                }else {
+                    pc_merged += *PCVec.at(i).cloud;
+                }
+            }
+        }
+        if(!init) {
+            PCEntry entry;
+            entry.cloud = pc_merged.makeShared();
+            int cnt = 1;
+            bool nameIsValid = false;
+            stringstream newName;
+            newName << "merged_cloud";
+            while(!nameIsValid) {
+                for(int i = 0; i < PCVec.size(); i++) {
+                    string currentID = PCVec.at(i).id;
+                    if(!strcmp(currentID.c_str(), newName.str().c_str())) {
+                        newName.str(std::string());;
+                        newName << "merged_cloud" << " (" << cnt << ")";
+                        break;
+                    }else if(i==PCVec.size()-1) {
+                        nameIsValid = true;
+                    }
+                }
+                cnt++;
+            }
+            entry.id = newName.str();
+            entry.visible = true;
+            entry.positionXYZ = Eigen::Vector3f(0,0,0);
+            entry.orientationYPR = Eigen::Vector3f(0,0,0);
+            PCVec.push_back(entry);
+
+            ui->checkBoxKinect->setChecked(false);
+            this->displayCloud(PCVec.back().cloud, PCVec.back().id);
+            this->updatePCIndex();
+        } else {
+            cout << "No visible pointclouds to merge!" << endl;
+        }
+    }
+}
+
+void MainWindow::setPCTransformationLines() {
+    int id = ui->comboBoxPCSelect->currentIndex();
+    if(PCVec.size() > id) {
+        this->waitForLines = true;
+        ui->spinBoxMovePCX->setValue((double)PCVec.at(id).positionXYZ(0));
+        ui->spinBoxMovePCY->setValue((double)PCVec.at(id).positionXYZ(1));
+        ui->spinBoxMovePCZ->setValue((double)PCVec.at(id).positionXYZ(2));
+
+        ui->spinBoxMovePCYaw->setValue((double)(PCVec.at(id).orientationYPR(0)));
+        ui->spinBoxMovePCPitch->setValue((double)PCVec.at(id).orientationYPR(1));
+        ui->spinBoxMovePCRoll->setValue((double)PCVec.at(id).orientationYPR(2));
+        this->waitForLines = false;
+
+        this->movePC();
+    }
+}
+
+void MainWindow::on_btnPCSave_clicked()
+{
+    int id = ui->comboBoxPCSelect->currentIndex();
+    if(PCVec.size() > id) {
+        PointCloud<PointXYZRGB> pc_save(*PCVec.at(id).cloud);
+        stringstream filename;
+        filename << PCVec.at(id).id << ".pcd";
+        pcl::io::savePCDFileBinary(filename.str(), pc_save);
+    }
+}
+
+void MainWindow::on_btnModelReset_clicked()
+{
+    this->resetModelPose();
+}
+
+void MainWindow::resetModelPose() {
+    if(!modelVec.empty()) {
+        this->waitForLines = true;
+        ui->spinBoxMoveObjX->setValue(0);
+        ui->spinBoxMoveObjY->setValue(0);
+        ui->spinBoxMoveObjZ->setValue(0);
+
+        ui->spinBoxMoveObjYaw->setValue(0);
+        ui->spinBoxMoveObjPitch->setValue(0);
+        ui->spinBoxMoveObjRoll->setValue(0);
+        this->waitForLines = false;
+
+        this->moveModel();
+    }
+}
+
+void MainWindow::on_btnPCReset_clicked()
+{
+    this->resetPCPose();
+}
+
+void MainWindow::resetPCPose() {
+    if(!PCVec.empty()) {
+        this->waitForLines = true;
+        ui->spinBoxMovePCX->setValue(0);
+        ui->spinBoxMovePCY->setValue(0);
+        ui->spinBoxMovePCZ->setValue(0);
+
+        ui->spinBoxMovePCYaw->setValue(0);
+        ui->spinBoxMovePCPitch->setValue(0);
+        ui->spinBoxMovePCRoll->setValue(0);
+        this->waitForLines = false;
+
+        this->movePC();
+    }
+}
+
+void MainWindow::sendPCToOctomapServer() {
+    int id = ui->comboBoxPCSelect->currentIndex();
+    if(PCVec.size() > id) {
+        static tf::TransformBroadcaster br;
+        tf::Transform transform;
+        transform.setOrigin( tf::Vector3(0, 0, 0));
+        tf::Quaternion q;
+        q.setRPY(0, 0, 0);
+        transform.setRotation(q);
+        br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "map", "object_frame"));
+
+        PointCloud<PointXYZRGB> pc_to_octomap;
+
+        pc_to_octomap = *PCVec.at(id).cloud;
+        pc_to_octomap.header.frame_id = std::string("object_frame");
+
+        emit signalPublishPointcloud(pc_to_octomap);
+    }
+}
+
+void MainWindow::on_btnPCSendOcto_clicked()
+{
+    this->sendPCToOctomapServer();
 }

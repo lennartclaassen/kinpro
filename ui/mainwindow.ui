@@ -24,7 +24,7 @@
      </rect>
     </property>
     <property name="currentIndex">
-     <number>0</number>
+     <number>3</number>
     </property>
     <widget class="QWidget" name="tab_controls">
      <attribute name="title">
@@ -35,7 +35,7 @@
        <rect>
         <x>20</x>
         <y>10</y>
-        <width>251</width>
+        <width>261</width>
         <height>251</height>
        </rect>
       </property>
@@ -78,7 +78,7 @@
         </rect>
        </property>
        <property name="text">
-        <string>pointcloud.pcd</string>
+        <string>/home/sysadm/octomaps/pointcloud.pcd</string>
        </property>
       </widget>
       <widget class="QLineEdit" name="lineLoadPointcloud">
@@ -91,7 +91,7 @@
         </rect>
        </property>
        <property name="text">
-        <string>pointcloud.pcd</string>
+        <string>/home/sysadm/octomaps/wall_complex.pcd</string>
        </property>
       </widget>
       <widget class="QCheckBox" name="checkBoxKinect">
@@ -118,6 +118,19 @@
        </property>
        <property name="text">
         <string>Calibration Mode</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="checkBoxTransformPointcloud">
+       <property name="geometry">
+        <rect>
+         <x>150</x>
+         <y>90</y>
+         <width>101</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Transform</string>
        </property>
       </widget>
      </widget>
@@ -192,6 +205,19 @@
        </property>
        <property name="text">
         <string>Publish image</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="checkBoxUsePosSig">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>140</y>
+         <width>161</width>
+         <height>31</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Retreive position</string>
        </property>
       </widget>
      </widget>
@@ -2296,6 +2322,124 @@
        </property>
       </widget>
      </widget>
+     <widget class="QLineEdit" name="lineTestTarget">
+      <property name="geometry">
+       <rect>
+        <x>150</x>
+        <y>40</y>
+        <width>113</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>/odom</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineTestSource">
+      <property name="geometry">
+       <rect>
+        <x>150</x>
+        <y>80</y>
+        <width>113</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>/map</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="labelTestTarget">
+      <property name="geometry">
+       <rect>
+        <x>90</x>
+        <y>40</y>
+        <width>67</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>target</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="labelTestSource">
+      <property name="geometry">
+       <rect>
+        <x>90</x>
+        <y>80</y>
+        <width>67</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>source</string>
+      </property>
+     </widget>
+     <widget class="QComboBox" name="comboBoxTestTransform">
+      <property name="geometry">
+       <rect>
+        <x>310</x>
+        <y>40</y>
+        <width>111</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <item>
+       <property name="text">
+        <string>map2world</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>map2camlink</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>map2cam</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>map2proj</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>world2camlink</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>camlink2cam</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>cam2proj</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Identity</string>
+       </property>
+      </item>
+     </widget>
+     <widget class="QCheckBox" name="checkBoxTestTransform">
+      <property name="geometry">
+       <rect>
+        <x>310</x>
+        <y>80</y>
+        <width>97</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>CheckBox</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
     </widget>
     <widget class="QWidget" name="tab_model">
      <attribute name="title">
@@ -2324,7 +2468,7 @@
        </rect>
       </property>
       <property name="text">
-       <string>/home/sysadm/octomaps/room033.obj</string>
+       <string>/home/sysadm/octomaps/wall.ply</string>
       </property>
      </widget>
      <widget class="QLineEdit" name="lineLoadActor">
@@ -2469,6 +2613,495 @@
        <string>Delete</string>
       </property>
      </widget>
+     <widget class="QGroupBox" name="groupBox_17">
+      <property name="geometry">
+       <rect>
+        <x>610</x>
+        <y>0</y>
+        <width>221</width>
+        <height>141</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Move Model</string>
+      </property>
+      <widget class="QLabel" name="labelMoveObjYaw">
+       <property name="geometry">
+        <rect>
+         <x>120</x>
+         <y>40</y>
+         <width>16</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>y:</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelMoveObjRoll">
+       <property name="geometry">
+        <rect>
+         <x>120</x>
+         <y>100</y>
+         <width>16</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>r:</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelMoveObjPitch">
+       <property name="geometry">
+        <rect>
+         <x>120</x>
+         <y>70</y>
+         <width>16</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>p:</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelMoveObjZ">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>100</y>
+         <width>16</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>z</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelMoveObjY">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>70</y>
+         <width>16</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>y</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelMoveObjX">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>40</y>
+         <width>16</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>x</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="btnModelMove">
+       <property name="geometry">
+        <rect>
+         <x>100</x>
+         <y>10</y>
+         <width>51</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Move</string>
+       </property>
+      </widget>
+      <widget class="QDoubleSpinBox" name="spinBoxMoveObjX">
+       <property name="geometry">
+        <rect>
+         <x>30</x>
+         <y>40</y>
+         <width>71</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="buttonSymbols">
+        <enum>QAbstractSpinBox::UpDownArrows</enum>
+       </property>
+       <property name="minimum">
+        <double>-9.990000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>9.990000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+      </widget>
+      <widget class="QDoubleSpinBox" name="spinBoxMoveObjY">
+       <property name="geometry">
+        <rect>
+         <x>30</x>
+         <y>70</y>
+         <width>71</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="minimum">
+        <double>-9.990000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>9.990000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+      </widget>
+      <widget class="QDoubleSpinBox" name="spinBoxMoveObjZ">
+       <property name="geometry">
+        <rect>
+         <x>30</x>
+         <y>100</y>
+         <width>71</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="minimum">
+        <double>-9.990000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>9.990000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+      </widget>
+      <widget class="QDoubleSpinBox" name="spinBoxMoveObjYaw">
+       <property name="geometry">
+        <rect>
+         <x>140</x>
+         <y>40</y>
+         <width>71</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="minimum">
+        <double>-180.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>180.000000000000000</double>
+       </property>
+      </widget>
+      <widget class="QDoubleSpinBox" name="spinBoxMoveObjPitch">
+       <property name="geometry">
+        <rect>
+         <x>140</x>
+         <y>70</y>
+         <width>71</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="minimum">
+        <double>-180.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>180.000000000000000</double>
+       </property>
+      </widget>
+      <widget class="QDoubleSpinBox" name="spinBoxMoveObjRoll">
+       <property name="geometry">
+        <rect>
+         <x>140</x>
+         <y>100</y>
+         <width>71</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="minimum">
+        <double>-180.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>180.000000000000000</double>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="btnModelReset">
+       <property name="geometry">
+        <rect>
+         <x>160</x>
+         <y>10</y>
+         <width>51</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Reset</string>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QGroupBox" name="groupBox_26">
+      <property name="geometry">
+       <rect>
+        <x>610</x>
+        <y>140</y>
+        <width>221</width>
+        <height>131</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Move PC</string>
+      </property>
+      <widget class="QLabel" name="labelMovePCYaw">
+       <property name="geometry">
+        <rect>
+         <x>120</x>
+         <y>40</y>
+         <width>16</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>y:</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelMovePCRoll">
+       <property name="geometry">
+        <rect>
+         <x>120</x>
+         <y>100</y>
+         <width>16</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>r:</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelMovePCPitch">
+       <property name="geometry">
+        <rect>
+         <x>120</x>
+         <y>70</y>
+         <width>16</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>p:</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelMovePCZ">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>100</y>
+         <width>16</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>z</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelMovePCY">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>70</y>
+         <width>16</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>y</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelMovePCX">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>40</y>
+         <width>16</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>x</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="btnPCMove">
+       <property name="geometry">
+        <rect>
+         <x>100</x>
+         <y>10</y>
+         <width>51</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Move</string>
+       </property>
+      </widget>
+      <widget class="QDoubleSpinBox" name="spinBoxMovePCX">
+       <property name="geometry">
+        <rect>
+         <x>30</x>
+         <y>40</y>
+         <width>71</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="buttonSymbols">
+        <enum>QAbstractSpinBox::UpDownArrows</enum>
+       </property>
+       <property name="minimum">
+        <double>-9.990000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>9.990000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+      </widget>
+      <widget class="QDoubleSpinBox" name="spinBoxMovePCY">
+       <property name="geometry">
+        <rect>
+         <x>30</x>
+         <y>70</y>
+         <width>71</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="minimum">
+        <double>-9.990000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>9.990000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+      </widget>
+      <widget class="QDoubleSpinBox" name="spinBoxMovePCZ">
+       <property name="geometry">
+        <rect>
+         <x>30</x>
+         <y>100</y>
+         <width>71</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="minimum">
+        <double>-9.990000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>9.990000000000000</double>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+      </widget>
+      <widget class="QDoubleSpinBox" name="spinBoxMovePCYaw">
+       <property name="geometry">
+        <rect>
+         <x>140</x>
+         <y>40</y>
+         <width>71</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="minimum">
+        <double>-180.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>180.000000000000000</double>
+       </property>
+      </widget>
+      <widget class="QDoubleSpinBox" name="spinBoxMovePCPitch">
+       <property name="geometry">
+        <rect>
+         <x>140</x>
+         <y>70</y>
+         <width>71</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="minimum">
+        <double>-180.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>180.000000000000000</double>
+       </property>
+      </widget>
+      <widget class="QDoubleSpinBox" name="spinBoxMovePCRoll">
+       <property name="geometry">
+        <rect>
+         <x>140</x>
+         <y>100</y>
+         <width>71</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="minimum">
+        <double>-180.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>180.000000000000000</double>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="btnPCReset">
+       <property name="geometry">
+        <rect>
+         <x>160</x>
+         <y>10</y>
+         <width>51</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Reset</string>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QPushButton" name="btnMergeClouds">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>230</y>
+        <width>191</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Merge Visible Pointclouds</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnPCSave">
+      <property name="geometry">
+       <rect>
+        <x>220</x>
+        <y>230</y>
+        <width>181</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Save Pointcloud</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnPCSendOcto">
+      <property name="geometry">
+       <rect>
+        <x>410</x>
+        <y>230</y>
+        <width>191</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Send to Octomap</string>
+      </property>
+     </widget>
     </widget>
    </widget>
    <widget class="QVTKWidget" name="qvtkWidget" native="true">
@@ -2517,5 +3150,198 @@
   </customwidget>
  </customwidgets>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>spinBoxMovePCX</sender>
+   <signal>valueChanged(double)</signal>
+   <receiver>btnPCMove</receiver>
+   <slot>click()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>716</x>
+     <y>257</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>761</x>
+     <y>231</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>spinBoxMovePCY</sender>
+   <signal>valueChanged(double)</signal>
+   <receiver>btnPCMove</receiver>
+   <slot>click()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>695</x>
+     <y>294</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>755</x>
+     <y>231</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>spinBoxMovePCZ</sender>
+   <signal>valueChanged(double)</signal>
+   <receiver>btnPCMove</receiver>
+   <slot>click()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>668</x>
+     <y>324</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>765</x>
+     <y>230</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>spinBoxMovePCYaw</sender>
+   <signal>valueChanged(double)</signal>
+   <receiver>btnPCMove</receiver>
+   <slot>click()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>816</x>
+     <y>266</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>825</x>
+     <y>229</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>spinBoxMovePCPitch</sender>
+   <signal>valueChanged(double)</signal>
+   <receiver>btnPCMove</receiver>
+   <slot>click()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>801</x>
+     <y>289</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>809</x>
+     <y>233</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>spinBoxMovePCRoll</sender>
+   <signal>valueChanged(double)</signal>
+   <receiver>btnPCMove</receiver>
+   <slot>click()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>778</x>
+     <y>320</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>798</x>
+     <y>233</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>spinBoxMoveObjZ</sender>
+   <signal>valueChanged(double)</signal>
+   <receiver>btnModelMove</receiver>
+   <slot>click()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>706</x>
+     <y>180</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>755</x>
+     <y>89</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>spinBoxMoveObjRoll</sender>
+   <signal>valueChanged(double)</signal>
+   <receiver>btnModelMove</receiver>
+   <slot>click()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>790</x>
+     <y>184</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>823</x>
+     <y>96</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>spinBoxMoveObjPitch</sender>
+   <signal>valueChanged(double)</signal>
+   <receiver>btnModelMove</receiver>
+   <slot>click()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>790</x>
+     <y>150</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>812</x>
+     <y>99</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>spinBoxMoveObjYaw</sender>
+   <signal>valueChanged(double)</signal>
+   <receiver>btnModelMove</receiver>
+   <slot>click()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>786</x>
+     <y>125</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>797</x>
+     <y>98</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>spinBoxMoveObjY</sender>
+   <signal>valueChanged(double)</signal>
+   <receiver>btnModelMove</receiver>
+   <slot>click()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>710</x>
+     <y>150</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>756</x>
+     <y>90</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>spinBoxMoveObjX</sender>
+   <signal>valueChanged(double)</signal>
+   <receiver>btnModelMove</receiver>
+   <slot>click()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>694</x>
+     <y>129</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>751</x>
+     <y>90</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

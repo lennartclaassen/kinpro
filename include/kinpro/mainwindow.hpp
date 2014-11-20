@@ -122,6 +122,10 @@
 // ROS
 #include <ros/ros.h>
 
+// TF
+#include <tf/transform_broadcaster.h>
+#include <tf/transform_listener.h>
+
 // Boost
 #include <boost/foreach.hpp>
 
@@ -176,6 +180,7 @@ class MainWindow: public QMainWindow {
     signals:
 
         void signalProjectImage(cv::Mat img);
+        void signalPublishPointcloud(pcl::PointCloud<pcl::PointXYZRGB> pc);
 
 
     private slots:
@@ -245,6 +250,20 @@ class MainWindow: public QMainWindow {
 
         void on_comboBoxModelSelect_currentIndexChanged(int index);
 
+        void on_btnModelMove_clicked();
+
+        void on_btnPCMove_clicked();
+
+        void on_btnMergeClouds_clicked();
+
+        void on_btnPCSave_clicked();
+
+        void on_btnModelReset_clicked();
+
+        void on_btnPCReset_clicked();
+
+        void on_btnPCSendOcto_clicked();
+
 public slots:
 
         void newPointCloud(pcl::PointCloud<pcl::PointXYZRGB> pc);
@@ -272,6 +291,20 @@ public slots:
         void showProjectionImage();
         void createProjectionImageFromGUI();
 
+        void updateModelIndex();
+        void updateModelButtons();
+        void updatePCIndex();
+        void updatePCButtons();
+
+        void moveModel();
+        void movePC();
+
+        void resetPCPose();
+        void resetModelPose();
+
+        void sendPCToOctomapServer();
+
+        //Helper Functions
         int line2int(QLineEdit& line)       { return (&line)->text().toInt(); }
         double line2double(QLineEdit& line) { return (&line)->text().toDouble(); }
         float line2float(QLineEdit& line)   { return (&line)->text().toFloat(); }
@@ -280,13 +313,21 @@ public slots:
         void double2line(QLineEdit& line, double value) { (&line)->setText(QString::number(value)); }
         void float2line(QLineEdit& line, float value)   { (&line)->setText(QString::number(value)); }
 
-        void updateModelIndex();
-        void updateModelButtons();
-        void updatePCIndex();
-        void updatePCButtons();
+        void setTransformationMatrix(Eigen::Matrix3f in_R, Eigen::Vector3f in_t, Eigen::Matrix4f &out_T);
+        void setRotationMatrixFromYPR(float yaw, float pitch, float roll, Eigen::Matrix3f &out_R);
+        void setRotationMatrixFromYPR(Eigen::Vector3f ypr, Eigen::Matrix3f &out_R);
 
+        void setIdentityMatrix(Eigen::Matrix4f &mat);
+        void setIdentityMatrix(Eigen::Matrix3f &mat);
+
+        void setPCTransformationLines();
+
+
+        //structure for VTK actor entries
         struct actorEntry { vtkSmartPointer<vtkActor> actor; std::string id; bool visible;};
-        struct PCEntry { pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud; std::string id; bool visible;};
+
+        //structure for point cloud entries, position in m, orientation in DEG
+        struct PCEntry { pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud; std::string id; bool visible; Eigen::Vector3f positionXYZ; Eigen::Vector3f orientationYPR;};
         std::vector< PCEntry > PCVec;
         std::vector< actorEntry > modelVec;
 
@@ -296,6 +337,11 @@ public slots:
         Eigen::Matrix3f R_cam2projVTK;
         Eigen::Vector3f t_cam2projVTK;
         Eigen::Matrix4f T_cam2projVTK;
+
+        //transformation from map coordinates to world coordinates (odom)
+        Eigen::Matrix3f R_map2worldVTK;
+        Eigen::Vector3f t_map2worldVTK;
+        Eigen::Matrix4f T_map2worldVTK;
 
         //transformation from world coordinates to camera_link
         Eigen::Matrix3f R_world2camlinkVTK;
@@ -332,6 +378,9 @@ public slots:
 
         vector< vector<cv::Point> > projectionContour;
         cv::Mat projectorImage;
+
+        bool waitForLines;
+        std::string locationPrefix;
 };
 
 #endif // _KINPRO_MAIN_WINDOW_H

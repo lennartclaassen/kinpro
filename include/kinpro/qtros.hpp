@@ -59,6 +59,7 @@ class QtROS: public QThread {
     public slots:
 
         void slotProjectImage(cv::Mat img);
+        void slotPublishPointcloud(pcl::PointCloud<pcl::PointXYZRGB> pc);
 
     public:
         /**
@@ -89,14 +90,16 @@ class QtROS: public QThread {
 
     private:
 
-        ros::NodeHandle* nh;
-        image_transport::ImageTransport* it;
-        image_transport::Publisher image_publisher;
-        ros::Subscriber pc_sub;
-        ros::Subscriber pos_sub;
+        ros::NodeHandle*                    nh;
+        image_transport::ImageTransport*    it;
+        image_transport::Publisher          image_publisher;
+        ros::Subscriber                     pc_sub;
+        ros::Subscriber                     pos_sub;
+        ros::Publisher                      pc_pub;
+        ros::ServiceClient                  octomapClient;
 
-        pcl::PointCloud<pcl::PointXYZRGB> pclCloud;
-        sensor_msgs::Image projectorImg;
+        pcl::PointCloud<pcl::PointXYZRGB>   pclCloud;
+        sensor_msgs::Image                  projectorImg;
 
         void publishImage();
 };
