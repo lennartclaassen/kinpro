@@ -32,6 +32,8 @@
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/Image.h>
 
+#include <kinpro_interaction/line.h>
+
 #include <nav_msgs/Odometry.h>
 
 #include <image_transport/image_transport.h>
@@ -55,6 +57,7 @@ class QtROS: public QThread {
 
         void pointCloudReceived(pcl::PointCloud<pcl::PointXYZRGB> pc);
         void positionReceived(nav_msgs::Odometry msg);
+        void lineReceived(kinpro_interaction::line line);
 
     public slots:
 
@@ -87,6 +90,8 @@ class QtROS: public QThread {
 
         void pointcloudCallback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg);
         void positionCallback(const nav_msgs::Odometry::ConstPtr& msg);
+        void lineCallback(const kinpro_interaction::lineConstPtr& line);
+
 
     private:
 
@@ -95,6 +100,7 @@ class QtROS: public QThread {
         image_transport::Publisher          image_publisher;
         ros::Subscriber                     pc_sub;
         ros::Subscriber                     pos_sub;
+        ros::Subscriber                     line_sub;
         ros::Publisher                      pc_pub;
         ros::ServiceClient                  octomapClient;
 

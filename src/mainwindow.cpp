@@ -57,6 +57,23 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     this->waitForLines = false;
 
+    m_lineActor = vtkSmartPointer<vtkActor>::New();
+    m_lineActor->GetProperty()->SetLineWidth(2);
+    m_lineActor->GetProperty()->SetColor(0.0, 0.0, 0.0);
+    obbTreeActor = vtkSmartPointer<vtkActor>::New();
+    obbTreeActor->GetProperty()->SetColor(0.0, 1.0, 0.0);
+    bspTreeActor = vtkSmartPointer<vtkActor>::New();
+    bspTreeActor->GetProperty()->SetColor(0.0, 0.0, 1.0);
+
+    pclWidget->vis->addActorToRenderer(m_lineActor);
+//    pclWidget->vis->addActorToRenderer(obbTreeActor);
+//    pclWidget->vis->addActorToRenderer(bspTreeActor);
+
+    obbTree = vtkSmartPointer<vtkOBBTree>::New();
+    bspTree = vtkSmartPointer<vtkModifiedBSPTree>::New();
+
+    ui->checkBoxCoordSys->toggle();
+
 //    this->on_btnLoadPointcloud_clicked();
 }
 
@@ -129,6 +146,7 @@ void MainWindow::newPosition(nav_msgs::Odometry msg)
                     0,                          0,                          0,                          1;
 
             T_world2projVTK = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK * T_VTKcam;
+            T_world2camVTK = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK;
 
             pclWidget->vis->setCameraParameters(T_intrProjVTK, T_world2projVTK);
             ui->qvtkWidget->update();
@@ -144,6 +162,205 @@ void MainWindow::newPosition(nav_msgs::Odometry msg)
     }
 
 }
+
+void MainWindow::newLine(kinpro_interaction::line line) {
+
+    //clear actors
+    pclWidget->vis->removeActorFromRenderer(m_lineActor);
+    pclWidget->vis->removeActorFromRenderer(obbTreeActor);
+    pclWidget->vis->removeActorFromRenderer(bspTreeActor);
+
+    //set start and end point of line
+    double start[3] = {line.start.x, line.start.y, line.start.z};
+    double end[3] = {line.end.x, line.end.y, line.end.z};
+
+    //transform the line points from camera into world coordinates
+    Eigen::Vector4f start_cam, end_cam, start_world, end_world;
+    start_cam(0) = start[0];
+    start_cam(1) = start[1];
+    start_cam(2) = start[2];
+    start_cam(3) = 1.0;
+
+    end_cam(0) = end[0];
+    end_cam(1) = end[1];
+    end_cam(2) = end[2];
+    end_cam(3) = 1.0;
+
+    this->transformLineToWorld(start_cam, end_cam, start_world, end_world);
+
+    start[0] = start_world(0)/start_world(3);
+    start[1] = start_world(1)/start_world(3);
+    start[2] = start_world(2)/start_world(3);
+
+    end[0] = end_world(0)/end_world(3);
+    end[1] = end_world(1)/end_world(3);
+    end[2] = end_world(2)/end_world(3);
+
+    //visualize lines?
+    if(ui->checkBoxShowLine->isChecked()) {
+
+        //visualize line
+        vtkSmartPointer<vtkLineSource> lineSource = vtkSmartPointer<vtkLineSource>::New();
+        lineSource->SetPoint1(start);
+        lineSource->SetPoint2(end);
+        lineSource->Update();
+        vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+        mapper->SetInputConnection(lineSource->GetOutputPort());
+        m_lineActor->SetMapper(mapper);
+        pclWidget->vis->addActorToRenderer(m_lineActor);
+    }
+
+    //clear spheres
+    for(size_t i = 0; i<sphereIDs.size(); i++) {
+        pclWidget->vis->removeShape(sphereIDs.at(i));
+    }
+    sphereIDs.clear();
+
+    //activate bounding boxes for intersection determination
+    if(ui->checkBoxActivateBB->isChecked()) {
+
+        //calculate intersections of line with models
+        vector<Eigen::Vector3f> intersections;
+        vector<string> ids;
+        this->intersectLineWithModels(start, end, intersections, ids);
+
+        //create spheres (laser pointer) for the intersections
+        for(size_t i = 0; i<intersections.size(); i++) {
+            stringstream sphereID;
+            sphereID << "Sphere" << i;
+            pcl::ModelCoefficients sphere_coeff;
+            sphere_coeff.values.resize (4);                     //we need 4 values
+            sphere_coeff.values[0] = intersections.at(i)(0);    //center x
+            sphere_coeff.values[1] = intersections.at(i)(1);    //center y
+            sphere_coeff.values[2] = intersections.at(i)(2);    //center z
+            sphere_coeff.values[3] = 0.01;                      //radius
+            if(!pclWidget->vis->addSphere(pcl::PointXYZ(intersections.at(i)(0), intersections.at(i)(1), intersections.at(i)(2)), 0.01, 1.0, 0.0, 0.0, sphereID.str()))
+                pclWidget->vis->updateSphere(pcl::PointXYZ(intersections.at(i)(0), intersections.at(i)(1), intersections.at(i)(2)), 0.01, 1.0, 0.0, 0.0, sphereID.str());
+            sphereIDs.push_back(sphereID.str());                //store sphere names for later removal
+        }
+
+        //highlight the intersected models
+        for(size_t j=0; j<ids.size(); j++) {
+            for(size_t k=0; k<modelVec.size(); k++) {
+                if(!strcmp(ids.at(j).c_str(), modelVec.at(k).id.c_str()))
+                    modelVec.at(k).actor->GetProperty()->SetColor(0.87, 0.898, 0.7);
+            }
+        }
+    }
+
+    ui->qvtkWidget->update();
+}
+
+void MainWindow::transformLineToWorld(Eigen::Vector4f &pt_start, Eigen::Vector4f &pt_end, Eigen::Vector4f &pt_start_world, Eigen::Vector4f &pt_end_world) {
+    //transform the start and end point of the line into the world coordinates
+    pt_start_world = T_world2camVTK * pt_start;
+    pt_end_world = T_world2camVTK * pt_end;
+}
+
+void MainWindow::intersectLineWithModels(double pt_start[], double pt_end[], std::vector<Eigen::Vector3f>& intersections, std::vector<std::string> &ids) {
+
+    if(!modelVec.empty()) {
+
+        //calculate intersections with all models
+        for(size_t cnt = 0; cnt < modelVec.size(); cnt++) {
+
+            //only iterate over visible models
+            if(modelVec.at(cnt).visible) {
+
+                //reset model color
+                modelVec.at(cnt).actor->GetProperty()->SetColor(1, 1, 1);
+
+                Eigen::Vector3f intersectionPoint;
+
+                //use obbTree model TODO: use same procedure for both models
+                if(ui->radioButtonOBB->isChecked()) {
+
+                    //create obbTree
+                    obbTree->SetDataSet(modelVec.at(cnt).actor->GetMapper()->GetInput());
+                    obbTree->BuildLocator();
+
+                    //Visualize obbTree bounding box
+                    if(ui->checkBoxShowBB->isChecked()) {
+                        vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
+                        obbTree->GenerateRepresentation(0, polydata);
+                        vtkSmartPointer<vtkPolyDataMapper> obbtreeMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+                        obbtreeMapper->SetInput(polydata);
+                        obbTreeActor->SetMapper(obbtreeMapper);
+                        pclWidget->vis->addActorToRenderer(obbTreeActor);
+                    }
+
+                    vtkSmartPointer<vtkPoints> intersectPoints = vtkSmartPointer<vtkPoints>::New();
+
+                    //calculate intersection
+                    int obbHit = obbTree->IntersectWithLine(pt_start, pt_end, intersectPoints, NULL);
+
+                    //print and save intersection points
+                    if(obbHit) {
+                        cout << "Hit! (" << obbHit << ")" << endl;
+                        cout << "Model " << modelVec.at(cnt).id << endl;
+                        ids.push_back(modelVec.at(cnt).id);
+                        double intersection[3];
+                        for(int i = 0; i < intersectPoints->GetNumberOfPoints(); i++ )
+                        {
+                            intersectPoints->GetPoint(i, intersection);
+                            std::cout << "Intersection " << i << ": "
+                                      << intersection[0] << ", "
+                                      << intersection[1] << ", "
+                                      << intersection[2] << std::endl;
+                            intersectionPoint(0) = intersection[0];
+                            intersectionPoint(1) = intersection[1];
+                            intersectionPoint(2) = intersection[2];
+                            intersections.push_back(intersectionPoint);
+                        }
+                    }
+                }
+
+                //use bspTree model
+                if(ui->radioButtonBSP->isChecked()) {
+
+                    //build bspTree
+                    bspTree->SetDataSet(modelVec.at(cnt).actor->GetMapper()->GetInput());
+                    bspTree->BuildLocator();
+
+                    //visualize bspTree bounding box
+                    if(ui->checkBoxShowBB->isChecked()) {
+                        vtkSmartPointer<vtkPolyData> bspPoly = vtkSmartPointer<vtkPolyData>::New();
+                        bspTree->GenerateRepresentation(0, bspPoly);
+                        vtkSmartPointer<vtkPolyDataMapper> bsptreeMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+                        bsptreeMapper->SetInput(bspPoly);
+                        bspTreeActor->SetMapper(bsptreeMapper);
+                        pclWidget->vis->addActorToRenderer(bspTreeActor);
+                    }
+
+                    //calculate intersection
+                    double tolerance = .001;    //tolerance
+                    double t;                   //parametric coordinate of intersection (0 (corresponding to p1) to 1 (corresponding to p2))
+                    double x[3];                //the coordinate of the intersection
+                    double pcoords[3];
+                    int subId;
+                    int bspHit = bspTree->IntersectWithLine(pt_start, pt_end, tolerance, t, x, pcoords, subId);
+
+                    //print and save intersection points
+                    if(bspHit) {
+                        cout << "Hit! (" << bspHit << ")" << endl;
+                        cout << "Model " << modelVec.at(cnt).id << endl;
+                        ids.push_back(modelVec.at(cnt).id);
+                        std::cout << "Intersection: "
+                                  << x[0] << ", "
+                                  << x[1] << ", "
+                                  << x[2] << std::endl;
+                        intersectionPoint(0) = x[0];
+                        intersectionPoint(1) = x[1];
+                        intersectionPoint(2) = x[2];
+                        intersections.push_back(intersectionPoint);
+                    }
+                }
+            }
+
+        }
+    }
+}
+
 
 void MainWindow::loadPointCloud(string filename) {
     PointCloud<PointXYZRGB> pc_load;
@@ -976,8 +1193,9 @@ void MainWindow::on_btnLoadModel_clicked()
     vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
     actor->SetMapper(mapper);
 //    actor->AddPosition(2.5, 1.0, 0.0);
-//    double color[3] = {0.89,0.81,0.34};
-//    actor->GetProperty()->SetColor(color);
+//    double color[3];
+//    actor->GetProperty()->GetColor(color);
+//    cout << "actor color is: " << color[0] << ", " << color[1] << ", " << color[2] << endl;
 
 //    renderer->AddActor(actor);
 //    renderer->SetBackground(0.3, 0.6, 0.3); // Background color green
@@ -1007,6 +1225,8 @@ void MainWindow::on_btnLoadModel_clicked()
     }
     entry.id = newName.str();
     entry.visible = true;
+    entry.positionXYZ = Eigen::Vector3f(0,0,0);
+    entry.orientationYPR = Eigen::Vector3f(0,0,0);
     modelVec.push_back(entry);
     pclWidget->vis->addActorToRenderer(actor);
 //    getRenderWindow()->AddRenderer(renderer);
@@ -1076,6 +1296,7 @@ void MainWindow::on_comboBoxModelSelect_currentIndexChanged(int index)
 {
     if(index >= 0){
         updateModelButtons();
+        setModelTransformationLines();
     }
 }
 
@@ -1151,25 +1372,42 @@ void MainWindow::on_btnModelMove_clicked()
 
 void MainWindow::moveModel() {
     if(!waitForLines) {
-        //move the model by the given values
-        double x,y,z,yaw,pitch,roll;
-
-        x = ui->spinBoxMoveObjX->value();
-        y = ui->spinBoxMoveObjY->value();
-        z = ui->spinBoxMoveObjZ->value();
-        yaw = ui->spinBoxMoveObjYaw->value();
-        pitch = ui->spinBoxMoveObjPitch->value();
-        roll = ui->spinBoxMoveObjRoll->value();
-
         int id = ui->comboBoxModelSelect->currentIndex();
         if(!modelVec.empty() && modelVec.size() > id) {
+
             if(!modelVec.at(id).visible) {
                 cout << "Warning: model not visible!" << endl;
             }
-            modelVec.at(id).actor->SetPosition(x, y, z);
-            modelVec.at(id).actor->SetOrientation(roll, pitch, yaw);
+
+            //move the model first back to origin and then using the new input values
+            vtkSmartPointer<vtkTransform> transform = vtkSmartPointer<vtkTransform>::New();
+            transform->PostMultiply();
+            transform->Translate(-modelVec.at(id).positionXYZ(0), -modelVec.at(id).positionXYZ(1), -modelVec.at(id).positionXYZ(2));
+            transform->RotateX(-modelVec.at(id).orientationYPR(2));
+            transform->RotateY(-modelVec.at(id).orientationYPR(1));
+            transform->RotateZ(-modelVec.at(id).orientationYPR(0));
+            transform->RotateZ(ui->spinBoxMoveObjYaw->value());
+            transform->RotateY(ui->spinBoxMoveObjPitch->value());
+            transform->RotateX(ui->spinBoxMoveObjRoll->value());
+            transform->Translate(ui->spinBoxMoveObjX->value(), ui->spinBoxMoveObjY->value(), ui->spinBoxMoveObjZ->value());
+
+            vtkSmartPointer<vtkTransformPolyDataFilter> transformFilter = vtkSmartPointer<vtkTransformPolyDataFilter>::New();
+            transformFilter->SetInput(modelVec.at(id).actor->GetMapper()->GetInput());
+            transformFilter->SetTransform(transform);
+            transformFilter->Update();
+
+            // Create a mapper and actor
+            vtkSmartPointer<vtkPolyDataMapper> transformedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+            transformedMapper->SetInputConnection(transformFilter->GetOutputPort());
+            modelVec.at(id).actor->SetMapper(transformedMapper);
+
+            //update values to new position
+            modelVec.at(id).positionXYZ = Eigen::Vector3f(ui->spinBoxMoveObjX->value(), ui->spinBoxMoveObjY->value(), ui->spinBoxMoveObjZ->value());
+            modelVec.at(id).orientationYPR = Eigen::Vector3f(ui->spinBoxMoveObjYaw->value(), ui->spinBoxMoveObjPitch->value(), ui->spinBoxMoveObjRoll->value());
+
             ui->qvtkWidget->update();
         }
+
     }
 }
 
@@ -1326,6 +1564,23 @@ void MainWindow::setPCTransformationLines() {
         this->waitForLines = false;
 
         this->movePC();
+    }
+}
+
+void MainWindow::setModelTransformationLines() {
+    int id = ui->comboBoxModelSelect->currentIndex();
+    if(modelVec.size() > id) {
+        this->waitForLines = true;
+        ui->spinBoxMoveObjX->setValue((double)modelVec.at(id).positionXYZ(0));
+        ui->spinBoxMoveObjY->setValue((double)modelVec.at(id).positionXYZ(1));
+        ui->spinBoxMoveObjZ->setValue((double)modelVec.at(id).positionXYZ(2));
+
+        ui->spinBoxMoveObjYaw->setValue((double)(modelVec.at(id).orientationYPR(0)));
+        ui->spinBoxMoveObjPitch->setValue((double)modelVec.at(id).orientationYPR(1));
+        ui->spinBoxMoveObjRoll->setValue((double)modelVec.at(id).orientationYPR(2));
+        this->waitForLines = false;
+
+        this->moveModel();
     }
 }
 

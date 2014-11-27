@@ -20,6 +20,7 @@ QtROS::QtROS(int argc, char *argv[], const char* node_name) {
 
     pc_sub = nh->subscribe< pcl::PointCloud<pcl::PointXYZRGB> >("/camera/depth_registered/points", 1, &QtROS::pointcloudCallback, this);
     pos_sub = nh->subscribe< nav_msgs::Odometry >("/odometry/filtered", 1, &QtROS::positionCallback, this);
+    line_sub = nh->subscribe< kinpro_interaction::line >("/line", 1, &QtROS::lineCallback, this);
 
 //    octomapClient = nh->serviceClient<octomap_msgs::BoundingBoxQuery>("/octomap_server_node/clear_bbx");
 
@@ -84,4 +85,8 @@ void QtROS::slotProjectImage(cv::Mat img) {
 
 void QtROS::slotPublishPointcloud(pcl::PointCloud<pcl::PointXYZRGB> pc) {
     pc_pub.publish(pc);
+}
+
+void QtROS::lineCallback(const kinpro_interaction::lineConstPtr &line) {
+    emit lineReceived(*line);
 }

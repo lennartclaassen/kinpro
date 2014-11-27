@@ -50,6 +50,7 @@
 #include <vtkImageShiftScale.h>
 #include <vtkInteractorStyleSwitch.h>
 #include <vtkInteractorStyleTrackballActor.h>
+#include <vtkLineSource.h>
 #include <vtkPNGReader.h>
 #include <vtkPNGWriter.h>
 #include <vtkPolyDataMapper.h>
@@ -63,6 +64,7 @@
 #include <vtkVRMLImporter.h>
 #include <vtkWindowToImageFilter.h>
 #include <QVTKWidget.h>
+#include <QVTKInteractor.h>
 
 #include <vtkVersion.h>
 #include <vtkDataSet.h>
@@ -72,6 +74,11 @@
 #include <vtkRendererCollection.h>
 #include <vtkLight.h>
 #include <vtkPolyDataWriter.h>
+
+#include <vtkOBBTree.h>
+#include <vtkModifiedBSPTree.h>
+#include <vtkTransform.h>
+#include <vtkTransformPolyDataFilter.h>
 
 // PCL
 #include <pcl/common/common.h>
@@ -268,6 +275,7 @@ public slots:
 
         void newPointCloud(pcl::PointCloud<pcl::PointXYZRGB> pc);
         void newPosition(nav_msgs::Odometry msg);
+        void newLine(kinpro_interaction::line line);
 
     private:
 
@@ -321,15 +329,28 @@ public slots:
         void setIdentityMatrix(Eigen::Matrix3f &mat);
 
         void setPCTransformationLines();
+        void setModelTransformationLines();
+
+        void transformLineToWorld(Eigen::Vector4f &pt_start, Eigen::Vector4f &pt_end, Eigen::Vector4f &pt_start_world, Eigen::Vector4f &pt_end_world);
+        void intersectLineWithModels(double pt_start[3], double pt_end[3], std::vector<Eigen::Vector3f> &intersections, std::vector<string> &ids);
 
 
         //structure for VTK actor entries
-        struct actorEntry { vtkSmartPointer<vtkActor> actor; std::string id; bool visible;};
+        struct actorEntry { vtkSmartPointer<vtkActor> actor; std::string id; bool visible; Eigen::Vector3f positionXYZ; Eigen::Vector3f orientationYPR;};
 
         //structure for point cloud entries, position in m, orientation in DEG
         struct PCEntry { pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud; std::string id; bool visible; Eigen::Vector3f positionXYZ; Eigen::Vector3f orientationYPR;};
         std::vector< PCEntry > PCVec;
         std::vector< actorEntry > modelVec;
+
+        vtkSmartPointer<vtkActor> m_lineActor;
+        vtkSmartPointer<vtkOBBTree> obbTree;
+        vtkSmartPointer<vtkModifiedBSPTree> bspTree;
+        vtkSmartPointer<vtkActor> obbTreeActor;
+        vtkSmartPointer<vtkActor> bspTreeActor;
+
+        std::vector<std::string> sphereIDs;
+
 
         bool displayRGBCloud;
 

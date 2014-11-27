@@ -24,7 +24,7 @@
      </rect>
     </property>
     <property name="currentIndex">
-     <number>3</number>
+     <number>4</number>
     </property>
     <widget class="QWidget" name="tab_controls">
      <attribute name="title">
@@ -163,6 +163,9 @@
        </property>
        <property name="text">
         <string>CoordSys</string>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
        </property>
       </widget>
       <widget class="QCheckBox" name="checkBoxRGBCloud">
@@ -2322,122 +2325,85 @@
        </property>
       </widget>
      </widget>
-     <widget class="QLineEdit" name="lineTestTarget">
+     <widget class="QGroupBox" name="groupBoxBB">
       <property name="geometry">
        <rect>
         <x>150</x>
-        <y>40</y>
-        <width>113</width>
-        <height>27</height>
+        <y>0</y>
+        <width>121</width>
+        <height>151</height>
        </rect>
       </property>
-      <property name="text">
-       <string>/odom</string>
+      <property name="title">
+       <string>Bounding Box</string>
       </property>
+      <widget class="QRadioButton" name="radioButtonOBB">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>90</y>
+         <width>117</width>
+         <height>22</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>obbTree</string>
+       </property>
+      </widget>
+      <widget class="QRadioButton" name="radioButtonBSP">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>110</y>
+         <width>117</width>
+         <height>22</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>bspTree</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="checkBoxActivateBB">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>30</y>
+         <width>97</width>
+         <height>22</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>activate</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="checkBoxShowBB">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>60</y>
+         <width>97</width>
+         <height>22</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Show Box</string>
+       </property>
+      </widget>
      </widget>
-     <widget class="QLineEdit" name="lineTestSource">
+     <widget class="QCheckBox" name="checkBoxShowLine">
       <property name="geometry">
        <rect>
-        <x>150</x>
-        <y>80</y>
-        <width>113</width>
-        <height>27</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>/map</string>
-      </property>
-     </widget>
-     <widget class="QLabel" name="labelTestTarget">
-      <property name="geometry">
-       <rect>
-        <x>90</x>
-        <y>40</y>
-        <width>67</width>
-        <height>17</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>target</string>
-      </property>
-     </widget>
-     <widget class="QLabel" name="labelTestSource">
-      <property name="geometry">
-       <rect>
-        <x>90</x>
-        <y>80</y>
-        <width>67</width>
-        <height>17</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>source</string>
-      </property>
-     </widget>
-     <widget class="QComboBox" name="comboBoxTestTransform">
-      <property name="geometry">
-       <rect>
-        <x>310</x>
-        <y>40</y>
-        <width>111</width>
-        <height>27</height>
-       </rect>
-      </property>
-      <item>
-       <property name="text">
-        <string>map2world</string>
-       </property>
-      </item>
-      <item>
-       <property name="text">
-        <string>map2camlink</string>
-       </property>
-      </item>
-      <item>
-       <property name="text">
-        <string>map2cam</string>
-       </property>
-      </item>
-      <item>
-       <property name="text">
-        <string>map2proj</string>
-       </property>
-      </item>
-      <item>
-       <property name="text">
-        <string>world2camlink</string>
-       </property>
-      </item>
-      <item>
-       <property name="text">
-        <string>camlink2cam</string>
-       </property>
-      </item>
-      <item>
-       <property name="text">
-        <string>cam2proj</string>
-       </property>
-      </item>
-      <item>
-       <property name="text">
-        <string>Identity</string>
-       </property>
-      </item>
-     </widget>
-     <widget class="QCheckBox" name="checkBoxTestTransform">
-      <property name="geometry">
-       <rect>
-        <x>310</x>
-        <y>80</y>
+        <x>270</x>
+        <y>30</y>
         <width>97</width>
         <height>22</height>
        </rect>
       </property>
       <property name="text">
-       <string>CheckBox</string>
-      </property>
-      <property name="checked">
-       <bool>true</bool>
+       <string>Show Line</string>
       </property>
      </widget>
     </widget>
