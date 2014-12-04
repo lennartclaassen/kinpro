@@ -74,6 +74,7 @@
 #include <vtkRendererCollection.h>
 #include <vtkLight.h>
 #include <vtkPolyDataWriter.h>
+#include <vtkConeSource.h>
 
 #include <vtkOBBTree.h>
 #include <vtkModifiedBSPTree.h>
@@ -271,6 +272,10 @@ class MainWindow: public QMainWindow {
 
         void on_btnPCSendOcto_clicked();
 
+        void on_btnAddCone_clicked();
+
+        void on_btnRemoveCone_clicked();
+
 public slots:
 
         void newPointCloud(pcl::PointCloud<pcl::PointXYZRGB> pc);
@@ -332,11 +337,25 @@ public slots:
         void setModelTransformationLines();
 
         void transformLineToWorld(Eigen::Vector4f &pt_start, Eigen::Vector4f &pt_end, Eigen::Vector4f &pt_start_world, Eigen::Vector4f &pt_end_world);
-        void intersectLineWithModels(double pt_start[3], double pt_end[3], std::vector<Eigen::Vector3f> &intersections, std::vector<string> &ids);
+        void intersectLineWithModels(Eigen::Vector4f &start, Eigen::Vector4f &end, std::vector<Eigen::Vector3f> &intersections, std::vector<string> &ids);
+
+        void projectWorldPointToProjectorImage(Eigen::Vector3f &pt_world, cv::Point &pt_projector);
+
+        void visualizeLine(Eigen::Vector4f &start, Eigen::Vector4f &end);
+        bool checkForClick(std::string &id);
+
+        void addSphere(Eigen::Vector3f &center, string id);
+        void removeSphere(std::string &id);
+        void removeAllSpheres();
+        void addArrow(Eigen::Vector3f &center, Eigen::Vector3f &axis, float length = 1.0, float radius = 1.0, float resolution = 10.0);
+        void removeArrow();
+        void highlightActor(std::string &id);
+
 
 
         //structure for VTK actor entries
         struct actorEntry { vtkSmartPointer<vtkActor> actor; std::string id; bool visible; Eigen::Vector3f positionXYZ; Eigen::Vector3f orientationYPR;};
+        void addArrowsforActor(actorEntry &actor);
 
         //structure for point cloud entries, position in m, orientation in DEG
         struct PCEntry { pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud; std::string id; bool visible; Eigen::Vector3f positionXYZ; Eigen::Vector3f orientationYPR;};
@@ -349,7 +368,11 @@ public slots:
         vtkSmartPointer<vtkActor> obbTreeActor;
         vtkSmartPointer<vtkActor> bspTreeActor;
 
+        vtkSmartPointer<vtkActor> coneActor;
+
         std::vector<std::string> sphereIDs;
+        cv::Point laserPoint;
+        bool drawClickingCircle;
 
 
         bool displayRGBCloud;
@@ -386,6 +409,7 @@ public slots:
 
         //transfromation from world coordinates to projector coordinates
         Eigen::Matrix4f T_world2projVTK;
+        Eigen::Matrix4f T_world2proj;
 
         //intrinsic projector transformation (differs from calibration values due to VTK visualization specifics)
         Eigen::Matrix3f T_intrProjVTK;
@@ -402,6 +426,12 @@ public slots:
 
         bool waitForLines;
         std::string locationPrefix;
+
+        std::string currentObject;
+        ros::Duration selection_thresh;
+        ros::Duration selectionDuration;
+        ros::Time selectionBegin;
+
 };
 
 #endif // _KINPRO_MAIN_WINDOW_H

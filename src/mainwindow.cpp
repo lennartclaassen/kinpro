@@ -41,22 +41,26 @@ VTKPointCloudWidget::~VTKPointCloudWidget() {
 /* METHODS */
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
-//    importer = new VTKImporter();
-
+    //init UI
     ui = new Ui::MainWindow();
     ui->setupUi(this);
 
+    //init visualization widget
     pclWidget = new VTKPointCloudWidget();
     ui->qvtkWidget->SetRenderWindow (pclWidget->vis->getRenderWindow());
 
-
-    displayRGBCloud = true;
+    //create empty mat as projector image
     projectorImage = cv::Mat::zeros(480, 848, CV_8UC3);
 
+    //set initial bool values
+    this->displayRGBCloud = true;
+    this->waitForLines = false;
+    this->drawClickingCircle = false;
+
+    //initialise the transformations
     this->setTransformations();
 
-    this->waitForLines = false;
-
+    //setup the actors for line-object intersecting
     m_lineActor = vtkSmartPointer<vtkActor>::New();
     m_lineActor->GetProperty()->SetLineWidth(2);
     m_lineActor->GetProperty()->SetColor(0.0, 0.0, 0.0);
@@ -64,16 +68,25 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     obbTreeActor->GetProperty()->SetColor(0.0, 1.0, 0.0);
     bspTreeActor = vtkSmartPointer<vtkActor>::New();
     bspTreeActor->GetProperty()->SetColor(0.0, 0.0, 1.0);
-
-    pclWidget->vis->addActorToRenderer(m_lineActor);
-//    pclWidget->vis->addActorToRenderer(obbTreeActor);
-//    pclWidget->vis->addActorToRenderer(bspTreeActor);
-
     obbTree = vtkSmartPointer<vtkOBBTree>::New();
     bspTree = vtkSmartPointer<vtkModifiedBSPTree>::New();
+    pclWidget->vis->addActorToRenderer(m_lineActor);
 
+    coneActor = vtkSmartPointer<vtkActor>::New();
+
+
+    //initialize laser point
+    this->laserPoint = Point(0.0, 0.0);
+
+    //initialise values for clicking detection
+    this->currentObject = string("");
+    this->selectionDuration = ros::Duration(0);
+    this->selection_thresh = ros::Duration(3);
+
+    //toggle checkbox to insert coordinate system
     ui->checkBoxCoordSys->toggle();
 
+    //load pointcloud to speed up the workflow in the beginning
 //    this->on_btnLoadPointcloud_clicked();
 }
 
@@ -141,12 +154,13 @@ void MainWindow::newPosition(nav_msgs::Odometry msg)
             R_world2camlinkVTK = qworld2camlink.matrix();
 
             T_world2camlinkVTK <<   R_world2camlinkVTK(0,0),    R_world2camlinkVTK(0,1),    R_world2camlinkVTK(0,2),    t_world2camlinkVTK(0),
-                    R_world2camlinkVTK(1,0),    R_world2camlinkVTK(1,1),    R_world2camlinkVTK(1,2),    t_world2camlinkVTK(1),
-                    R_world2camlinkVTK(2,0),    R_world2camlinkVTK(2,1),    R_world2camlinkVTK(2,2),    t_world2camlinkVTK(2),
-                    0,                          0,                          0,                          1;
+                                    R_world2camlinkVTK(1,0),    R_world2camlinkVTK(1,1),    R_world2camlinkVTK(1,2),    t_world2camlinkVTK(1),
+                                    R_world2camlinkVTK(2,0),    R_world2camlinkVTK(2,1),    R_world2camlinkVTK(2,2),    t_world2camlinkVTK(2),
+                                    0,                          0,                          0,                          1;
 
             T_world2projVTK = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK * T_VTKcam;
-            T_world2camVTK = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK;
+            T_world2proj    = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK;
+            T_world2camVTK  = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK;
 
             pclWidget->vis->setCameraParameters(T_intrProjVTK, T_world2projVTK);
             ui->qvtkWidget->update();
@@ -160,61 +174,28 @@ void MainWindow::newPosition(nav_msgs::Odometry msg)
                 emit signalProjectImage(this->projectorImage);
         }
     }
-
 }
 
 void MainWindow::newLine(kinpro_interaction::line line) {
-
     //clear actors
     pclWidget->vis->removeActorFromRenderer(m_lineActor);
     pclWidget->vis->removeActorFromRenderer(obbTreeActor);
     pclWidget->vis->removeActorFromRenderer(bspTreeActor);
 
-    //set start and end point of line
-    double start[3] = {line.start.x, line.start.y, line.start.z};
-    double end[3] = {line.end.x, line.end.y, line.end.z};
-
     //transform the line points from camera into world coordinates
     Eigen::Vector4f start_cam, end_cam, start_world, end_world;
-    start_cam(0) = start[0];
-    start_cam(1) = start[1];
-    start_cam(2) = start[2];
-    start_cam(3) = 1.0;
-
-    end_cam(0) = end[0];
-    end_cam(1) = end[1];
-    end_cam(2) = end[2];
-    end_cam(3) = 1.0;
-
+    start_cam << line.start.x, line.start.y, line.start.z, 1.0;
+    end_cam << line.end.x, line.end.y, line.end.z, 1.0;
     this->transformLineToWorld(start_cam, end_cam, start_world, end_world);
-
-    start[0] = start_world(0)/start_world(3);
-    start[1] = start_world(1)/start_world(3);
-    start[2] = start_world(2)/start_world(3);
-
-    end[0] = end_world(0)/end_world(3);
-    end[1] = end_world(1)/end_world(3);
-    end[2] = end_world(2)/end_world(3);
 
     //visualize lines?
     if(ui->checkBoxShowLine->isChecked()) {
-
         //visualize line
-        vtkSmartPointer<vtkLineSource> lineSource = vtkSmartPointer<vtkLineSource>::New();
-        lineSource->SetPoint1(start);
-        lineSource->SetPoint2(end);
-        lineSource->Update();
-        vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-        mapper->SetInputConnection(lineSource->GetOutputPort());
-        m_lineActor->SetMapper(mapper);
-        pclWidget->vis->addActorToRenderer(m_lineActor);
+        this->visualizeLine(start_world, end_world);
     }
 
     //clear spheres
-    for(size_t i = 0; i<sphereIDs.size(); i++) {
-        pclWidget->vis->removeShape(sphereIDs.at(i));
-    }
-    sphereIDs.clear();
+    this->removeAllSpheres();
 
     //activate bounding boxes for intersection determination
     if(ui->checkBoxActivateBB->isChecked()) {
@@ -222,30 +203,44 @@ void MainWindow::newLine(kinpro_interaction::line line) {
         //calculate intersections of line with models
         vector<Eigen::Vector3f> intersections;
         vector<string> ids;
-        this->intersectLineWithModels(start, end, intersections, ids);
+        this->intersectLineWithModels(start_world, end_world, intersections, ids);
 
-        //create spheres (laser pointer) for the intersections
-        for(size_t i = 0; i<intersections.size(); i++) {
-            stringstream sphereID;
-            sphereID << "Sphere" << i;
-            pcl::ModelCoefficients sphere_coeff;
-            sphere_coeff.values.resize (4);                     //we need 4 values
-            sphere_coeff.values[0] = intersections.at(i)(0);    //center x
-            sphere_coeff.values[1] = intersections.at(i)(1);    //center y
-            sphere_coeff.values[2] = intersections.at(i)(2);    //center z
-            sphere_coeff.values[3] = 0.01;                      //radius
-            if(!pclWidget->vis->addSphere(pcl::PointXYZ(intersections.at(i)(0), intersections.at(i)(1), intersections.at(i)(2)), 0.01, 1.0, 0.0, 0.0, sphereID.str()))
-                pclWidget->vis->updateSphere(pcl::PointXYZ(intersections.at(i)(0), intersections.at(i)(1), intersections.at(i)(2)), 0.01, 1.0, 0.0, 0.0, sphereID.str());
-            sphereIDs.push_back(sphereID.str());                //store sphere names for later removal
-        }
-
-        //highlight the intersected models
-        for(size_t j=0; j<ids.size(); j++) {
-            for(size_t k=0; k<modelVec.size(); k++) {
-                if(!strcmp(ids.at(j).c_str(), modelVec.at(k).id.c_str()))
-                    modelVec.at(k).actor->GetProperty()->SetColor(0.87, 0.898, 0.7);
+        //check if intersections were found TODO: handle cases of multiple objects
+        if(!intersections.empty()) {
+            if(this->checkForClick(ids.at(0))){
+//            this->click()
             }
+
+            for(size_t i = 0; i<intersections.size(); i++) {
+                //create spheres (laser pointer) for the intersections
+                stringstream sphereID;
+                sphereID << "Sphere " << i;
+                this->addSphere(intersections.at(i), sphereID.str());
+
+                //create laser points to visualize in projection image TODO: decide how to determine the most suitable intersection point if there are multiple
+                projectWorldPointToProjectorImage(intersections.at(i), this->laserPoint);
+
+                //highlight the intersected models
+                for(size_t j=0; j<ids.size(); j++) {
+                    this->highlightActor(ids.at(j));
+                }
+            }
+        } else {
+            //reset clicking Times
+            this->selectionBegin = ros::Time::now();
+            this->selectionDuration = ros::Duration(0);
+
+            //stop drawing the clicking circle
+            this->drawClickingCircle = false;
+
+            //set point coordinates to zero to use if no intersections were found
+            this->laserPoint = Point(0.0, 0.0);
         }
+    }
+
+    if(ui->checkBoxShowProjImage->isChecked()) {
+        this->createProjectionImageFromGUI();
+        showProjectionImage();
     }
 
     ui->qvtkWidget->update();
@@ -257,7 +252,158 @@ void MainWindow::transformLineToWorld(Eigen::Vector4f &pt_start, Eigen::Vector4f
     pt_end_world = T_world2camVTK * pt_end;
 }
 
-void MainWindow::intersectLineWithModels(double pt_start[], double pt_end[], std::vector<Eigen::Vector3f>& intersections, std::vector<std::string> &ids) {
+void MainWindow::visualizeLine(Eigen::Vector4f &start, Eigen::Vector4f &end) {
+    double startPt[3], endPt[3];
+
+    startPt[0] = start(0)/start(3);
+    startPt[1] = start(1)/start(3);
+    startPt[2] = start(2)/start(3);
+
+    endPt[0] = end(0)/end(3);
+    endPt[1] = end(1)/end(3);
+    endPt[2] = end(2)/end(3);
+
+    vtkSmartPointer<vtkLineSource> lineSource = vtkSmartPointer<vtkLineSource>::New();
+    lineSource->SetPoint1(startPt);
+    lineSource->SetPoint2(endPt);
+    lineSource->Update();
+    vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    mapper->SetInputConnection(lineSource->GetOutputPort());
+    m_lineActor->SetMapper(mapper);
+    pclWidget->vis->addActorToRenderer(m_lineActor);
+}
+
+bool MainWindow::checkForClick(string &id) {
+    //check if the selected object the previously selected object
+    if(!strcmp(this->currentObject.c_str(), id.c_str())) {
+        //increment the selection duration
+        this->selectionDuration = ros::Time::now() - this->selectionBegin;
+
+        //draw timing circle onto projector image
+        this->drawClickingCircle = true;
+
+        //check if the selection duration threshold was reached
+        if(this->selectionDuration > this->selection_thresh) {
+            //click was executed
+            cout << "clicked after " << this->selectionDuration.toSec() << "secs" << endl;
+            this->selectionBegin = ros::Time::now();
+            return true;
+        }
+
+    } else {
+        //don't draw the clicking circle
+        this->drawClickingCircle = false;
+
+        //change the name of the selected object
+        this->currentObject = id;
+
+        //reset the selection time and the selection duration
+        this->selectionBegin = ros::Time::now();
+        this->selectionDuration = ros::Duration(0);
+    }
+    return false;
+}
+
+void MainWindow::addSphere(Eigen::Vector3f &center, string id) {
+
+    if(!pclWidget->vis->addSphere(pcl::PointXYZ(center(0), center(1), center(2)), 0.01, 1.0, 0.0, 0.0, id))
+        pclWidget->vis->updateSphere(pcl::PointXYZ(center(0), center(1), center(2)), 0.01, 1.0, 0.0, 0.0, id);
+    sphereIDs.push_back(id);                //store sphere names for later removal
+}
+
+void MainWindow::removeSphere(string &id) {
+    if(pclWidget->vis->removeShape(id)) {
+        cout << "Sphere with ID " << id << " removed." << endl;
+    } else {
+        cout << "Error: Sphere with ID " << id << " could not be removed. Does it exist?" << endl;
+    }
+
+}
+
+void MainWindow::removeAllSpheres() {
+    for(size_t i = 0; i<sphereIDs.size(); i++) {
+        pclWidget->vis->removeShape(sphereIDs.at(i));
+    }
+    sphereIDs.clear();
+//    cout << "All spheres removed succesfully." << endl;
+}
+
+void MainWindow::addArrow(Eigen::Vector3f &center, Eigen::Vector3f &axis, float length, float radius, float resolution) {
+
+    //Create a cone
+    vtkSmartPointer<vtkConeSource> coneSource = vtkSmartPointer<vtkConeSource>::New();
+    coneSource->SetResolution(resolution);
+    coneSource->SetCenter(center(0), center(1), center(2));
+    coneSource->SetDirection(axis(0), axis(1), axis(2));
+    coneSource->SetRadius(radius);
+    coneSource->SetHeight(length);
+    coneSource->Update();
+
+    //Create a mapper and actor
+    vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    mapper->SetInputConnection(coneSource->GetOutputPort());
+
+    coneActor->SetMapper(mapper);
+
+    //Add the actors to the scene
+    pclWidget->vis->removeActorFromRenderer(coneActor);
+    pclWidget->vis->addActorToRenderer(coneActor);
+
+    ui->qvtkWidget->update();
+}
+
+void MainWindow::removeArrow() {
+    pclWidget->vis->removeActorFromRenderer(coneActor);
+}
+
+void MainWindow::addArrowsforActor(actorEntry &actor) {
+    Eigen::Vector3f center, axis;
+    Eigen::Matrix3f rotMat, invMat;
+//    center << line2float(*ui->lineTestConeX), line2float(*ui->lineTestConeY), line2float(*ui->lineTestConeZ);
+//    axis << line2float(*ui->lineTestConeAxisX), line2float(*ui->lineTestConeAxisY), line2float(*ui->lineTestConeAxisZ);
+    float length, radius, resolution;
+    length = line2float(*ui->lineTestConeLength);
+    radius = line2float(*ui->lineTestConeRadius);
+    resolution = line2float(*ui->lineTestConeResolution);
+
+
+    //get actor position and orientation
+//    center = actor.positionXYZ;
+    setRotationMatrixFromYPR(DEG2RAD(actor.orientationYPR), rotMat);
+//    invMat = rotMat.inverse();
+    cout    << "Rotation Matrix" << endl
+            << rotMat(0,0) << "\t" << rotMat(0,1) << "\t" << rotMat(0,2) << endl
+            << rotMat(1,0) << "\t" << rotMat(1,1) << "\t" << rotMat(1,2) << endl
+            << rotMat(2,0) << "\t" << rotMat(2,1) << "\t" << rotMat(2,2) << endl;
+
+//    cout    << "Inverse Matrix" << endl
+//            << invMat(0,0) << "\t" << invMat(0,1) << "\t" << invMat(0,2) << endl
+//            << invMat(1,0) << "\t" << invMat(1,1) << "\t" << invMat(1,2) << endl
+//            << invMat(2,0) << "\t" << invMat(2,1) << "\t" << invMat(2,2) << endl;
+
+//    axis << rotMat(0,0) + rotMat(1,0) + rotMat(2,0), rotMat(0,1) + rotMat(1,1) + rotMat(2,1), rotMat(0,2) + rotMat(1,2) + rotMat(2,2);
+//    axis << invMat(0,0), invMat(0,1), invMat(0,2);
+    axis << rotMat(0,0), rotMat(1,0), rotMat(2,0);
+
+    //get actor size regarding all 3 dimensions
+    double bounds[6];
+    actor.actor->GetBounds(bounds);
+
+    center << (bounds[0]+bounds[1])/2, (bounds[2]+bounds[3])/2, (bounds[4]+bounds[5])/2;
+//    axis << 1, 0, 0;
+
+    //add arrows for all dimensions
+    this->addArrow(center, axis, length, radius, resolution);
+}
+
+void MainWindow::highlightActor(string &id) {
+    for(size_t k=0; k<modelVec.size(); k++) {
+        if(!strcmp(id.c_str(), modelVec.at(k).id.c_str()))
+            modelVec.at(k).actor->GetProperty()->SetColor(0.87, 0.898, 0.7);
+    }
+}
+
+void MainWindow::intersectLineWithModels(Eigen::Vector4f& start, Eigen::Vector4f& end, std::vector<Eigen::Vector3f>& intersections, std::vector<std::string> &ids) {
 
     if(!modelVec.empty()) {
 
@@ -271,6 +417,16 @@ void MainWindow::intersectLineWithModels(double pt_start[], double pt_end[], std
                 modelVec.at(cnt).actor->GetProperty()->SetColor(1, 1, 1);
 
                 Eigen::Vector3f intersectionPoint;
+
+                double pt_start[3], pt_end[3];
+
+                pt_start[0] = start(0)/start(3);
+                pt_start[1] = start(1)/start(3);
+                pt_start[2] = start(2)/start(3);
+
+                pt_end[0] = end(0)/end(3);
+                pt_end[1] = end(1)/end(3);
+                pt_end[2] = end(2)/end(3);
 
                 //use obbTree model TODO: use same procedure for both models
                 if(ui->radioButtonOBB->isChecked()) {
@@ -296,20 +452,14 @@ void MainWindow::intersectLineWithModels(double pt_start[], double pt_end[], std
 
                     //print and save intersection points
                     if(obbHit) {
-                        cout << "Hit! (" << obbHit << ")" << endl;
-                        cout << "Model " << modelVec.at(cnt).id << endl;
+//                        cout << "Hit! (" << obbHit << ")" << endl << "Model " << modelVec.at(cnt).id << endl;
                         ids.push_back(modelVec.at(cnt).id);
                         double intersection[3];
                         for(int i = 0; i < intersectPoints->GetNumberOfPoints(); i++ )
                         {
                             intersectPoints->GetPoint(i, intersection);
-                            std::cout << "Intersection " << i << ": "
-                                      << intersection[0] << ", "
-                                      << intersection[1] << ", "
-                                      << intersection[2] << std::endl;
-                            intersectionPoint(0) = intersection[0];
-                            intersectionPoint(1) = intersection[1];
-                            intersectionPoint(2) = intersection[2];
+//                            std::cout << "Intersection " << i << ": " << intersection[0] << ", " << intersection[1] << ", " << intersection[2] << std::endl;
+                            intersectionPoint << intersection[0], intersection[1], intersection[2];
                             intersections.push_back(intersectionPoint);
                         }
                     }
@@ -342,25 +492,46 @@ void MainWindow::intersectLineWithModels(double pt_start[], double pt_end[], std
 
                     //print and save intersection points
                     if(bspHit) {
-                        cout << "Hit! (" << bspHit << ")" << endl;
-                        cout << "Model " << modelVec.at(cnt).id << endl;
+//                        cout << "Hit! (" << bspHit << ")" << endl << "Model " << modelVec.at(cnt).id << endl;
                         ids.push_back(modelVec.at(cnt).id);
-                        std::cout << "Intersection: "
-                                  << x[0] << ", "
-                                  << x[1] << ", "
-                                  << x[2] << std::endl;
-                        intersectionPoint(0) = x[0];
-                        intersectionPoint(1) = x[1];
-                        intersectionPoint(2) = x[2];
+//                        std::cout << "Intersection: " << x[0] << ", " << x[1] << ", " << x[2] << std::endl;
+                        intersectionPoint << x[0], x[1], x[2];
                         intersections.push_back(intersectionPoint);
                     }
                 }
             }
-
         }
     }
 }
 
+void MainWindow::projectWorldPointToProjectorImage(Eigen::Vector3f &pt_world, cv::Point &pt_projector) {
+    //transform world point to projector coordinates
+
+    //calculate the transformation between 3D points and the projector image
+    Eigen::Vector4f p_proj3D_hom, worldPoint_hom;
+    Eigen::Vector3f p_proj3D, p_proj2D_hom;
+    Eigen::Vector2f p_proj2D;
+    float scale3D, scale2Dx, scale2Dy;
+    scale3D = ui->lineTestScale3D->text().toFloat();
+    scale2Dx = ui->lineTestScale2D->text().toFloat();
+    scale2Dy = ui->lineTestScale2D_2->text().toFloat();
+
+//    cout << "3D: " << scale3D << " 2Dx: " << scale2Dx << " 2Dy: " << scale2Dy << endl;
+
+    worldPoint_hom << pt_world(0), pt_world(1), pt_world(2), 1.0;
+
+    //transform 3D points to 3D projector coordinates
+    p_proj3D_hom = T_world2proj.inverse() * worldPoint_hom;
+    p_proj3D << p_proj3D_hom(0), p_proj3D_hom(1), p_proj3D_hom(2);
+    p_proj3D *= scale3D;
+
+    //transform 3D points to 2D projector pixel values
+    p_proj2D_hom = T_intrProj * p_proj3D;
+    p_proj2D << p_proj2D_hom(0)/p_proj2D_hom(2), p_proj2D_hom(1)/p_proj2D_hom(2);
+
+    pt_projector.x  = p_proj2D(0)*scale2Dx;
+    pt_projector.y  = p_proj2D(1)*scale2Dy;
+}
 
 void MainWindow::loadPointCloud(string filename) {
     PointCloud<PointXYZRGB> pc_load;
@@ -603,6 +774,7 @@ void MainWindow::setTransformations()
 //    T_world2projVTK = first * second * last;
 **********/
     T_world2projVTK = T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK * T_VTKcam;
+    T_world2proj    = T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK;
 
 
     //intrinsic projector transformation for use with VTK
@@ -612,10 +784,13 @@ void MainWindow::setTransformations()
 
 
     //intrinsic projector transformation from calibration used for calibration validation
-    T_intrProj <<   1515.51089,     0,              437.37754,
+//    T_intrProj <<   1515.51089,     0,              437.37754,
+//                    0,              1447.40731,     515.55742,
+//                    0,              0,              1;
+    //modified intrinsic projector matrix, TODO: why is the transformation (in VTK) more corrrect when using fy as fx, does this also apply when the real projector is used?
+    T_intrProj <<   1447.40731,     0,              437.37754,
                     0,              1447.40731,     515.55742,
                     0,              0,              1;
-
 
 
 
@@ -828,6 +1003,14 @@ void MainWindow::createProjectionImageFromGUI()
     cv::flip( cvImage, cvImage, 0); //align axis with visualizer
     cv::Rect roi(0,0,848,480);      //TODO projector size param
     this->projectorImage = cvImage(roi).clone();
+    if(this->laserPoint.x != 0.0 && this->laserPoint.y != 0.0 )
+        circle(this->projectorImage, this->laserPoint, 8.0, Scalar(0, 255, 0),3);
+
+    if(this->drawClickingCircle) {
+        double angle = (this->selectionDuration.toSec() / this->selection_thresh.toSec()) * 360.0;
+        ellipse(this->projectorImage, Point(424,240), Size(40, 40), angle, 0.0, 360.0, Scalar(0, 0, 0), 5);
+    }
+
 }
 
 
@@ -1379,7 +1562,7 @@ void MainWindow::moveModel() {
                 cout << "Warning: model not visible!" << endl;
             }
 
-            //move the model first back to origin and then using the new input values
+            //move the model first back to origin and then using the new input values TODO: transform in body coordinates not world coordinates
             vtkSmartPointer<vtkTransform> transform = vtkSmartPointer<vtkTransform>::New();
             transform->PostMultiply();
             transform->Translate(-modelVec.at(id).positionXYZ(0), -modelVec.at(id).positionXYZ(1), -modelVec.at(id).positionXYZ(2));
@@ -1660,4 +1843,14 @@ void MainWindow::sendPCToOctomapServer() {
 void MainWindow::on_btnPCSendOcto_clicked()
 {
     this->sendPCToOctomapServer();
+}
+
+void MainWindow::on_btnAddCone_clicked()
+{
+    this->addArrowsforActor(modelVec.at(0));
+}
+
+void MainWindow::on_btnRemoveCone_clicked()
+{
+    this->removeArrow();
 }
