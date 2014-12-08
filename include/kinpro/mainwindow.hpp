@@ -142,6 +142,20 @@
 
 #define Instantiate( obj, class ) vtkSmartPointer<class> obj = vtkSmartPointer<class>::New();
 
+class PositionTransformer: public QObject
+{
+    Q_OBJECT
+
+public slots:
+    void newPositionReceived(nav_msgs::Odometry msg);
+
+signals:
+    void transformDone(tf::StampedTransform transform);
+
+private:
+    Eigen::Matrix4f m_transformMat;
+};
+
 class VTKPointCloudWidget: QVTKWidget
 {
 
@@ -189,6 +203,12 @@ class MainWindow: public QMainWindow {
 
         void signalProjectImage(cv::Mat img);
         void signalPublishPointcloud(pcl::PointCloud<pcl::PointXYZRGB> pc);
+        void signalPublishInitialPose(geometry_msgs::PoseWithCovarianceStamped pose);
+        void signalCallGlobalLoc();
+        void signalCallLocalLoc();
+        void signalCallPauseLoc();
+        void signalCallResumeLoc();
+        void signalToggleVisOdom();
 
 
     private slots:
@@ -276,11 +296,26 @@ class MainWindow: public QMainWindow {
 
         void on_btnRemoveCone_clicked();
 
+        void on_comboBox_currentIndexChanged(int index);
+
+        void on_btnGlobalLoc_clicked();
+
+        void on_btnLocalLoc_clicked();
+
+        void on_btnPauseLoc_clicked();
+
+        void on_btnResumeLoc_clicked();
+
+        void on_btnSetInitPose_clicked();
+
+        void on_btnToggleVisOdom_clicked();
+
 public slots:
 
         void newPointCloud(pcl::PointCloud<pcl::PointXYZRGB> pc);
         void newPosition(nav_msgs::Odometry msg);
         void newLine(kinpro_interaction::line line);
+        void newTransform(tf::StampedTransform transform);
 
     private:
 
@@ -288,6 +323,15 @@ public slots:
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_pc;
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_bg;
         vector<pcl::PointCloud<pcl::PointXYZRGB> >segmentedPlanes;
+
+        boost::mutex m_cloudMtx;
+        boost::mutex m_positionMutex;
+        boost::mutex m_lineMutex;
+
+        enum OperationMode{
+            BASIC = 0,
+            MOVEOBJECTS
+        };
 
         void loadPointCloud(std::string filename = std::string("pointcloud.pcd"));
         void savePointCloud(std::string filename = std::string("pointcloud.pcd"));
@@ -347,18 +391,23 @@ public slots:
         void addSphere(Eigen::Vector3f &center, string id);
         void removeSphere(std::string &id);
         void removeAllSpheres();
-        void addArrow(Eigen::Vector3f &center, Eigen::Vector3f &axis, float length = 1.0, float radius = 1.0, float resolution = 10.0);
-        void removeArrow();
+
+        void switchOperationMode(int mode = BASIC);
+
+        void addArrow(Eigen::Vector3f &center, Eigen::Vector3f &axis, float length = 1.0, float radius = 1.0, float resolution = 10.0, int id = 0);
+        void removeArrow(int id = 0);
         void highlightActor(std::string &id);
+
+        int operationMode;
 
 
 
         //structure for VTK actor entries
-        struct actorEntry { vtkSmartPointer<vtkActor> actor; std::string id; bool visible; Eigen::Vector3f positionXYZ; Eigen::Vector3f orientationYPR;};
+        struct actorEntry { vtkSmartPointer<vtkActor> actor; std::string id; bool visible; Eigen::Vector3f positionXYZ; Eigen::Vector3f orientationYPR; std::vector<double> bounds;};
         void addArrowsforActor(actorEntry &actor);
 
         //structure for point cloud entries, position in m, orientation in DEG
-        struct PCEntry { pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud; std::string id; bool visible; Eigen::Vector3f positionXYZ; Eigen::Vector3f orientationYPR;};
+        struct PCEntry { pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud; std::string id; bool visible; Eigen::Vector3f positionXYZ; Eigen::Vector3f orientationYPR; std::vector<double> bounds;};
         std::vector< PCEntry > PCVec;
         std::vector< actorEntry > modelVec;
 
@@ -368,11 +417,13 @@ public slots:
         vtkSmartPointer<vtkActor> obbTreeActor;
         vtkSmartPointer<vtkActor> bspTreeActor;
 
-        vtkSmartPointer<vtkActor> coneActor;
+        std::vector<vtkSmartPointer<vtkActor> > coneActors;
 
         std::vector<std::string> sphereIDs;
         cv::Point laserPoint;
         bool drawClickingCircle;
+
+        bool visualOdometryActive;
 
 
         bool displayRGBCloud;
@@ -431,7 +482,6 @@ public slots:
         ros::Duration selection_thresh;
         ros::Duration selectionDuration;
         ros::Time selectionBegin;
-
 };
 
 #endif // _KINPRO_MAIN_WINDOW_H

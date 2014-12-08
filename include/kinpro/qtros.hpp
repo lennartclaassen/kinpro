@@ -32,6 +32,9 @@
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/Image.h>
 
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <std_srvs/Empty.h>
+
 #include <kinpro_interaction/line.h>
 
 #include <nav_msgs/Odometry.h>
@@ -63,6 +66,12 @@ class QtROS: public QThread {
 
         void slotProjectImage(cv::Mat img);
         void slotPublishPointcloud(pcl::PointCloud<pcl::PointXYZRGB> pc);
+        void slotPublishInitialPose(geometry_msgs::PoseWithCovarianceStamped pose);
+        void slotCallGlobalLoc();
+        void slotCallLocalLoc();
+        void slotCallPauseLoc();
+        void slotCallResumeLoc();
+        void slotToggleVisOdom();
 
     public:
         /**
@@ -103,6 +112,12 @@ class QtROS: public QThread {
         ros::Subscriber                     line_sub;
         ros::Publisher                      pc_pub;
         ros::ServiceClient                  octomapClient;
+        ros::ServiceClient                  globalLocClient;
+        ros::ServiceClient                  localLocClient;
+        ros::ServiceClient                  pauseLocClient;
+        ros::ServiceClient                  resumeLocClient;
+        ros::Publisher                      initPosePub;
+        ros::ServiceClient                  visOdomClient;
 
         pcl::PointCloud<pcl::PointXYZRGB>   pclCloud;
         sensor_msgs::Image                  projectorImg;

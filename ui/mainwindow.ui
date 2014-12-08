@@ -24,7 +24,7 @@
      </rect>
     </property>
     <property name="currentIndex">
-     <number>3</number>
+     <number>6</number>
     </property>
     <widget class="QWidget" name="tab_controls">
      <attribute name="title">
@@ -2627,6 +2627,26 @@
        <string>0.5</string>
       </property>
      </widget>
+     <widget class="QComboBox" name="comboBox">
+      <property name="geometry">
+       <rect>
+        <x>280</x>
+        <y>70</y>
+        <width>85</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <item>
+       <property name="text">
+        <string>Basic</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>MoveObjects</string>
+       </property>
+      </item>
+     </widget>
     </widget>
     <widget class="QWidget" name="tab_model">
      <attribute name="title">
@@ -2672,7 +2692,7 @@
       </property>
      </widget>
     </widget>
-    <widget class="QWidget" name="tab">
+    <widget class="QWidget" name="tab_elements">
      <attribute name="title">
       <string>Elements</string>
      </attribute>
@@ -3288,6 +3308,300 @@
       <property name="text">
        <string>Send to Octomap</string>
       </property>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="tab_ros">
+     <attribute name="title">
+      <string>ROS</string>
+     </attribute>
+     <widget class="QGroupBox" name="groupBoxLoc">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>0</y>
+        <width>201</width>
+        <height>261</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Localization</string>
+      </property>
+      <widget class="QPushButton" name="btnResumeLoc">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>120</y>
+         <width>181</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Resume</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="btnGlobalLoc">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>30</y>
+         <width>181</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Start Global</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="btnLocalLoc">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>60</y>
+         <width>181</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Start Local</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="btnPauseLoc">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>90</y>
+         <width>181</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Pause</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="btnSetInitPose">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>230</y>
+         <width>181</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Set Initial Pose</string>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineInitPoseY">
+       <property name="geometry">
+        <rect>
+         <x>40</x>
+         <y>180</y>
+         <width>50</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>0</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelInitPoseRoll">
+       <property name="geometry">
+        <rect>
+         <x>108</x>
+         <y>200</y>
+         <width>16</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>r:</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelRoll_4">
+       <property name="geometry">
+        <rect>
+         <x>29</x>
+         <y>200</y>
+         <width>16</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>z:</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelInitPoseX">
+       <property name="geometry">
+        <rect>
+         <x>29</x>
+         <y>159</y>
+         <width>20</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>x:</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelInitPosePitch">
+       <property name="geometry">
+        <rect>
+         <x>108</x>
+         <y>180</y>
+         <width>16</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>p:</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelInitPoseYaw">
+       <property name="geometry">
+        <rect>
+         <x>108</x>
+         <y>160</y>
+         <width>16</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>y:</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelPitch_5">
+       <property name="geometry">
+        <rect>
+         <x>29</x>
+         <y>180</y>
+         <width>16</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>y:</string>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineInitPoseYaw">
+       <property name="geometry">
+        <rect>
+         <x>119</x>
+         <y>160</y>
+         <width>50</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>0</string>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineInitPoseRoll">
+       <property name="geometry">
+        <rect>
+         <x>119</x>
+         <y>200</y>
+         <width>50</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>0</string>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineInitPoseZ">
+       <property name="geometry">
+        <rect>
+         <x>40</x>
+         <y>200</y>
+         <width>50</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>0</string>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineInitPoseX">
+       <property name="geometry">
+        <rect>
+         <x>40</x>
+         <y>160</y>
+         <width>50</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>0</string>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineInitPosePitch">
+       <property name="geometry">
+        <rect>
+         <x>119</x>
+         <y>180</y>
+         <width>50</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>0</string>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QGroupBox" name="groupBoxVisOdom">
+      <property name="geometry">
+       <rect>
+        <x>250</x>
+        <y>0</y>
+        <width>161</width>
+        <height>141</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Visual Odometry</string>
+      </property>
+      <widget class="QPushButton" name="btnToggleVisOdom">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>60</y>
+         <width>151</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Toggle On/Off</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelStaticVisOdom">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>30</y>
+         <width>51</width>
+         <height>17</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Status: </string>
+       </property>
+       <property name="textInteractionFlags">
+        <set>Qt::LinksAccessibleByMouse</set>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelVisOdomStatus">
+       <property name="geometry">
+        <rect>
+         <x>80</x>
+         <y>30</y>
+         <width>41</width>
+         <height>17</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>On</string>
+       </property>
+      </widget>
      </widget>
     </widget>
    </widget>

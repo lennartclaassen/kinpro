@@ -29,10 +29,37 @@ using namespace std;
 using namespace pcl;
 using namespace cv;
 
+void PositionTransformer::newPositionReceived(nav_msgs::Odometry msg) {
+
+    //        cout << "new position received" << endl;
+    bool transformOK = false;
+
+    tf::TransformListener ls;
+    tf::StampedTransform transform;
+    try{
+        string targetFrame, sourceFrame;
+        targetFrame = string("/map");
+        sourceFrame = string("/odom");
+
+        ls.waitForTransform(targetFrame, sourceFrame, ros::Time(0), ros::Duration(0.3));
+        ls.lookupTransform(targetFrame, sourceFrame, ros::Time(0), transform);
+        transformOK = true;
+//            ui->checkBoxUsePosSig->setChecked(false);
+
+    }catch(tf::TransformException& ex){
+        ROS_ERROR_STREAM( "Transform error for map to odom transform: " << ex.what());
+    }
+
+    if(transformOK) {
+        emit transformDone(transform);
+    }
+}
+
 VTKPointCloudWidget::VTKPointCloudWidget(QWidget *parent) : QVTKWidget(parent)
 {
     vis = new visualization::PCLVisualizer("vis", false);
-    vis->setBackgroundColor(0.7, 0.7, 0.7);
+//    vis->setBackgroundColor(0.7, 0.7, 0.7);
+    vis->setBackgroundColor(0,0,0);
 }
 
 VTKPointCloudWidget::~VTKPointCloudWidget() {
@@ -72,7 +99,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     bspTree = vtkSmartPointer<vtkModifiedBSPTree>::New();
     pclWidget->vis->addActorToRenderer(m_lineActor);
 
-    coneActor = vtkSmartPointer<vtkActor>::New();
+    for(int i = 0; i < 6; i++) {
+        vtkSmartPointer<vtkActor> actor;
+        coneActors.push_back(actor);
+        coneActors.at(i) = vtkSmartPointer<vtkActor>::New();
+    }
 
 
     //initialize laser point
@@ -82,6 +113,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     this->currentObject = string("");
     this->selectionDuration = ros::Duration(0);
     this->selection_thresh = ros::Duration(3);
+
+    this->operationMode = BASIC;
+
+    this->visualOdometryActive = true;
 
     //toggle checkbox to insert coordinate system
     ui->checkBoxCoordSys->toggle();
@@ -93,25 +128,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 MainWindow::~MainWindow() {
 }
 
-void MainWindow::newPosition(nav_msgs::Odometry msg)
-{
+void MainWindow::newTransform(tf::StampedTransform transform) {
+    boost::lock_guard<boost::mutex> guard(m_positionMutex);
     if(ui->checkBoxUsePosSig->isChecked()) {
 
-        cout << "new position received" << endl;
-
-        bool transformOK = false;
-
-        tf::TransformListener ls;
-        tf::StampedTransform transform;
-        try{
-            string targetFrame, sourceFrame;
-            targetFrame = string("/map");
-            sourceFrame = string("/odom");
-
-            ls.waitForTransform(targetFrame, sourceFrame, ros::Time(0), ros::Duration(0.2));
-            ls.lookupTransform(targetFrame, sourceFrame, ros::Time(0), transform);
-            transformOK = true;
-            ui->checkBoxUsePosSig->setChecked(false);
+        cout << "new transform received" << endl;
 
             t_map2worldVTK(0) = transform.getOrigin().x();
             t_map2worldVTK(1) = transform.getOrigin().y();
@@ -126,12 +147,6 @@ void MainWindow::newPosition(nav_msgs::Odometry msg)
             R_map2worldVTK = qmap2world.matrix();
 
             this->setTransformationMatrix(R_map2worldVTK, t_map2worldVTK, T_map2worldVTK);
-
-        }catch(tf::TransformException& ex){
-            ROS_ERROR_STREAM( "Transform error for map to odom transform: " << ex.what());
-        }
-
-        if(transformOK) {
 
             t_world2camlinkVTK(0) = msg.pose.pose.position.x;
             t_world2camlinkVTK(1) = msg.pose.pose.position.y;
@@ -159,8 +174,8 @@ void MainWindow::newPosition(nav_msgs::Odometry msg)
                                     0,                          0,                          0,                          1;
 
             T_world2projVTK = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK * T_VTKcam;
-            T_world2proj    = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK;
-            T_world2camVTK  = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK;
+//            T_world2proj    = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK;
+//            T_world2camVTK  = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK;
 
             pclWidget->vis->setCameraParameters(T_intrProjVTK, T_world2projVTK);
             ui->qvtkWidget->update();
@@ -172,11 +187,75 @@ void MainWindow::newPosition(nav_msgs::Odometry msg)
 
             if(ui->checkBoxPubImage->isChecked())
                 emit signalProjectImage(this->projectorImage);
-        }
+    }
+}
+
+void MainWindow::newPosition(nav_msgs::Odometry msg)
+{
+    boost::lock_guard<boost::mutex> guard(m_positionMutex);
+    if(ui->checkBoxUsePosSig->isChecked()) {
+
+//        cout << "new position received" << endl;
+
+            t_map2worldVTK(0) = transform.getOrigin().x();
+            t_map2worldVTK(1) = transform.getOrigin().y();
+            t_map2worldVTK(2) = transform.getOrigin().z();
+
+            Eigen::Quaternion<float> qmap2world;
+            qmap2world.x() = transform.getRotation().x();
+            qmap2world.y() = transform.getRotation().y();
+            qmap2world.z() = transform.getRotation().z();
+            qmap2world.w() = transform.getRotation().w();
+
+            R_map2worldVTK = qmap2world.matrix();
+
+            this->setTransformationMatrix(R_map2worldVTK, t_map2worldVTK, T_map2worldVTK);
+
+            t_world2camlinkVTK(0) = msg.pose.pose.position.x;
+            t_world2camlinkVTK(1) = msg.pose.pose.position.y;
+            t_world2camlinkVTK(2) = msg.pose.pose.position.z;
+
+            //    float rollworld2camlink, pitchworld2camlink, yawworld2camlink;
+            //    yawworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoYaw));
+            //    pitchworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoPitch));
+            //    rollworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoRoll));
+            //    Eigen::AngleAxisf rollAngleworld2camlink(rollworld2camlink, Eigen::Vector3f::UnitX());
+            //    Eigen::AngleAxisf yawAngleworld2camlink(yawworld2camlink, Eigen::Vector3f::UnitZ());
+            //    Eigen::AngleAxisf pitchAngleworld2camlink(pitchworld2camlink, Eigen::Vector3f::UnitY());
+
+            Eigen::Quaternion<float> qworld2camlink;
+            qworld2camlink.x() = msg.pose.pose.orientation.x;
+            qworld2camlink.y() = msg.pose.pose.orientation.y;
+            qworld2camlink.z() = msg.pose.pose.orientation.z;
+            qworld2camlink.w() = msg.pose.pose.orientation.w;
+
+            R_world2camlinkVTK = qworld2camlink.matrix();
+
+            T_world2camlinkVTK <<   R_world2camlinkVTK(0,0),    R_world2camlinkVTK(0,1),    R_world2camlinkVTK(0,2),    t_world2camlinkVTK(0),
+                                    R_world2camlinkVTK(1,0),    R_world2camlinkVTK(1,1),    R_world2camlinkVTK(1,2),    t_world2camlinkVTK(1),
+                                    R_world2camlinkVTK(2,0),    R_world2camlinkVTK(2,1),    R_world2camlinkVTK(2,2),    t_world2camlinkVTK(2),
+                                    0,                          0,                          0,                          1;
+
+            T_world2projVTK = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK * T_VTKcam;
+//            T_world2proj    = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK;
+//            T_world2camVTK  = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK;
+
+            pclWidget->vis->setCameraParameters(T_intrProjVTK, T_world2projVTK);
+            ui->qvtkWidget->update();
+
+            this->createProjectionImageFromGUI();
+
+            if(ui->checkBoxShowProjImage->isChecked())
+                showProjectionImage();
+
+            if(ui->checkBoxPubImage->isChecked())
+                emit signalProjectImage(this->projectorImage);
     }
 }
 
 void MainWindow::newLine(kinpro_interaction::line line) {
+    boost::lock_guard<boost::mutex> guard(m_lineMutex);
+
     //clear actors
     pclWidget->vis->removeActorFromRenderer(m_lineActor);
     pclWidget->vis->removeActorFromRenderer(obbTreeActor);
@@ -328,7 +407,7 @@ void MainWindow::removeAllSpheres() {
 //    cout << "All spheres removed succesfully." << endl;
 }
 
-void MainWindow::addArrow(Eigen::Vector3f &center, Eigen::Vector3f &axis, float length, float radius, float resolution) {
+void MainWindow::addArrow(Eigen::Vector3f &center, Eigen::Vector3f &axis, float length, float radius, float resolution, int id) {
 
     //Create a cone
     vtkSmartPointer<vtkConeSource> coneSource = vtkSmartPointer<vtkConeSource>::New();
@@ -343,17 +422,17 @@ void MainWindow::addArrow(Eigen::Vector3f &center, Eigen::Vector3f &axis, float 
     vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     mapper->SetInputConnection(coneSource->GetOutputPort());
 
-    coneActor->SetMapper(mapper);
+    coneActors.at(id)->SetMapper(mapper);
 
     //Add the actors to the scene
-    pclWidget->vis->removeActorFromRenderer(coneActor);
-    pclWidget->vis->addActorToRenderer(coneActor);
+    pclWidget->vis->removeActorFromRenderer(coneActors.at(id));
+    pclWidget->vis->addActorToRenderer(coneActors.at(id));
 
     ui->qvtkWidget->update();
 }
 
-void MainWindow::removeArrow() {
-    pclWidget->vis->removeActorFromRenderer(coneActor);
+void MainWindow::removeArrow(int id) {
+    pclWidget->vis->removeActorFromRenderer(coneActors.at(id));
 }
 
 void MainWindow::addArrowsforActor(actorEntry &actor) {
@@ -383,122 +462,246 @@ void MainWindow::addArrowsforActor(actorEntry &actor) {
 
 //    axis << rotMat(0,0) + rotMat(1,0) + rotMat(2,0), rotMat(0,1) + rotMat(1,1) + rotMat(2,1), rotMat(0,2) + rotMat(1,2) + rotMat(2,2);
 //    axis << invMat(0,0), invMat(0,1), invMat(0,2);
-    axis << rotMat(0,0), rotMat(1,0), rotMat(2,0);
 
     //get actor size regarding all 3 dimensions
     double bounds[6];
     actor.actor->GetBounds(bounds);
 
-    center << (bounds[0]+bounds[1])/2, (bounds[2]+bounds[3])/2, (bounds[4]+bounds[5])/2;
-//    axis << 1, 0, 0;
+    for(int i = 0; i < 6; i++) {
 
-    //add arrows for all dimensions
-    this->addArrow(center, axis, length, radius, resolution);
+        int col = i/2;
+        axis << rotMat(0,col), rotMat(1,col), rotMat(2,col);
+        center << (bounds[0]+bounds[1])/2, (bounds[2]+bounds[3])/2, (bounds[4]+bounds[5])/2;
+
+        if(i%2){
+//            axis *= -1;
+            axis *= (actor.bounds[i]+length);
+        }else {
+            axis *= (actor.bounds[i]-length);
+        }
+
+        center += axis;
+
+        //    axis << 1, 0, 0;
+
+        //add arrows for all dimensions
+        this->addArrow(center, axis, length, radius, resolution, i);
+    }
 }
 
 void MainWindow::highlightActor(string &id) {
-    for(size_t k=0; k<modelVec.size(); k++) {
-        if(!strcmp(id.c_str(), modelVec.at(k).id.c_str()))
-            modelVec.at(k).actor->GetProperty()->SetColor(0.87, 0.898, 0.7);
+    if(operationMode == BASIC) {
+        for(size_t k=0; k<modelVec.size(); k++) {
+            if(!strcmp(id.c_str(), modelVec.at(k).id.c_str()))
+                modelVec.at(k).actor->GetProperty()->SetColor(0.87, 0.898, 0.7);
+        }
+    }else if (operationMode == MOVEOBJECTS) {
+        for(size_t k=0; k<coneActors.size(); k++) {
+            stringstream ss;
+            ss << k;
+            if(!strcmp(id.c_str(), ss.str().c_str()))
+                coneActors.at(k)->GetProperty()->SetColor(0.87, 0.898, 0.7);
+        }
     }
 }
 
 void MainWindow::intersectLineWithModels(Eigen::Vector4f& start, Eigen::Vector4f& end, std::vector<Eigen::Vector3f>& intersections, std::vector<std::string> &ids) {
 
-    if(!modelVec.empty()) {
+    if(operationMode == BASIC) {
 
-        //calculate intersections with all models
-        for(size_t cnt = 0; cnt < modelVec.size(); cnt++) {
+        if(!modelVec.empty()) {
 
-            //only iterate over visible models
-            if(modelVec.at(cnt).visible) {
+            //calculate intersections with all models
+            for(size_t cnt = 0; cnt < modelVec.size(); cnt++) {
 
-                //reset model color
-                modelVec.at(cnt).actor->GetProperty()->SetColor(1, 1, 1);
+                //only iterate over visible models
+                if(modelVec.at(cnt).visible) {
 
-                Eigen::Vector3f intersectionPoint;
+                    //reset model color
+                    modelVec.at(cnt).actor->GetProperty()->SetColor(1, 1, 1);
 
-                double pt_start[3], pt_end[3];
+                    Eigen::Vector3f intersectionPoint;
 
-                pt_start[0] = start(0)/start(3);
-                pt_start[1] = start(1)/start(3);
-                pt_start[2] = start(2)/start(3);
+                    double pt_start[3], pt_end[3];
 
-                pt_end[0] = end(0)/end(3);
-                pt_end[1] = end(1)/end(3);
-                pt_end[2] = end(2)/end(3);
+                    pt_start[0] = start(0)/start(3);
+                    pt_start[1] = start(1)/start(3);
+                    pt_start[2] = start(2)/start(3);
 
-                //use obbTree model TODO: use same procedure for both models
-                if(ui->radioButtonOBB->isChecked()) {
+                    pt_end[0] = end(0)/end(3);
+                    pt_end[1] = end(1)/end(3);
+                    pt_end[2] = end(2)/end(3);
 
-                    //create obbTree
-                    obbTree->SetDataSet(modelVec.at(cnt).actor->GetMapper()->GetInput());
-                    obbTree->BuildLocator();
+                    //use obbTree model TODO: use same procedure for both models
+                    if(ui->radioButtonOBB->isChecked()) {
 
-                    //Visualize obbTree bounding box
-                    if(ui->checkBoxShowBB->isChecked()) {
-                        vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
-                        obbTree->GenerateRepresentation(0, polydata);
-                        vtkSmartPointer<vtkPolyDataMapper> obbtreeMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-                        obbtreeMapper->SetInput(polydata);
-                        obbTreeActor->SetMapper(obbtreeMapper);
-                        pclWidget->vis->addActorToRenderer(obbTreeActor);
+                        //create obbTree
+                        obbTree->SetDataSet(modelVec.at(cnt).actor->GetMapper()->GetInput());
+                        obbTree->BuildLocator();
+
+                        //Visualize obbTree bounding box
+                        if(ui->checkBoxShowBB->isChecked()) {
+                            vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
+                            obbTree->GenerateRepresentation(0, polydata);
+                            vtkSmartPointer<vtkPolyDataMapper> obbtreeMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+                            obbtreeMapper->SetInput(polydata);
+                            obbTreeActor->SetMapper(obbtreeMapper);
+                            pclWidget->vis->addActorToRenderer(obbTreeActor);
+                        }
+
+                        vtkSmartPointer<vtkPoints> intersectPoints = vtkSmartPointer<vtkPoints>::New();
+
+                        //calculate intersection
+                        int obbHit = obbTree->IntersectWithLine(pt_start, pt_end, intersectPoints, NULL);
+
+                        //print and save intersection points
+                        if(obbHit) {
+                            //                        cout << "Hit! (" << obbHit << ")" << endl << "Model " << modelVec.at(cnt).id << endl;
+                            ids.push_back(modelVec.at(cnt).id);
+                            double intersection[3];
+                            for(int i = 0; i < intersectPoints->GetNumberOfPoints(); i++ )
+                            {
+                                intersectPoints->GetPoint(i, intersection);
+                                //                            std::cout << "Intersection " << i << ": " << intersection[0] << ", " << intersection[1] << ", " << intersection[2] << std::endl;
+                                intersectionPoint << intersection[0], intersection[1], intersection[2];
+                                intersections.push_back(intersectionPoint);
+                            }
+                        }
                     }
 
-                    vtkSmartPointer<vtkPoints> intersectPoints = vtkSmartPointer<vtkPoints>::New();
+                    //use bspTree model
+                    if(ui->radioButtonBSP->isChecked()) {
 
-                    //calculate intersection
-                    int obbHit = obbTree->IntersectWithLine(pt_start, pt_end, intersectPoints, NULL);
+                        //build bspTree
+                        bspTree->SetDataSet(modelVec.at(cnt).actor->GetMapper()->GetInput());
+                        bspTree->BuildLocator();
 
-                    //print and save intersection points
-                    if(obbHit) {
-//                        cout << "Hit! (" << obbHit << ")" << endl << "Model " << modelVec.at(cnt).id << endl;
-                        ids.push_back(modelVec.at(cnt).id);
-                        double intersection[3];
-                        for(int i = 0; i < intersectPoints->GetNumberOfPoints(); i++ )
-                        {
-                            intersectPoints->GetPoint(i, intersection);
-//                            std::cout << "Intersection " << i << ": " << intersection[0] << ", " << intersection[1] << ", " << intersection[2] << std::endl;
-                            intersectionPoint << intersection[0], intersection[1], intersection[2];
+                        //visualize bspTree bounding box
+                        if(ui->checkBoxShowBB->isChecked()) {
+                            vtkSmartPointer<vtkPolyData> bspPoly = vtkSmartPointer<vtkPolyData>::New();
+                            bspTree->GenerateRepresentation(0, bspPoly);
+                            vtkSmartPointer<vtkPolyDataMapper> bsptreeMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+                            bsptreeMapper->SetInput(bspPoly);
+                            bspTreeActor->SetMapper(bsptreeMapper);
+                            pclWidget->vis->addActorToRenderer(bspTreeActor);
+                        }
+
+                        //calculate intersection
+                        double tolerance = .001;    //tolerance
+                        double t;                   //parametric coordinate of intersection (0 (corresponding to p1) to 1 (corresponding to p2))
+                        double x[3];                //the coordinate of the intersection
+                        double pcoords[3];
+                        int subId;
+                        int bspHit = bspTree->IntersectWithLine(pt_start, pt_end, tolerance, t, x, pcoords, subId);
+
+                        //print and save intersection points
+                        if(bspHit) {
+                            //                        cout << "Hit! (" << bspHit << ")" << endl << "Model " << modelVec.at(cnt).id << endl;
+                            ids.push_back(modelVec.at(cnt).id);
+                            //                        std::cout << "Intersection: " << x[0] << ", " << x[1] << ", " << x[2] << std::endl;
+                            intersectionPoint << x[0], x[1], x[2];
                             intersections.push_back(intersectionPoint);
                         }
                     }
                 }
+            }
+        }
+    } else if(operationMode == MOVEOBJECTS) {
+        if(!coneActors.empty()) {
 
-                //use bspTree model
-                if(ui->radioButtonBSP->isChecked()) {
+            //calculate intersections with all models
+            for(size_t cnt = 0; cnt < coneActors.size(); cnt++) {
 
-                    //build bspTree
-                    bspTree->SetDataSet(modelVec.at(cnt).actor->GetMapper()->GetInput());
-                    bspTree->BuildLocator();
+                    //reset model color
+                    coneActors.at(cnt)->GetProperty()->SetColor(1, 1, 1);
 
-                    //visualize bspTree bounding box
-                    if(ui->checkBoxShowBB->isChecked()) {
-                        vtkSmartPointer<vtkPolyData> bspPoly = vtkSmartPointer<vtkPolyData>::New();
-                        bspTree->GenerateRepresentation(0, bspPoly);
-                        vtkSmartPointer<vtkPolyDataMapper> bsptreeMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-                        bsptreeMapper->SetInput(bspPoly);
-                        bspTreeActor->SetMapper(bsptreeMapper);
-                        pclWidget->vis->addActorToRenderer(bspTreeActor);
+                    Eigen::Vector3f intersectionPoint;
+
+                    double pt_start[3], pt_end[3];
+
+                    pt_start[0] = start(0)/start(3);
+                    pt_start[1] = start(1)/start(3);
+                    pt_start[2] = start(2)/start(3);
+
+                    pt_end[0] = end(0)/end(3);
+                    pt_end[1] = end(1)/end(3);
+                    pt_end[2] = end(2)/end(3);
+
+                    //use obbTree model TODO: use same procedure for both models
+                    if(ui->radioButtonOBB->isChecked()) {
+
+                        //create obbTree
+                        obbTree->SetDataSet(coneActors.at(cnt)->GetMapper()->GetInput());
+                        obbTree->BuildLocator();
+
+                        //Visualize obbTree bounding box
+                        if(ui->checkBoxShowBB->isChecked()) {
+                            vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
+                            obbTree->GenerateRepresentation(0, polydata);
+                            vtkSmartPointer<vtkPolyDataMapper> obbtreeMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+                            obbtreeMapper->SetInput(polydata);
+                            obbTreeActor->SetMapper(obbtreeMapper);
+                            pclWidget->vis->addActorToRenderer(obbTreeActor);
+                        }
+
+                        vtkSmartPointer<vtkPoints> intersectPoints = vtkSmartPointer<vtkPoints>::New();
+
+                        //calculate intersection
+                        int obbHit = obbTree->IntersectWithLine(pt_start, pt_end, intersectPoints, NULL);
+
+                        //print and save intersection points
+                        if(obbHit) {
+                            //                        cout << "Hit! (" << obbHit << ")" << endl << "Model " << modelVec.at(cnt).id << endl;
+                            stringstream id;
+                            id << cnt;
+                            ids.push_back(id.str());
+                            double intersection[3];
+                            for(int i = 0; i < intersectPoints->GetNumberOfPoints(); i++ )
+                            {
+                                intersectPoints->GetPoint(i, intersection);
+                                //                            std::cout << "Intersection " << i << ": " << intersection[0] << ", " << intersection[1] << ", " << intersection[2] << std::endl;
+                                intersectionPoint << intersection[0], intersection[1], intersection[2];
+                                intersections.push_back(intersectionPoint);
+                            }
+                        }
                     }
 
-                    //calculate intersection
-                    double tolerance = .001;    //tolerance
-                    double t;                   //parametric coordinate of intersection (0 (corresponding to p1) to 1 (corresponding to p2))
-                    double x[3];                //the coordinate of the intersection
-                    double pcoords[3];
-                    int subId;
-                    int bspHit = bspTree->IntersectWithLine(pt_start, pt_end, tolerance, t, x, pcoords, subId);
+                    //use bspTree model
+                    if(ui->radioButtonBSP->isChecked()) {
 
-                    //print and save intersection points
-                    if(bspHit) {
-//                        cout << "Hit! (" << bspHit << ")" << endl << "Model " << modelVec.at(cnt).id << endl;
-                        ids.push_back(modelVec.at(cnt).id);
-//                        std::cout << "Intersection: " << x[0] << ", " << x[1] << ", " << x[2] << std::endl;
-                        intersectionPoint << x[0], x[1], x[2];
-                        intersections.push_back(intersectionPoint);
+                        //build bspTree
+                        bspTree->SetDataSet(coneActors.at(cnt)->GetMapper()->GetInput());
+                        bspTree->BuildLocator();
+
+                        //visualize bspTree bounding box
+                        if(ui->checkBoxShowBB->isChecked()) {
+                            vtkSmartPointer<vtkPolyData> bspPoly = vtkSmartPointer<vtkPolyData>::New();
+                            bspTree->GenerateRepresentation(0, bspPoly);
+                            vtkSmartPointer<vtkPolyDataMapper> bsptreeMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+                            bsptreeMapper->SetInput(bspPoly);
+                            bspTreeActor->SetMapper(bsptreeMapper);
+                            pclWidget->vis->addActorToRenderer(bspTreeActor);
+                        }
+
+                        //calculate intersection
+                        double tolerance = .001;    //tolerance
+                        double t;                   //parametric coordinate of intersection (0 (corresponding to p1) to 1 (corresponding to p2))
+                        double x[3];                //the coordinate of the intersection
+                        double pcoords[3];
+                        int subId;
+                        int bspHit = bspTree->IntersectWithLine(pt_start, pt_end, tolerance, t, x, pcoords, subId);
+
+                        //print and save intersection points
+                        if(bspHit) {
+                            //                        cout << "Hit! (" << bspHit << ")" << endl << "Model " << modelVec.at(cnt).id << endl;
+                            stringstream id;
+                            id << cnt;
+                            ids.push_back(id.str());
+                            //                        std::cout << "Intersection: " << x[0] << ", " << x[1] << ", " << x[2] << std::endl;
+                            intersectionPoint << x[0], x[1], x[2];
+                            intersections.push_back(intersectionPoint);
+                        }
                     }
-                }
             }
         }
     }
@@ -534,6 +737,7 @@ void MainWindow::projectWorldPointToProjectorImage(Eigen::Vector3f &pt_world, cv
 }
 
 void MainWindow::loadPointCloud(string filename) {
+    boost::lock_guard<boost::mutex> guard(m_cloudMtx);
     PointCloud<PointXYZRGB> pc_load;
     pcl::io::loadPCDFile(filename, pc_load);
 
@@ -610,6 +814,7 @@ void MainWindow::displayCloud(PointCloud<PointXYZRGB>::Ptr pc, string id) { //on
 }
 
 void MainWindow::newPointCloud(PointCloud<PointXYZRGB> pc) {
+    boost::lock_guard<boost::mutex> guard(m_cloudMtx);
     if(ui->checkBoxKinect->isChecked()) {
             m_pc = pc.makeShared();
             this->processCloud(m_pc);
@@ -1410,6 +1615,11 @@ void MainWindow::on_btnLoadModel_clicked()
     entry.visible = true;
     entry.positionXYZ = Eigen::Vector3f(0,0,0);
     entry.orientationYPR = Eigen::Vector3f(0,0,0);
+    double bounds[6];
+    entry.actor->GetBounds(bounds);
+    for(int i = 0; i < 6; i++){
+        entry.bounds.push_back(bounds[i]);
+    }
     modelVec.push_back(entry);
     pclWidget->vis->addActorToRenderer(actor);
 //    getRenderWindow()->AddRenderer(renderer);
@@ -1566,12 +1776,12 @@ void MainWindow::moveModel() {
             vtkSmartPointer<vtkTransform> transform = vtkSmartPointer<vtkTransform>::New();
             transform->PostMultiply();
             transform->Translate(-modelVec.at(id).positionXYZ(0), -modelVec.at(id).positionXYZ(1), -modelVec.at(id).positionXYZ(2));
-            transform->RotateX(-modelVec.at(id).orientationYPR(2));
-            transform->RotateY(-modelVec.at(id).orientationYPR(1));
             transform->RotateZ(-modelVec.at(id).orientationYPR(0));
-            transform->RotateZ(ui->spinBoxMoveObjYaw->value());
-            transform->RotateY(ui->spinBoxMoveObjPitch->value());
+            transform->RotateY(-modelVec.at(id).orientationYPR(1));
+            transform->RotateX(-modelVec.at(id).orientationYPR(2));
             transform->RotateX(ui->spinBoxMoveObjRoll->value());
+            transform->RotateY(ui->spinBoxMoveObjPitch->value());
+            transform->RotateZ(ui->spinBoxMoveObjYaw->value());
             transform->Translate(ui->spinBoxMoveObjX->value(), ui->spinBoxMoveObjY->value(), ui->spinBoxMoveObjZ->value());
 
             vtkSmartPointer<vtkTransformPolyDataFilter> transformFilter = vtkSmartPointer<vtkTransformPolyDataFilter>::New();
@@ -1669,6 +1879,12 @@ void MainWindow::setRotationMatrixFromYPR(Eigen::Vector3f ypr, Eigen::Matrix3f &
     Eigen::Quaternion<float> q = yawAngle * pitchAngle * rollAngle;
 
     out_R = q.matrix();
+
+//    Eigen::Quaternion<float> qi = rollAngle * pitchAngle * yawAngle;
+//    cout << "ypr" << endl;
+//    cout << q.matrix() << endl;
+//    cout << "rpy" << endl;
+//    cout << qi.matrix() << endl;
 }
 
 void MainWindow::setIdentityMatrix(Eigen::Matrix3f &mat) {
@@ -1853,4 +2069,69 @@ void MainWindow::on_btnAddCone_clicked()
 void MainWindow::on_btnRemoveCone_clicked()
 {
     this->removeArrow();
+}
+
+void MainWindow::switchOperationMode(int mode){
+    operationMode = mode;
+
+    //reset actor colors
+    for(size_t i = 0; i < modelVec.size(); i++) {
+        modelVec.at(i).actor->GetProperty()->SetColor(1, 1, 1);
+    }
+    for(size_t j = 0; j < coneActors.size(); j++) {
+        coneActors.at(j)->GetProperty()->SetColor(1, 1, 1);
+    }
+}
+
+void MainWindow::on_comboBox_currentIndexChanged(int index)
+{
+    this->switchOperationMode(index);
+}
+
+void MainWindow::on_btnGlobalLoc_clicked()
+{
+    emit signalCallGlobalLoc();
+}
+
+void MainWindow::on_btnLocalLoc_clicked()
+{
+    emit signalCallLocalLoc();
+}
+
+void MainWindow::on_btnPauseLoc_clicked()
+{
+    emit signalCallPauseLoc();
+}
+
+void MainWindow::on_btnResumeLoc_clicked()
+{
+    emit signalCallResumeLoc();
+}
+
+void MainWindow::on_btnSetInitPose_clicked()
+{
+    geometry_msgs::PoseWithCovarianceStamped pose;
+    pose.pose.pose.position.x = line2double(*ui->lineInitPoseX);
+    pose.pose.pose.position.y = line2double(*ui->lineInitPoseY);
+    pose.pose.pose.position.z = line2double(*ui->lineInitPoseZ);
+
+    geometry_msgs::Quaternion q = tf::createQuaternionMsgFromRollPitchYaw(DEG2RAD(line2double(*ui->lineInitPoseRoll)), DEG2RAD(line2double(*ui->lineInitPosePitch)), DEG2RAD(line2double(*ui->lineInitPoseYaw)));
+    pose.pose.pose.orientation.x = q.x;
+    pose.pose.pose.orientation.y = q.y;
+    pose.pose.pose.orientation.z = q.z;
+    pose.pose.pose.orientation.w = q.w;
+
+    pose.header.frame_id = "map";
+    emit signalPublishInitialPose(pose);
+}
+
+void MainWindow::on_btnToggleVisOdom_clicked()
+{
+    emit signalToggleVisOdom();
+    visualOdometryActive = !visualOdometryActive;
+    if(visualOdometryActive) {
+        ui->labelVisOdomStatus->setText("On");
+    } else {
+        ui->labelVisOdomStatus->setText("Off");
+    }
 }

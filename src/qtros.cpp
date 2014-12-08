@@ -26,6 +26,14 @@ QtROS::QtROS(int argc, char *argv[], const char* node_name) {
 
     pc_pub = nh->advertise< pcl::PointCloud<pcl::PointXYZRGB> >("cloud_in", 1);
 
+    globalLocClient = nh->serviceClient< std_srvs::Empty >("/global_localization");
+    localLocClient = nh->serviceClient< std_srvs::Empty >("/local_localization");
+    pauseLocClient = nh->serviceClient< std_srvs::Empty >("/humanoid_localization/pause_localization_srv");
+    resumeLocClient = nh->serviceClient< std_srvs::Empty >("/humanoid_localization/resume_localization_srv");
+    initPosePub = nh->advertise< geometry_msgs::PoseWithCovarianceStamped >("initialpose", 1);
+
+    visOdomClient = nh->serviceClient < std_srvs::Empty >("/toggle_fovis");
+
 
     image_publisher = it->advertise("/raspberry_image", 1);
 
@@ -89,4 +97,34 @@ void QtROS::slotPublishPointcloud(pcl::PointCloud<pcl::PointXYZRGB> pc) {
 
 void QtROS::lineCallback(const kinpro_interaction::lineConstPtr &line) {
     emit lineReceived(*line);
+}
+
+void QtROS::slotPublishInitialPose(geometry_msgs::PoseWithCovarianceStamped pose) {
+    initPosePub.publish(pose);
+}
+
+void QtROS::slotCallGlobalLoc() {
+    std_srvs::Empty e;
+    globalLocClient.call(e);
+}
+
+void QtROS::slotCallLocalLoc() {
+    std_srvs::Empty e;
+    localLocClient.call(e);
+    cout << "local loc called" << endl;
+}
+
+void QtROS::slotCallPauseLoc() {
+    std_srvs::Empty e;
+    pauseLocClient.call(e);
+}
+
+void QtROS::slotCallResumeLoc() {
+    std_srvs::Empty e;
+    resumeLocClient.call(e);
+}
+
+void QtROS::slotToggleVisOdom() {
+    std_srvs::Empty e;
+    visOdomClient.call(e);
 }
