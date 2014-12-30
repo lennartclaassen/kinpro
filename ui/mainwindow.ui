@@ -24,7 +24,7 @@
      </rect>
     </property>
     <property name="currentIndex">
-     <number>6</number>
+     <number>7</number>
     </property>
     <widget class="QWidget" name="tab_controls">
      <attribute name="title">
@@ -42,19 +42,6 @@
       <property name="title">
        <string>Data IO</string>
       </property>
-      <widget class="QPushButton" name="btnLoadPointcloud">
-       <property name="geometry">
-        <rect>
-         <x>10</x>
-         <y>90</y>
-         <width>141</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Load Pointcloud</string>
-       </property>
-      </widget>
       <widget class="QPushButton" name="btnSavePointcloud">
        <property name="geometry">
         <rect>
@@ -81,19 +68,6 @@
         <string>/home/sysadm/octomaps/pointcloud.pcd</string>
        </property>
       </widget>
-      <widget class="QLineEdit" name="lineLoadPointcloud">
-       <property name="geometry">
-        <rect>
-         <x>10</x>
-         <y>60</y>
-         <width>241</width>
-         <height>27</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>/home/sysadm/octomaps/wall_complex.pcd</string>
-       </property>
-      </widget>
       <widget class="QCheckBox" name="checkBoxKinect">
        <property name="geometry">
         <rect>
@@ -118,19 +92,6 @@
        </property>
        <property name="text">
         <string>Calibration Mode</string>
-       </property>
-      </widget>
-      <widget class="QCheckBox" name="checkBoxTransformPointcloud">
-       <property name="geometry">
-        <rect>
-         <x>150</x>
-         <y>90</y>
-         <width>101</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Transform</string>
        </property>
       </widget>
      </widget>
@@ -1761,6 +1722,19 @@
        </property>
       </widget>
      </widget>
+     <widget class="QPushButton" name="btnTestChess">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>30</y>
+        <width>141</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Detect Chessboard</string>
+      </property>
+     </widget>
     </widget>
     <widget class="QWidget" name="tab_testing">
      <attribute name="title">
@@ -2585,7 +2559,7 @@
        </rect>
       </property>
       <property name="text">
-       <string>0.5</string>
+       <string>0.25</string>
       </property>
      </widget>
      <widget class="QLineEdit" name="lineTestConeResolution">
@@ -2598,7 +2572,7 @@
        </rect>
       </property>
       <property name="text">
-       <string>4</string>
+       <string>25</string>
       </property>
      </widget>
      <widget class="QPushButton" name="btnRemoveCone">
@@ -2624,7 +2598,7 @@
        </rect>
       </property>
       <property name="text">
-       <string>0.5</string>
+       <string>0.4</string>
       </property>
      </widget>
      <widget class="QComboBox" name="comboBox">
@@ -2647,49 +2621,54 @@
        </property>
       </item>
      </widget>
-    </widget>
-    <widget class="QWidget" name="tab_model">
-     <attribute name="title">
-      <string>Model</string>
-     </attribute>
-     <widget class="QPushButton" name="btnLoadModel">
+     <widget class="QLineEdit" name="lineCoordName">
       <property name="geometry">
        <rect>
-        <x>30</x>
-        <y>20</y>
-        <width>111</width>
-        <height>30</height>
+        <x>-1</x>
+        <y>30</y>
+        <width>141</width>
+        <height>31</height>
        </rect>
       </property>
       <property name="text">
-       <string>Load Model</string>
+       <string>AR_board</string>
+      </property>
+      <property name="maxLength">
+       <number>32767</number>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
       </property>
      </widget>
-     <widget class="QLineEdit" name="lineLoadModel">
+     <widget class="QComboBox" name="comboBoxARTrafo">
       <property name="geometry">
        <rect>
-        <x>150</x>
-        <y>20</y>
-        <width>241</width>
-        <height>30</height>
+        <x>0</x>
+        <y>70</y>
+        <width>141</width>
+        <height>27</height>
        </rect>
       </property>
-      <property name="text">
-       <string>/home/sysadm/octomaps/wall.ply</string>
-      </property>
-     </widget>
-     <widget class="QLineEdit" name="lineLoadActor">
-      <property name="geometry">
-       <rect>
-        <x>150</x>
-        <y>60</y>
-        <width>241</width>
-        <height>30</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>group_ME_Cube_004</string>
-      </property>
+      <item>
+       <property name="text">
+        <string>ARModel*ARTrafo</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>ARModel*ARTrafo.inv()</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>ARTrafo*ARModel</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>ARTrafo.inv()*ARModel</string>
+       </property>
+      </item>
      </widget>
     </widget>
     <widget class="QWidget" name="tab_elements">
@@ -2700,7 +2679,7 @@
       <property name="geometry">
        <rect>
         <x>120</x>
-        <y>16</y>
+        <y>10</y>
         <width>361</width>
         <height>30</height>
        </rect>
@@ -2710,9 +2689,9 @@
       <property name="geometry">
        <rect>
         <x>30</x>
-        <y>20</y>
+        <y>10</y>
         <width>70</width>
-        <height>20</height>
+        <height>30</height>
        </rect>
       </property>
       <property name="text">
@@ -3309,6 +3288,123 @@
        <string>Send to Octomap</string>
       </property>
      </widget>
+     <widget class="QPushButton" name="btnAddTexture">
+      <property name="geometry">
+       <rect>
+        <x>120</x>
+        <y>70</y>
+        <width>121</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Add Texture</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineAddTexture">
+      <property name="geometry">
+       <rect>
+        <x>250</x>
+        <y>70</y>
+        <width>231</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>/home/sysadm/octomaps/ar_board_scale1.jpg</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineLoadModel">
+      <property name="geometry">
+       <rect>
+        <x>250</x>
+        <y>40</y>
+        <width>231</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>/home/sysadm/octomaps/ar_board_scale.obj</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="labelModelScale">
+      <property name="geometry">
+       <rect>
+        <x>380</x>
+        <y>100</y>
+        <width>51</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Scale:</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineLoadModelScale">
+      <property name="geometry">
+       <rect>
+        <x>430</x>
+        <y>100</y>
+        <width>51</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>1.0</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnLoadModel">
+      <property name="geometry">
+       <rect>
+        <x>120</x>
+        <y>40</y>
+        <width>121</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Load Model</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineLoadPointcloud">
+      <property name="geometry">
+       <rect>
+        <x>250</x>
+        <y>170</y>
+        <width>231</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>/home/sysadm/octomaps/Lab/PKM_lab_wall_02_clean.pcd</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnLoadPointcloud">
+      <property name="geometry">
+       <rect>
+        <x>120</x>
+        <y>170</y>
+        <width>121</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Load Pointcloud</string>
+      </property>
+     </widget>
+     <widget class="QCheckBox" name="checkBoxTransformPointcloud">
+      <property name="geometry">
+       <rect>
+        <x>380</x>
+        <y>200</y>
+        <width>101</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Transform</string>
+      </property>
+     </widget>
     </widget>
     <widget class="QWidget" name="tab_ros">
      <attribute name="title">
@@ -3417,7 +3513,7 @@
         <string>r:</string>
        </property>
       </widget>
-      <widget class="QLabel" name="labelRoll_4">
+      <widget class="QLabel" name="labelInitPoseZ">
        <property name="geometry">
         <rect>
          <x>29</x>
@@ -3469,7 +3565,7 @@
         <string>y:</string>
        </property>
       </widget>
-      <widget class="QLabel" name="labelPitch_5">
+      <widget class="QLabel" name="labelInitPoseY">
        <property name="geometry">
         <rect>
          <x>29</x>
@@ -3603,6 +3699,793 @@
        </property>
       </widget>
      </widget>
+     <widget class="QGroupBox" name="groupBoxARDet">
+      <property name="geometry">
+       <rect>
+        <x>440</x>
+        <y>0</y>
+        <width>251</width>
+        <height>261</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>AR Board Detection</string>
+      </property>
+      <widget class="QPushButton" name="btnToggleARDet">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="geometry">
+        <rect>
+         <x>30</x>
+         <y>60</y>
+         <width>151</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Toggle On/Off</string>
+       </property>
+       <property name="checkable">
+        <bool>false</bool>
+       </property>
+       <property name="flat">
+        <bool>false</bool>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelARDet">
+       <property name="geometry">
+        <rect>
+         <x>40</x>
+         <y>30</y>
+         <width>51</width>
+         <height>17</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Status: </string>
+       </property>
+       <property name="textInteractionFlags">
+        <set>Qt::LinksAccessibleByMouse</set>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelARDetStatus">
+       <property name="geometry">
+        <rect>
+         <x>100</x>
+         <y>30</y>
+         <width>41</width>
+         <height>17</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>On</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="btnGetARTransform">
+       <property name="geometry">
+        <rect>
+         <x>30</x>
+         <y>100</y>
+         <width>151</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Get AR Transform</string>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineARPoseX">
+       <property name="geometry">
+        <rect>
+         <x>22</x>
+         <y>130</y>
+         <width>71</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>0</string>
+       </property>
+       <property name="maxLength">
+        <number>32767</number>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelARPoseRoll">
+       <property name="geometry">
+        <rect>
+         <x>110</x>
+         <y>170</y>
+         <width>16</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>r:</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelARPosePitch">
+       <property name="geometry">
+        <rect>
+         <x>110</x>
+         <y>150</y>
+         <width>16</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>p:</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelARPoseY">
+       <property name="geometry">
+        <rect>
+         <x>11</x>
+         <y>150</y>
+         <width>16</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>y:</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelARPoseX">
+       <property name="geometry">
+        <rect>
+         <x>11</x>
+         <y>129</y>
+         <width>20</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>x:</string>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineARPosePitch">
+       <property name="geometry">
+        <rect>
+         <x>121</x>
+         <y>150</y>
+         <width>71</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>0</string>
+       </property>
+       <property name="maxLength">
+        <number>32767</number>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineARPoseY">
+       <property name="geometry">
+        <rect>
+         <x>22</x>
+         <y>150</y>
+         <width>71</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>0</string>
+       </property>
+       <property name="maxLength">
+        <number>32767</number>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineARPoseZ">
+       <property name="geometry">
+        <rect>
+         <x>22</x>
+         <y>170</y>
+         <width>71</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>0</string>
+       </property>
+       <property name="maxLength">
+        <number>32767</number>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineARPoseRoll">
+       <property name="geometry">
+        <rect>
+         <x>121</x>
+         <y>170</y>
+         <width>71</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>0</string>
+       </property>
+       <property name="maxLength">
+        <number>32767</number>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineARPoseYaw">
+       <property name="geometry">
+        <rect>
+         <x>121</x>
+         <y>130</y>
+         <width>71</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>0</string>
+       </property>
+       <property name="maxLength">
+        <number>32767</number>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelARPoseYaw">
+       <property name="geometry">
+        <rect>
+         <x>110</x>
+         <y>130</y>
+         <width>16</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>y:</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="labelARPoseZ">
+       <property name="geometry">
+        <rect>
+         <x>11</x>
+         <y>170</y>
+         <width>16</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>z:</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="btnTransformByAR">
+       <property name="geometry">
+        <rect>
+         <x>30</x>
+         <y>200</y>
+         <width>151</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Transform View</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="btnSetInitPoseByAR">
+       <property name="geometry">
+        <rect>
+         <x>30</x>
+         <y>230</y>
+         <width>151</width>
+         <height>27</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Set as Initial Pose</string>
+       </property>
+      </widget>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="tab">
+     <attribute name="title">
+      <string>Evaluation</string>
+     </attribute>
+     <widget class="QPushButton" name="btnProjectBoard">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>10</y>
+        <width>121</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Project Board</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnGetPoseErrorProj">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>50</y>
+        <width>151</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Get Pose Error Proj</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineExProj">
+      <property name="geometry">
+       <rect>
+        <x>80</x>
+        <y>90</y>
+        <width>113</width>
+        <height>27</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEyProj">
+      <property name="geometry">
+       <rect>
+        <x>80</x>
+        <y>120</y>
+        <width>113</width>
+        <height>27</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEzProj">
+      <property name="geometry">
+       <rect>
+        <x>80</x>
+        <y>150</y>
+        <width>113</width>
+        <height>27</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineErollProj">
+      <property name="geometry">
+       <rect>
+        <x>80</x>
+        <y>180</y>
+        <width>113</width>
+        <height>27</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEpitchProj">
+      <property name="geometry">
+       <rect>
+        <x>80</x>
+        <y>210</y>
+        <width>113</width>
+        <height>27</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEyawProj">
+      <property name="geometry">
+       <rect>
+        <x>80</x>
+        <y>240</y>
+        <width>113</width>
+        <height>27</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QLabel" name="labelExProj">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>90</y>
+        <width>31</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Ex</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="labelEyProj">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>120</y>
+        <width>31</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Ey</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="labelEzProj">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>150</y>
+        <width>31</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Ez</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="labelErollProj">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>180</y>
+        <width>31</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Er</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="labelEpitchProj">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>210</y>
+        <width>31</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Ep</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="labelEyawProj">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>240</y>
+        <width>31</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Ey</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnGetPoseErrorLoc">
+      <property name="geometry">
+       <rect>
+        <x>230</x>
+        <y>50</y>
+        <width>151</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Get Pose Error Loc</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEyawLoc">
+      <property name="geometry">
+       <rect>
+        <x>270</x>
+        <y>240</y>
+        <width>113</width>
+        <height>27</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QLabel" name="labelEyLoc">
+      <property name="geometry">
+       <rect>
+        <x>230</x>
+        <y>120</y>
+        <width>31</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Ey</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="labelErollLoc">
+      <property name="geometry">
+       <rect>
+        <x>230</x>
+        <y>180</y>
+        <width>31</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Er</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineErollLoc">
+      <property name="geometry">
+       <rect>
+        <x>270</x>
+        <y>180</y>
+        <width>113</width>
+        <height>27</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QLabel" name="labelEyawLoc">
+      <property name="geometry">
+       <rect>
+        <x>230</x>
+        <y>240</y>
+        <width>31</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Ey</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineExLoc">
+      <property name="geometry">
+       <rect>
+        <x>270</x>
+        <y>90</y>
+        <width>113</width>
+        <height>27</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QLabel" name="labelEpitchLoc">
+      <property name="geometry">
+       <rect>
+        <x>230</x>
+        <y>210</y>
+        <width>31</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Ep</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEpitchLoc">
+      <property name="geometry">
+       <rect>
+        <x>270</x>
+        <y>210</y>
+        <width>113</width>
+        <height>27</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEzLoc">
+      <property name="geometry">
+       <rect>
+        <x>270</x>
+        <y>150</y>
+        <width>113</width>
+        <height>27</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEyLoc">
+      <property name="geometry">
+       <rect>
+        <x>270</x>
+        <y>120</y>
+        <width>113</width>
+        <height>27</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QLabel" name="labelExLoc">
+      <property name="geometry">
+       <rect>
+        <x>230</x>
+        <y>90</y>
+        <width>31</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Ex</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="labelEzLoc">
+      <property name="geometry">
+       <rect>
+        <x>230</x>
+        <y>150</y>
+        <width>31</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Ez</string>
+      </property>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="tab_2">
+     <attribute name="title">
+      <string>TestMovement</string>
+     </attribute>
+     <widget class="QPushButton" name="btnTestMove">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>30</y>
+        <width>99</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Move</string>
+      </property>
+     </widget>
+     <widget class="QDoubleSpinBox" name="spinBoxTestMoveX">
+      <property name="geometry">
+       <rect>
+        <x>60</x>
+        <y>70</y>
+        <width>71</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="buttonSymbols">
+       <enum>QAbstractSpinBox::UpDownArrows</enum>
+      </property>
+      <property name="minimum">
+       <double>-1.000000000000000</double>
+      </property>
+      <property name="maximum">
+       <double>1.000000000000000</double>
+      </property>
+      <property name="singleStep">
+       <double>0.100000000000000</double>
+      </property>
+     </widget>
+     <widget class="QDoubleSpinBox" name="spinBoxTestMoveY">
+      <property name="geometry">
+       <rect>
+        <x>60</x>
+        <y>100</y>
+        <width>71</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="buttonSymbols">
+       <enum>QAbstractSpinBox::UpDownArrows</enum>
+      </property>
+      <property name="minimum">
+       <double>-1.000000000000000</double>
+      </property>
+      <property name="maximum">
+       <double>1.000000000000000</double>
+      </property>
+      <property name="singleStep">
+       <double>0.100000000000000</double>
+      </property>
+     </widget>
+     <widget class="QDoubleSpinBox" name="spinBoxTestMoveZ">
+      <property name="geometry">
+       <rect>
+        <x>60</x>
+        <y>130</y>
+        <width>71</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="buttonSymbols">
+       <enum>QAbstractSpinBox::UpDownArrows</enum>
+      </property>
+      <property name="minimum">
+       <double>-1.000000000000000</double>
+      </property>
+      <property name="maximum">
+       <double>1.000000000000000</double>
+      </property>
+      <property name="singleStep">
+       <double>0.100000000000000</double>
+      </property>
+     </widget>
+     <widget class="QDoubleSpinBox" name="spinBoxTestMoveRoll">
+      <property name="geometry">
+       <rect>
+        <x>160</x>
+        <y>130</y>
+        <width>71</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="minimum">
+       <double>-180.000000000000000</double>
+      </property>
+      <property name="maximum">
+       <double>180.000000000000000</double>
+      </property>
+     </widget>
+     <widget class="QDoubleSpinBox" name="spinBoxTestMovePitch">
+      <property name="geometry">
+       <rect>
+        <x>160</x>
+        <y>100</y>
+        <width>71</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="minimum">
+       <double>-180.000000000000000</double>
+      </property>
+      <property name="maximum">
+       <double>180.000000000000000</double>
+      </property>
+     </widget>
+     <widget class="QDoubleSpinBox" name="spinBoxTestMoveYaw">
+      <property name="geometry">
+       <rect>
+        <x>160</x>
+        <y>70</y>
+        <width>71</width>
+        <height>27</height>
+       </rect>
+      </property>
+      <property name="minimum">
+       <double>-180.000000000000000</double>
+      </property>
+      <property name="maximum">
+       <double>180.000000000000000</double>
+      </property>
+     </widget>
+     <widget class="QComboBox" name="comboBoxArrowTest">
+      <property name="geometry">
+       <rect>
+        <x>290</x>
+        <y>70</y>
+        <width>85</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <item>
+       <property name="text">
+        <string>x</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>-x</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>y</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>-y</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>z</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>-z</string>
+       </property>
+      </item>
+     </widget>
     </widget>
    </widget>
    <widget class="QVTKWidget" name="qvtkWidget" native="true">
@@ -3653,6 +4536,54 @@
  <resources/>
  <connections>
   <connection>
+   <sender>spinBoxMoveObjYaw</sender>
+   <signal>valueChanged(double)</signal>
+   <receiver>btnModelMove</receiver>
+   <slot>click()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>786</x>
+     <y>125</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>797</x>
+     <y>98</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>spinBoxMoveObjY</sender>
+   <signal>valueChanged(double)</signal>
+   <receiver>btnModelMove</receiver>
+   <slot>click()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>710</x>
+     <y>150</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>756</x>
+     <y>90</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>spinBoxMoveObjX</sender>
+   <signal>valueChanged(double)</signal>
+   <receiver>btnModelMove</receiver>
+   <slot>click()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>694</x>
+     <y>129</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>751</x>
+     <y>90</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
    <sender>spinBoxMovePCX</sender>
    <signal>valueChanged(double)</signal>
    <receiver>btnPCMove</receiver>
@@ -3701,38 +4632,6 @@
    </hints>
   </connection>
   <connection>
-   <sender>spinBoxMovePCYaw</sender>
-   <signal>valueChanged(double)</signal>
-   <receiver>btnPCMove</receiver>
-   <slot>click()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>816</x>
-     <y>266</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>825</x>
-     <y>229</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>spinBoxMovePCPitch</sender>
-   <signal>valueChanged(double)</signal>
-   <receiver>btnPCMove</receiver>
-   <slot>click()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>801</x>
-     <y>289</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>809</x>
-     <y>233</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
    <sender>spinBoxMovePCRoll</sender>
    <signal>valueChanged(double)</signal>
    <receiver>btnPCMove</receiver>
@@ -3765,6 +4664,38 @@
    </hints>
   </connection>
   <connection>
+   <sender>spinBoxMovePCYaw</sender>
+   <signal>valueChanged(double)</signal>
+   <receiver>btnPCMove</receiver>
+   <slot>click()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>816</x>
+     <y>266</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>825</x>
+     <y>229</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>spinBoxMovePCPitch</sender>
+   <signal>valueChanged(double)</signal>
+   <receiver>btnPCMove</receiver>
+   <slot>click()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>801</x>
+     <y>289</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>809</x>
+     <y>233</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
    <sender>spinBoxMoveObjRoll</sender>
    <signal>valueChanged(double)</signal>
    <receiver>btnModelMove</receiver>
@@ -3793,54 +4724,6 @@
     <hint type="destinationlabel">
      <x>812</x>
      <y>99</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>spinBoxMoveObjYaw</sender>
-   <signal>valueChanged(double)</signal>
-   <receiver>btnModelMove</receiver>
-   <slot>click()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>786</x>
-     <y>125</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>797</x>
-     <y>98</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>spinBoxMoveObjY</sender>
-   <signal>valueChanged(double)</signal>
-   <receiver>btnModelMove</receiver>
-   <slot>click()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>710</x>
-     <y>150</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>756</x>
-     <y>90</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>spinBoxMoveObjX</sender>
-   <signal>valueChanged(double)</signal>
-   <receiver>btnModelMove</receiver>
-   <slot>click()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>694</x>
-     <y>129</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>751</x>
-     <y>90</y>
     </hint>
    </hints>
   </connection>

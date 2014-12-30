@@ -29,32 +29,6 @@ using namespace std;
 using namespace pcl;
 using namespace cv;
 
-void PositionTransformer::newPositionReceived(nav_msgs::Odometry msg) {
-
-    //        cout << "new position received" << endl;
-    bool transformOK = false;
-
-    tf::TransformListener ls;
-    tf::StampedTransform transform;
-    try{
-        string targetFrame, sourceFrame;
-        targetFrame = string("/map");
-        sourceFrame = string("/odom");
-
-        ls.waitForTransform(targetFrame, sourceFrame, ros::Time(0), ros::Duration(0.3));
-        ls.lookupTransform(targetFrame, sourceFrame, ros::Time(0), transform);
-        transformOK = true;
-//            ui->checkBoxUsePosSig->setChecked(false);
-
-    }catch(tf::TransformException& ex){
-        ROS_ERROR_STREAM( "Transform error for map to odom transform: " << ex.what());
-    }
-
-    if(transformOK) {
-        emit transformDone(transform);
-    }
-}
-
 VTKPointCloudWidget::VTKPointCloudWidget(QWidget *parent) : QVTKWidget(parent)
 {
     vis = new visualization::PCLVisualizer("vis", false);
@@ -79,13 +53,16 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     //create empty mat as projector image
     projectorImage = cv::Mat::zeros(480, 848, CV_8UC3);
 
+    timer = new QTimer(this);
+    timerRunning = false;
+
     //set initial bool values
     this->displayRGBCloud = true;
     this->waitForLines = false;
     this->drawClickingCircle = false;
 
-    //initialise the transformations
-    this->setTransformations();
+    //transformations not ready yet
+    transformReady = false;
 
     //setup the actors for line-object intersecting
     m_lineActor = vtkSmartPointer<vtkActor>::New();
@@ -99,10 +76,19 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     bspTree = vtkSmartPointer<vtkModifiedBSPTree>::New();
     pclWidget->vis->addActorToRenderer(m_lineActor);
 
+    actorEntry entry;
+    entry.visible = true;
+    entry.positionXYZ = Eigen::Vector3f(0,0,0);
+    entry.orientationYPR = Eigen::Vector3f(0,0,0);
     for(int i = 0; i < 6; i++) {
         vtkSmartPointer<vtkActor> actor;
-        coneActors.push_back(actor);
-        coneActors.at(i) = vtkSmartPointer<vtkActor>::New();
+        actor = vtkSmartPointer<vtkActor>::New();
+        entry.actor = actor;
+        stringstream ss;
+        ss << "arrow " << i;
+        entry.id = ss.str();
+        arrowVec.push_back(entry);
+//        coneActors.at(i) = vtkSmartPointer<vtkActor>::New();
     }
 
 
@@ -110,8 +96,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     this->laserPoint = Point(0.0, 0.0);
 
     //initialise values for clicking detection
-    this->currentObject = string("");
+    this->currentObjectIndex = 99;  //TODO: get rid of workaround
     this->selectionDuration = ros::Duration(0);
+    this->idleDuration = ros::Duration(0);
     this->selection_thresh = ros::Duration(3);
 
     this->operationMode = BASIC;
@@ -123,133 +110,44 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     //load pointcloud to speed up the workflow in the beginning
 //    this->on_btnLoadPointcloud_clicked();
+    this->lastSelectionTime = ros::Time::now();
 }
 
 MainWindow::~MainWindow() {
 }
 
-void MainWindow::newTransform(tf::StampedTransform transform) {
-    boost::lock_guard<boost::mutex> guard(m_positionMutex);
-    if(ui->checkBoxUsePosSig->isChecked()) {
-
-        cout << "new transform received" << endl;
-
-            t_map2worldVTK(0) = transform.getOrigin().x();
-            t_map2worldVTK(1) = transform.getOrigin().y();
-            t_map2worldVTK(2) = transform.getOrigin().z();
-
-            Eigen::Quaternion<float> qmap2world;
-            qmap2world.x() = transform.getRotation().x();
-            qmap2world.y() = transform.getRotation().y();
-            qmap2world.z() = transform.getRotation().z();
-            qmap2world.w() = transform.getRotation().w();
-
-            R_map2worldVTK = qmap2world.matrix();
-
-            this->setTransformationMatrix(R_map2worldVTK, t_map2worldVTK, T_map2worldVTK);
-
-            t_world2camlinkVTK(0) = msg.pose.pose.position.x;
-            t_world2camlinkVTK(1) = msg.pose.pose.position.y;
-            t_world2camlinkVTK(2) = msg.pose.pose.position.z;
-
-            //    float rollworld2camlink, pitchworld2camlink, yawworld2camlink;
-            //    yawworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoYaw));
-            //    pitchworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoPitch));
-            //    rollworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoRoll));
-            //    Eigen::AngleAxisf rollAngleworld2camlink(rollworld2camlink, Eigen::Vector3f::UnitX());
-            //    Eigen::AngleAxisf yawAngleworld2camlink(yawworld2camlink, Eigen::Vector3f::UnitZ());
-            //    Eigen::AngleAxisf pitchAngleworld2camlink(pitchworld2camlink, Eigen::Vector3f::UnitY());
-
-            Eigen::Quaternion<float> qworld2camlink;
-            qworld2camlink.x() = msg.pose.pose.orientation.x;
-            qworld2camlink.y() = msg.pose.pose.orientation.y;
-            qworld2camlink.z() = msg.pose.pose.orientation.z;
-            qworld2camlink.w() = msg.pose.pose.orientation.w;
-
-            R_world2camlinkVTK = qworld2camlink.matrix();
-
-            T_world2camlinkVTK <<   R_world2camlinkVTK(0,0),    R_world2camlinkVTK(0,1),    R_world2camlinkVTK(0,2),    t_world2camlinkVTK(0),
-                                    R_world2camlinkVTK(1,0),    R_world2camlinkVTK(1,1),    R_world2camlinkVTK(1,2),    t_world2camlinkVTK(1),
-                                    R_world2camlinkVTK(2,0),    R_world2camlinkVTK(2,1),    R_world2camlinkVTK(2,2),    t_world2camlinkVTK(2),
-                                    0,                          0,                          0,                          1;
-
-            T_world2projVTK = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK * T_VTKcam;
-//            T_world2proj    = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK;
-//            T_world2camVTK  = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK;
-
-            pclWidget->vis->setCameraParameters(T_intrProjVTK, T_world2projVTK);
-            ui->qvtkWidget->update();
-
-            this->createProjectionImageFromGUI();
-
-            if(ui->checkBoxShowProjImage->isChecked())
-                showProjectionImage();
-
-            if(ui->checkBoxPubImage->isChecked())
-                emit signalProjectImage(this->projectorImage);
-    }
+void MainWindow::transformationProcessingReady() {
+    emit setTransformations(*ui);
 }
 
-void MainWindow::newPosition(nav_msgs::Odometry msg)
-{
+void MainWindow::timerCallback() {
+    cout << "timer timed out" << endl;
+    if(operationMode == MOVEOBJECTS) {
+        for(size_t k = 0; k < arrowVec.size(); k++) {
+            removeArrow(k);
+        }
+        switchOperationMode(BASIC);
+    }
+    timer->stop();
+    this->timerRunning = false;
+}
+
+void MainWindow::newTransform() {
     boost::lock_guard<boost::mutex> guard(m_positionMutex);
-    if(ui->checkBoxUsePosSig->isChecked()) {
+    if(ui->checkBoxUsePosSig->isChecked() && transformReady) {
 
-//        cout << "new position received" << endl;
+        pclWidget->vis->setCameraParameters(T_intrProjVTK, T_world2projVTK);
+        ui->qvtkWidget->update();
 
-            t_map2worldVTK(0) = transform.getOrigin().x();
-            t_map2worldVTK(1) = transform.getOrigin().y();
-            t_map2worldVTK(2) = transform.getOrigin().z();
+        this->createProjectionImageFromGUI();
 
-            Eigen::Quaternion<float> qmap2world;
-            qmap2world.x() = transform.getRotation().x();
-            qmap2world.y() = transform.getRotation().y();
-            qmap2world.z() = transform.getRotation().z();
-            qmap2world.w() = transform.getRotation().w();
+        if(ui->checkBoxShowProjImage->isChecked())
+            showProjectionImage();
 
-            R_map2worldVTK = qmap2world.matrix();
+        if(ui->checkBoxPubImage->isChecked())
+            emit signalProjectImage(this->projectorImage);
 
-            this->setTransformationMatrix(R_map2worldVTK, t_map2worldVTK, T_map2worldVTK);
-
-            t_world2camlinkVTK(0) = msg.pose.pose.position.x;
-            t_world2camlinkVTK(1) = msg.pose.pose.position.y;
-            t_world2camlinkVTK(2) = msg.pose.pose.position.z;
-
-            //    float rollworld2camlink, pitchworld2camlink, yawworld2camlink;
-            //    yawworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoYaw));
-            //    pitchworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoPitch));
-            //    rollworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoRoll));
-            //    Eigen::AngleAxisf rollAngleworld2camlink(rollworld2camlink, Eigen::Vector3f::UnitX());
-            //    Eigen::AngleAxisf yawAngleworld2camlink(yawworld2camlink, Eigen::Vector3f::UnitZ());
-            //    Eigen::AngleAxisf pitchAngleworld2camlink(pitchworld2camlink, Eigen::Vector3f::UnitY());
-
-            Eigen::Quaternion<float> qworld2camlink;
-            qworld2camlink.x() = msg.pose.pose.orientation.x;
-            qworld2camlink.y() = msg.pose.pose.orientation.y;
-            qworld2camlink.z() = msg.pose.pose.orientation.z;
-            qworld2camlink.w() = msg.pose.pose.orientation.w;
-
-            R_world2camlinkVTK = qworld2camlink.matrix();
-
-            T_world2camlinkVTK <<   R_world2camlinkVTK(0,0),    R_world2camlinkVTK(0,1),    R_world2camlinkVTK(0,2),    t_world2camlinkVTK(0),
-                                    R_world2camlinkVTK(1,0),    R_world2camlinkVTK(1,1),    R_world2camlinkVTK(1,2),    t_world2camlinkVTK(1),
-                                    R_world2camlinkVTK(2,0),    R_world2camlinkVTK(2,1),    R_world2camlinkVTK(2,2),    t_world2camlinkVTK(2),
-                                    0,                          0,                          0,                          1;
-
-            T_world2projVTK = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK * T_VTKcam;
-//            T_world2proj    = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK;
-//            T_world2camVTK  = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK;
-
-            pclWidget->vis->setCameraParameters(T_intrProjVTK, T_world2projVTK);
-            ui->qvtkWidget->update();
-
-            this->createProjectionImageFromGUI();
-
-            if(ui->checkBoxShowProjImage->isChecked())
-                showProjectionImage();
-
-            if(ui->checkBoxPubImage->isChecked())
-                emit signalProjectImage(this->projectorImage);
+        transformReady = false;
     }
 }
 
@@ -281,15 +179,17 @@ void MainWindow::newLine(kinpro_interaction::line line) {
 
         //calculate intersections of line with models
         vector<Eigen::Vector3f> intersections;
-        vector<string> ids;
+        vector<int> ids;
         this->intersectLineWithModels(start_world, end_world, intersections, ids);
 
         //check if intersections were found TODO: handle cases of multiple objects
         if(!intersections.empty()) {
-            if(this->checkForClick(ids.at(0))){
-//            this->click()
-            }
+            timer->stop();
+            timerRunning = false;
 
+            this->lastSelectionTime = ros::Time::now();
+
+            //draw the intersection points (laserpointer) and highlight the models
             for(size_t i = 0; i<intersections.size(); i++) {
                 //create spheres (laser pointer) for the intersections
                 stringstream sphereID;
@@ -304,6 +204,110 @@ void MainWindow::newLine(kinpro_interaction::line line) {
                     this->highlightActor(ids.at(j));
                 }
             }
+
+            //check if a "click" happened on the selected object
+            if(this->checkForClick(ids.at(0))){
+
+                if(this->operationMode == BASIC){
+                    //select the model
+                    this->currentModel = &modelVec.at(ids.at(0));
+//                    cout << "updated current model" << endl;
+                    //show the arrows for the highlighted actor
+                    cout << "adding arrows..." << endl;
+                    this->addArrowsForActor(modelVec.at(ids.at(0)));
+                    cout << "...done" << endl;
+                    //activate the object movement mode
+                    this->switchOperationMode(MOVEOBJECTS);
+                }else {
+                    //detect which arrow was clicked and create movement in the selected direction TODO: rotation
+                    Eigen::Vector3f translation;
+                    float x, y, z;
+                    x = y = z = 0;
+
+                    //select direction
+                    switch (ids.at(0)) {
+                    case 0:
+//                        translation = Eigen::Vector3f(-0.1,0,0);
+                        x = -0.1;
+                        break;
+                    case 1:
+//                        translation = Eigen::Vector3f(0.1,0,0);
+                        x = 0.1;
+                        break;
+                    case 2:
+//                        translation = Eigen::Vector3f(0,-0.1,0);
+                        y = -0.1;
+                        break;
+                    case 3:
+//                        translation = Eigen::Vector3f(0,0.1,0);
+                        y = 0.1;
+                        break;
+                    case 4:
+//                        translation = Eigen::Vector3f(0,0,-0.1);
+                        z = -0.1;
+                        break;
+                    case 5:
+//                        translation = Eigen::Vector3f(0,0,0.1);
+                        z = 0.1;
+                        break;
+                    default:
+                        break;
+                    }
+//                    Eigen::Matrix3f rotMat;
+//                    setRotationMatrixFromYPR(currentModel->orientationYPR, rotMat);
+//                    Eigen::Vector3f newTranslation;
+//                    newTranslation = rotMat * translation;
+
+//                    moveArrows(translation, Eigen::Vector3f(0,0,0));
+//                    translation += currentModel->positionXYZ;
+//                    moveModel(*currentModel, translation, currentModel->orientationYPR);
+
+                    //for orientation
+//                    float rpyIn[4], rpyOut[4];
+//                    float diffX, diffY, diffZ;
+//                    diffX = ui->spinBoxTestMoveRoll->value();
+//                    diffY = ui->spinBoxTestMovePitch->value();
+//                    diffZ = ui->spinBoxTestMoveYaw->value();
+//                    rpyIn[0] = diffX;
+//                    rpyIn[1] = diffY;
+//                    rpyIn[2] = diffZ;
+//                    rpyIn[3] = 1;
+
+//                    double orientation[3];
+//                    modelVec.at(id).actor->GetOrientation(orientation); //returned as x,y,z; order to achieve rotation is to be performed as z,x,y
+//                    modelVec.at(id).orientationYPR(2) = orientation[0];
+//                    modelVec.at(id).orientationYPR(1) = orientation[1];
+//                    modelVec.at(id).orientationYPR(0) = orientation[2];
+
+                    vtkSmartPointer<vtkMatrix4x4> mat = currentModel->actor->GetMatrix();
+//                    mat->MultiplyPoint(rpyIn, rpyOut);
+
+//                    Eigen::Vector3f rotation;
+
+//                    modelVec.at(id).actor->RotateWXYZ(diffX, mat->GetElement(0,0), mat->GetElement(1,0), mat->GetElement(2,0));
+//                    rotation = Eigen::Vector3f(diffZ, 0, 0);
+//                    moveArrows(Eigen::Vector3f(0,0,0), rotation);
+//                    modelVec.at(id).actor->RotateWXYZ(diffY, mat->GetElement(0,1), mat->GetElement(1,1), mat->GetElement(2,1));
+//                    rotation = Eigen::Vector3f(0, diffY, 0);
+//                    moveArrows(Eigen::Vector3f(0,0,0), rotation);
+//                    modelVec.at(id).actor->RotateWXYZ(diffZ, mat->GetElement(0,2), mat->GetElement(1,2), mat->GetElement(2,2));
+//                    rotation = Eigen::Vector3f(0, 0, diffX);
+//                    moveArrows(Eigen::Vector3f(0,0,0), rotation);
+
+
+                    //detect which arrow was clicked and create movement in the selected direction
+                    Eigen::Vector3f moveX, moveY, moveZ;
+                    moveX = Eigen::Vector3f(mat->GetElement(0,0), mat->GetElement(1,0), mat->GetElement(2,0));
+                    moveY = Eigen::Vector3f(mat->GetElement(0,1), mat->GetElement(1,1), mat->GetElement(2,1));
+                    moveZ = Eigen::Vector3f(mat->GetElement(0,2), mat->GetElement(1,2), mat->GetElement(2,2));
+
+                    //select direction
+                    translation = x*moveX + y*moveY + z*moveZ;
+                    moveArrows(translation, Eigen::Vector3f(0,0,0));
+
+                    moveModelRelative(*currentModel, translation, Eigen::Vector3f(0,0,0));
+                }
+            }
         } else {
             //reset clicking Times
             this->selectionBegin = ros::Time::now();
@@ -314,6 +318,23 @@ void MainWindow::newLine(kinpro_interaction::line line) {
 
             //set point coordinates to zero to use if no intersections were found
             this->laserPoint = Point(0.0, 0.0);
+
+//            cout << "intersection empty" << endl;
+//            if(operationMode == MOVEOBJECTS) {
+//                idleDuration = ros::Time::now() - this->lastSelectionTime;
+//                cout << "idleDuration: " << idleDuration.toSec() << endl;
+//                if(idleDuration.toSec() > this->idle_thresh.toSec()) {
+//                    for(size_t k = 0; k < arrowVec.size(); k++) {
+//                        removeArrow(k);
+//                    }
+//                    switchOperationMode(BASIC);
+//                }
+//            }
+            if(!timerRunning) {
+                cout << "starting timer" << endl;
+                timer->start(10000);
+                timerRunning = true;
+            }
         }
     }
 
@@ -323,6 +344,16 @@ void MainWindow::newLine(kinpro_interaction::line line) {
     }
 
     ui->qvtkWidget->update();
+}
+
+void MainWindow::moveArrows(Eigen::Vector3f translateXYZ, Eigen::Vector3f rotateYPR) {
+    Eigen::Vector3f translation, rotation;
+    for(size_t i = 0; i < arrowVec.size(); i++) {
+        translation = arrowVec.at(i).positionXYZ + translateXYZ;
+        rotation = arrowVec.at(i).orientationYPR + rotateYPR;
+//        moveModel(arrowVec.at(i), translation, rotation);
+        moveModelRelative(arrowVec.at(i), translateXYZ, rotateYPR);
+    }
 }
 
 void MainWindow::transformLineToWorld(Eigen::Vector4f &pt_start, Eigen::Vector4f &pt_end, Eigen::Vector4f &pt_start_world, Eigen::Vector4f &pt_end_world) {
@@ -352,9 +383,9 @@ void MainWindow::visualizeLine(Eigen::Vector4f &start, Eigen::Vector4f &end) {
     pclWidget->vis->addActorToRenderer(m_lineActor);
 }
 
-bool MainWindow::checkForClick(string &id) {
-    //check if the selected object the previously selected object
-    if(!strcmp(this->currentObject.c_str(), id.c_str())) {
+bool MainWindow::checkForClick(int id) {
+    //check if the selected object is the previously selected object
+    if(this->currentObjectIndex == id){
         //increment the selection duration
         this->selectionDuration = ros::Time::now() - this->selectionBegin;
 
@@ -374,7 +405,7 @@ bool MainWindow::checkForClick(string &id) {
         this->drawClickingCircle = false;
 
         //change the name of the selected object
-        this->currentObject = id;
+        this->currentObjectIndex = id;
 
         //reset the selection time and the selection duration
         this->selectionBegin = ros::Time::now();
@@ -422,95 +453,110 @@ void MainWindow::addArrow(Eigen::Vector3f &center, Eigen::Vector3f &axis, float 
     vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     mapper->SetInputConnection(coneSource->GetOutputPort());
 
-    coneActors.at(id)->SetMapper(mapper);
+    arrowVec.at(id).actor->SetMapper(mapper);
+    arrowVec.at(id).positionXYZ = center;
+    arrowVec.at(id).orientationYPR = axis;
 
     //Add the actors to the scene
-    pclWidget->vis->removeActorFromRenderer(coneActors.at(id));
-    pclWidget->vis->addActorToRenderer(coneActors.at(id));
+    pclWidget->vis->removeActorFromRenderer(arrowVec.at(id).actor);
+    pclWidget->vis->addActorToRenderer(arrowVec.at(id).actor);
 
     ui->qvtkWidget->update();
 }
 
 void MainWindow::removeArrow(int id) {
-    pclWidget->vis->removeActorFromRenderer(coneActors.at(id));
+    pclWidget->vis->removeActorFromRenderer(arrowVec.at(id).actor);
 }
 
-void MainWindow::addArrowsforActor(actorEntry &actor) {
+void MainWindow::addArrowsForActor(actorEntry &actor) {
     Eigen::Vector3f center, axis;
-    Eigen::Matrix3f rotMat, invMat;
+    Eigen::Matrix3f rotMat;
 //    center << line2float(*ui->lineTestConeX), line2float(*ui->lineTestConeY), line2float(*ui->lineTestConeZ);
 //    axis << line2float(*ui->lineTestConeAxisX), line2float(*ui->lineTestConeAxisY), line2float(*ui->lineTestConeAxisZ);
     float length, radius, resolution;
-    length = line2float(*ui->lineTestConeLength);
-    radius = line2float(*ui->lineTestConeRadius);
+//    length = line2float(*ui->lineTestConeLength);
+//    radius = line2float(*ui->lineTestConeRadius);
     resolution = line2float(*ui->lineTestConeResolution);
 
 
     //get actor position and orientation
-//    center = actor.positionXYZ;
     setRotationMatrixFromYPR(DEG2RAD(actor.orientationYPR), rotMat);
-//    invMat = rotMat.inverse();
-    cout    << "Rotation Matrix" << endl
-            << rotMat(0,0) << "\t" << rotMat(0,1) << "\t" << rotMat(0,2) << endl
-            << rotMat(1,0) << "\t" << rotMat(1,1) << "\t" << rotMat(1,2) << endl
-            << rotMat(2,0) << "\t" << rotMat(2,1) << "\t" << rotMat(2,2) << endl;
-
-//    cout    << "Inverse Matrix" << endl
-//            << invMat(0,0) << "\t" << invMat(0,1) << "\t" << invMat(0,2) << endl
-//            << invMat(1,0) << "\t" << invMat(1,1) << "\t" << invMat(1,2) << endl
-//            << invMat(2,0) << "\t" << invMat(2,1) << "\t" << invMat(2,2) << endl;
-
-//    axis << rotMat(0,0) + rotMat(1,0) + rotMat(2,0), rotMat(0,1) + rotMat(1,1) + rotMat(2,1), rotMat(0,2) + rotMat(1,2) + rotMat(2,2);
-//    axis << invMat(0,0), invMat(0,1), invMat(0,2);
+//    cout    << "Rotation Matrix" << endl
+//            << rotMat(0,0) << "\t" << rotMat(0,1) << "\t" << rotMat(0,2) << endl
+//            << rotMat(1,0) << "\t" << rotMat(1,1) << "\t" << rotMat(1,2) << endl
+//            << rotMat(2,0) << "\t" << rotMat(2,1) << "\t" << rotMat(2,2) << endl;
 
     //get actor size regarding all 3 dimensions
+    double position[3];
+    actor.actor->GetPosition(position);
     double bounds[6];
     actor.actor->GetBounds(bounds);
+    for(int i = 0; i < 6; i++){
+        actor.bounds.at(i) = bounds[i];
+        cout << "i = " << i << " " << bounds[i] << endl;
+    }
+    length = abs(actor.bounds[0]);
+    for(int i = 2; i < actor.bounds.size(); i+=2) {
+        if(abs(actor.bounds[i]) > length)
+            length = actor.bounds[i];
+    }
+    length /= 10;
+    length += 0.1;
+    radius = length/2;
 
-    for(int i = 0; i < 6; i++) {
+    cout << "radius = " << radius << "\tlength = " << length << endl;
+
+    for(size_t i = 0; i < arrowVec.size(); i++) {
 
         int col = i/2;
         axis << rotMat(0,col), rotMat(1,col), rotMat(2,col);
-        center << (bounds[0]+bounds[1])/2, (bounds[2]+bounds[3])/2, (bounds[4]+bounds[5])/2;
+        center << (actor.bounds[0]+actor.bounds[1])/2, (actor.bounds[2]+actor.bounds[3])/2, (actor.bounds[4]+actor.bounds[5])/2;
+
 
         if(i%2){
-//            axis *= -1;
-            axis *= (actor.bounds[i]+length);
+            axis *= ((actor.bounds[i]-center(col))+length);
         }else {
-            axis *= (actor.bounds[i]-length);
+            axis *= ((actor.bounds[i]-center(col))-length);
         }
 
         center += axis;
-
-        //    axis << 1, 0, 0;
 
         //add arrows for all dimensions
         this->addArrow(center, axis, length, radius, resolution, i);
     }
 }
 
-void MainWindow::highlightActor(string &id) {
+//void MainWindow::highlightActor(string &id) {
+//    if(operationMode == BASIC) {
+//        for(size_t k=0; k<modelVec.size(); k++) {
+//            if(!strcmp(id.c_str(), modelVec.at(k).id.c_str()))
+//                modelVec.at(k).actor->GetProperty()->SetColor(0.87, 0.898, 0.7);
+//        }
+//    }else if (operationMode == MOVEOBJECTS) {
+//        for(size_t k=0; k<coneActors.size(); k++) {
+//            stringstream ss;
+//            ss << k;
+//            if(!strcmp(id.c_str(), ss.str().c_str()))
+//                coneActors.at(k)->GetProperty()->SetColor(0.87, 0.898, 0.7);
+//        }
+//    }
+//}
+
+void MainWindow::highlightActor(int id) {
     if(operationMode == BASIC) {
-        for(size_t k=0; k<modelVec.size(); k++) {
-            if(!strcmp(id.c_str(), modelVec.at(k).id.c_str()))
-                modelVec.at(k).actor->GetProperty()->SetColor(0.87, 0.898, 0.7);
-        }
+        modelVec.at(id).actor->GetProperty()->SetColor(0.87, 0.898, 0.7);
     }else if (operationMode == MOVEOBJECTS) {
-        for(size_t k=0; k<coneActors.size(); k++) {
-            stringstream ss;
-            ss << k;
-            if(!strcmp(id.c_str(), ss.str().c_str()))
-                coneActors.at(k)->GetProperty()->SetColor(0.87, 0.898, 0.7);
-        }
+        arrowVec.at(id).actor->GetProperty()->SetColor(0.87, 0.898, 0.7);
     }
 }
 
-void MainWindow::intersectLineWithModels(Eigen::Vector4f& start, Eigen::Vector4f& end, std::vector<Eigen::Vector3f>& intersections, std::vector<std::string> &ids) {
+void MainWindow::intersectLineWithModels(Eigen::Vector4f& start, Eigen::Vector4f& end, std::vector<Eigen::Vector3f>& intersections, std::vector<int> &ids) {
 
+//    cout << "intersecting" << endl;
     if(operationMode == BASIC) {
 
         if(!modelVec.empty()) {
-
+//            cout << "modelvec not empty" << endl;
             //calculate intersections with all models
             for(size_t cnt = 0; cnt < modelVec.size(); cnt++) {
 
@@ -532,11 +578,31 @@ void MainWindow::intersectLineWithModels(Eigen::Vector4f& start, Eigen::Vector4f
                     pt_end[1] = end(1)/end(3);
                     pt_end[2] = end(2)/end(3);
 
+                    //copy actor
+                    vtkSmartPointer<vtkActor> intersectionActor = vtkSmartPointer<vtkActor>::New();
+                    intersectionActor->ShallowCopy(modelVec.at(cnt).actor);
+                    vtkSmartPointer<vtkPolyData> intersectionDataSet = vtkSmartPointer<vtkPolyData>::New();
+                    intersectionDataSet->DeepCopy(intersectionActor->GetMapper()->GetInput());
+
+                    //generate transform
+                    vtkSmartPointer<vtkTransform> transformBB = vtkSmartPointer<vtkTransform>::New();
+                    transformBB->SetMatrix(intersectionActor->GetMatrix());
+
+                    vtkSmartPointer<vtkTransformPolyDataFilter> transformFilter = vtkSmartPointer<vtkTransformPolyDataFilter>::New();
+                    transformFilter->SetInput(intersectionDataSet);
+                    transformFilter->SetTransform(transformBB);
+                    transformFilter->Update();
+
+                    // Create a mapper and actor
+                    vtkSmartPointer<vtkPolyDataMapper> transformedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+                    transformedMapper->SetInputConnection(transformFilter->GetOutputPort());
+                    intersectionActor->SetMapper(transformedMapper);
+
                     //use obbTree model TODO: use same procedure for both models
                     if(ui->radioButtonOBB->isChecked()) {
 
                         //create obbTree
-                        obbTree->SetDataSet(modelVec.at(cnt).actor->GetMapper()->GetInput());
+                        obbTree->SetDataSet(intersectionDataSet);
                         obbTree->BuildLocator();
 
                         //Visualize obbTree bounding box
@@ -556,8 +622,8 @@ void MainWindow::intersectLineWithModels(Eigen::Vector4f& start, Eigen::Vector4f
 
                         //print and save intersection points
                         if(obbHit) {
-                            //                        cout << "Hit! (" << obbHit << ")" << endl << "Model " << modelVec.at(cnt).id << endl;
-                            ids.push_back(modelVec.at(cnt).id);
+//                            cout << "Hit! (" << obbHit << ")" << endl << "Model " << modelVec.at(cnt).id << endl;
+                            ids.push_back(cnt);
                             double intersection[3];
                             for(int i = 0; i < intersectPoints->GetNumberOfPoints(); i++ )
                             {
@@ -573,7 +639,7 @@ void MainWindow::intersectLineWithModels(Eigen::Vector4f& start, Eigen::Vector4f
                     if(ui->radioButtonBSP->isChecked()) {
 
                         //build bspTree
-                        bspTree->SetDataSet(modelVec.at(cnt).actor->GetMapper()->GetInput());
+                        bspTree->SetDataSet(intersectionDataSet);
                         bspTree->BuildLocator();
 
                         //visualize bspTree bounding box
@@ -596,8 +662,8 @@ void MainWindow::intersectLineWithModels(Eigen::Vector4f& start, Eigen::Vector4f
 
                         //print and save intersection points
                         if(bspHit) {
-                            //                        cout << "Hit! (" << bspHit << ")" << endl << "Model " << modelVec.at(cnt).id << endl;
-                            ids.push_back(modelVec.at(cnt).id);
+                            cout << "Hit! (" << bspHit << ")" << endl << "Model " << modelVec.at(cnt).id << endl;
+                            ids.push_back(cnt);
                             //                        std::cout << "Intersection: " << x[0] << ", " << x[1] << ", " << x[2] << std::endl;
                             intersectionPoint << x[0], x[1], x[2];
                             intersections.push_back(intersectionPoint);
@@ -607,13 +673,13 @@ void MainWindow::intersectLineWithModels(Eigen::Vector4f& start, Eigen::Vector4f
             }
         }
     } else if(operationMode == MOVEOBJECTS) {
-        if(!coneActors.empty()) {
+        if(!arrowVec.empty()) {
 
-            //calculate intersections with all models
-            for(size_t cnt = 0; cnt < coneActors.size(); cnt++) {
+            //calculate intersections with all arrows
+            for(size_t cnt = 0; cnt < arrowVec.size(); cnt++) {
 
                     //reset model color
-                    coneActors.at(cnt)->GetProperty()->SetColor(1, 1, 1);
+                    arrowVec.at(cnt).actor->GetProperty()->SetColor(1, 1, 1);
 
                     Eigen::Vector3f intersectionPoint;
 
@@ -627,11 +693,31 @@ void MainWindow::intersectLineWithModels(Eigen::Vector4f& start, Eigen::Vector4f
                     pt_end[1] = end(1)/end(3);
                     pt_end[2] = end(2)/end(3);
 
+                    //copy actor
+                    vtkSmartPointer<vtkActor> intersectionActor = vtkSmartPointer<vtkActor>::New();
+                    intersectionActor->ShallowCopy(arrowVec.at(cnt).actor);
+                    vtkSmartPointer<vtkPolyData> intersectionDataSet = vtkSmartPointer<vtkPolyData>::New();
+                    intersectionDataSet->DeepCopy(intersectionActor->GetMapper()->GetInput());
+
+                    //generate transform
+                    vtkSmartPointer<vtkTransform> transformBB = vtkSmartPointer<vtkTransform>::New();
+                    transformBB->SetMatrix(intersectionActor->GetMatrix());
+
+                    vtkSmartPointer<vtkTransformPolyDataFilter> transformFilter = vtkSmartPointer<vtkTransformPolyDataFilter>::New();
+                    transformFilter->SetInput(intersectionDataSet);
+                    transformFilter->SetTransform(transformBB);
+                    transformFilter->Update();
+
+                    // Create a mapper and actor
+                    vtkSmartPointer<vtkPolyDataMapper> transformedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+                    transformedMapper->SetInputConnection(transformFilter->GetOutputPort());
+                    intersectionActor->SetMapper(transformedMapper);
+
                     //use obbTree model TODO: use same procedure for both models
                     if(ui->radioButtonOBB->isChecked()) {
 
                         //create obbTree
-                        obbTree->SetDataSet(coneActors.at(cnt)->GetMapper()->GetInput());
+                        obbTree->SetDataSet(intersectionDataSet);
                         obbTree->BuildLocator();
 
                         //Visualize obbTree bounding box
@@ -651,15 +737,15 @@ void MainWindow::intersectLineWithModels(Eigen::Vector4f& start, Eigen::Vector4f
 
                         //print and save intersection points
                         if(obbHit) {
-                            //                        cout << "Hit! (" << obbHit << ")" << endl << "Model " << modelVec.at(cnt).id << endl;
+//                            cout << "Hit! (" << obbHit << ")" << endl << "Model " << modelVec.at(cnt).id << endl;
                             stringstream id;
                             id << cnt;
-                            ids.push_back(id.str());
+                            ids.push_back(cnt);
                             double intersection[3];
                             for(int i = 0; i < intersectPoints->GetNumberOfPoints(); i++ )
                             {
                                 intersectPoints->GetPoint(i, intersection);
-                                //                            std::cout << "Intersection " << i << ": " << intersection[0] << ", " << intersection[1] << ", " << intersection[2] << std::endl;
+//                                std::cout << "Intersection " << i << ": " << intersection[0] << ", " << intersection[1] << ", " << intersection[2] << std::endl;
                                 intersectionPoint << intersection[0], intersection[1], intersection[2];
                                 intersections.push_back(intersectionPoint);
                             }
@@ -670,7 +756,7 @@ void MainWindow::intersectLineWithModels(Eigen::Vector4f& start, Eigen::Vector4f
                     if(ui->radioButtonBSP->isChecked()) {
 
                         //build bspTree
-                        bspTree->SetDataSet(coneActors.at(cnt)->GetMapper()->GetInput());
+                        bspTree->SetDataSet(intersectionDataSet);
                         bspTree->BuildLocator();
 
                         //visualize bspTree bounding box
@@ -696,7 +782,7 @@ void MainWindow::intersectLineWithModels(Eigen::Vector4f& start, Eigen::Vector4f
                             //                        cout << "Hit! (" << bspHit << ")" << endl << "Model " << modelVec.at(cnt).id << endl;
                             stringstream id;
                             id << cnt;
-                            ids.push_back(id.str());
+                            ids.push_back(cnt);
                             //                        std::cout << "Intersection: " << x[0] << ", " << x[1] << ", " << x[2] << std::endl;
                             intersectionPoint << x[0], x[1], x[2];
                             intersections.push_back(intersectionPoint);
@@ -704,6 +790,9 @@ void MainWindow::intersectLineWithModels(Eigen::Vector4f& start, Eigen::Vector4f
                     }
             }
         }
+
+
+
     }
 }
 
@@ -828,186 +917,186 @@ void MainWindow::processCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
     pcl::transformPointCloud(*cloud, *cloud, T_world2camVTK);
 }
 
-void MainWindow::setTransformations()
-{
-    //transformation from world to camera_link
-    float rollworld2camlink, pitchworld2camlink, yawworld2camlink;
-    t_world2camlinkVTK(0) = line2float(*ui->lineCamTrafoX);
-    t_world2camlinkVTK(1) = line2float(*ui->lineCamTrafoY);
-    t_world2camlinkVTK(2) = line2float(*ui->lineCamTrafoZ);
+//void MainWindow::setTransformations()
+//{
+//    //transformation from world to camera_link
+//    float rollworld2camlink, pitchworld2camlink, yawworld2camlink;
+//    t_world2camlinkVTK(0) = line2float(*ui->lineCamTrafoX);
+//    t_world2camlinkVTK(1) = line2float(*ui->lineCamTrafoY);
+//    t_world2camlinkVTK(2) = line2float(*ui->lineCamTrafoZ);
 
-    yawworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoYaw));
-    pitchworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoPitch));
-    rollworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoRoll));
+//    yawworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoYaw));
+//    pitchworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoPitch));
+//    rollworld2camlink = DEG2RAD(line2float(*ui->lineCamTrafoRoll));
 
-//    Eigen::AngleAxisf yawAngleworld2camlink(yawworld2camlink, Eigen::Vector3f::UnitZ());
-//    Eigen::AngleAxisf pitchAngleworld2camlink(pitchworld2camlink, Eigen::Vector3f::UnitY());
-//    Eigen::AngleAxisf rollAngleworld2camlink(rollworld2camlink, Eigen::Vector3f::UnitX());
+////    Eigen::AngleAxisf yawAngleworld2camlink(yawworld2camlink, Eigen::Vector3f::UnitZ());
+////    Eigen::AngleAxisf pitchAngleworld2camlink(pitchworld2camlink, Eigen::Vector3f::UnitY());
+////    Eigen::AngleAxisf rollAngleworld2camlink(rollworld2camlink, Eigen::Vector3f::UnitX());
 
-//    Eigen::Quaternion<float> qworld2camlink = yawAngleworld2camlink * pitchAngleworld2camlink * rollAngleworld2camlink;
+////    Eigen::Quaternion<float> qworld2camlink = yawAngleworld2camlink * pitchAngleworld2camlink * rollAngleworld2camlink;
 
-//    cout << "q.x = " << qworld2camlink.x() << endl << "q.y = " << qworld2camlink.y() << endl << "q.z = " << qworld2camlink.z() << endl << "q.w = " << qworld2camlink.w() << endl;
+////    cout << "q.x = " << qworld2camlink.x() << endl << "q.y = " << qworld2camlink.y() << endl << "q.z = " << qworld2camlink.z() << endl << "q.w = " << qworld2camlink.w() << endl;
 
-//    R_world2camlinkVTK = qworld2camlink.matrix();
-    this->setRotationMatrixFromYPR(yawworld2camlink, pitchworld2camlink, rollworld2camlink, R_world2camlinkVTK);
+////    R_world2camlinkVTK = qworld2camlink.matrix();
+//    this->setRotationMatrixFromYPR(yawworld2camlink, pitchworld2camlink, rollworld2camlink, R_world2camlinkVTK);
 
-//    T_world2camlinkVTK <<   R_world2camlinkVTK(0,0),    R_world2camlinkVTK(0,1),    R_world2camlinkVTK(0,2),    t_world2camlinkVTK(0),
-//                            R_world2camlinkVTK(1,0),    R_world2camlinkVTK(1,1),    R_world2camlinkVTK(1,2),    t_world2camlinkVTK(1),
-//                            R_world2camlinkVTK(2,0),    R_world2camlinkVTK(2,1),    R_world2camlinkVTK(2,2),    t_world2camlinkVTK(2),
-//                            0,                          0,                          0,                          1;
-    this->setTransformationMatrix(R_world2camlinkVTK, t_world2camlinkVTK, T_world2camlinkVTK);
-
-
-    //transformation from camera_link to camera_rgb_optical_frame
-    t_camlink2camVTK(0) = 0.0;
-    t_camlink2camVTK(1) = -0.045;
-    t_camlink2camVTK(2) = 0.0;
-
-    float rollcamlink2cam, pitchcamlink2cam, yawcamlink2cam;
-    yawcamlink2cam = -(M_PI/2);
-    pitchcamlink2cam = 0.0;
-    rollcamlink2cam = -(M_PI/2);
-//    Eigen::AngleAxisf yawAnglecamlink2cam(yawcamlink2cam, Eigen::Vector3f::UnitZ());
-//    Eigen::AngleAxisf pitchAnglecamlink2cam(pitchcamlink2cam, Eigen::Vector3f::UnitY());
-//    Eigen::AngleAxisf rollAnglecamlink2cam(rollcamlink2cam, Eigen::Vector3f::UnitX());
-
-//    Eigen::Quaternion<float> qcamlink2cam = yawAnglecamlink2cam * pitchAnglecamlink2cam * rollAnglecamlink2cam;
-
-////    cout << "q.x = " << qcamlink2cam.x() << endl << "q.y = " << qcamlink2cam.y() << endl << "q.z = " << qcamlink2cam.z() << endl << "q.w = " << qcamlink2cam.w() << endl;
-
-//    R_camlink2camVTK = qcamlink2cam.matrix();
-    this->setRotationMatrixFromYPR(yawcamlink2cam, pitchcamlink2cam, rollcamlink2cam, R_camlink2camVTK);
+////    T_world2camlinkVTK <<   R_world2camlinkVTK(0,0),    R_world2camlinkVTK(0,1),    R_world2camlinkVTK(0,2),    t_world2camlinkVTK(0),
+////                            R_world2camlinkVTK(1,0),    R_world2camlinkVTK(1,1),    R_world2camlinkVTK(1,2),    t_world2camlinkVTK(1),
+////                            R_world2camlinkVTK(2,0),    R_world2camlinkVTK(2,1),    R_world2camlinkVTK(2,2),    t_world2camlinkVTK(2),
+////                            0,                          0,                          0,                          1;
+//    this->setTransformationMatrix(R_world2camlinkVTK, t_world2camlinkVTK, T_world2camlinkVTK);
 
 
-//    T_camlink2camVTK << R_camlink2camVTK(0,0),  R_camlink2camVTK(0,1),  R_camlink2camVTK(0,2),  t_camlink2camVTK(0),
-//                        R_camlink2camVTK(1,0),  R_camlink2camVTK(1,1),  R_camlink2camVTK(1,2),  t_camlink2camVTK(1),
-//                        R_camlink2camVTK(2,0),  R_camlink2camVTK(2,1),  R_camlink2camVTK(2,2),  t_camlink2camVTK(2),
-//                        0,                      0,                      0,                      1;
-    this->setTransformationMatrix(R_camlink2camVTK, t_camlink2camVTK, T_camlink2camVTK);
+//    //transformation from camera_link to camera_rgb_optical_frame
+//    t_camlink2camVTK(0) = 0.0;
+//    t_camlink2camVTK(1) = -0.045;
+//    t_camlink2camVTK(2) = 0.0;
+
+//    float rollcamlink2cam, pitchcamlink2cam, yawcamlink2cam;
+//    yawcamlink2cam = -(M_PI/2);
+//    pitchcamlink2cam = 0.0;
+//    rollcamlink2cam = -(M_PI/2);
+////    Eigen::AngleAxisf yawAnglecamlink2cam(yawcamlink2cam, Eigen::Vector3f::UnitZ());
+////    Eigen::AngleAxisf pitchAnglecamlink2cam(pitchcamlink2cam, Eigen::Vector3f::UnitY());
+////    Eigen::AngleAxisf rollAnglecamlink2cam(rollcamlink2cam, Eigen::Vector3f::UnitX());
+
+////    Eigen::Quaternion<float> qcamlink2cam = yawAnglecamlink2cam * pitchAnglecamlink2cam * rollAnglecamlink2cam;
+
+//////    cout << "q.x = " << qcamlink2cam.x() << endl << "q.y = " << qcamlink2cam.y() << endl << "q.z = " << qcamlink2cam.z() << endl << "q.w = " << qcamlink2cam.w() << endl;
+
+////    R_camlink2camVTK = qcamlink2cam.matrix();
+//    this->setRotationMatrixFromYPR(yawcamlink2cam, pitchcamlink2cam, rollcamlink2cam, R_camlink2camVTK);
 
 
-    //transfromation from camera_rgb_optical_frame to projector frame
-    t_cam2projVTK(0) = line2float(*ui->lineTransCamProjX);            //TODO: load calibration values
-    t_cam2projVTK(1) = line2float(*ui->lineTransCamProjY);
-    t_cam2projVTK(2) = line2float(*ui->lineTransCamProjZ);
-
-    R_cam2projVTK <<    line2float(*ui->lineRotCamProj_00),     line2float(*ui->lineRotCamProj_01),     line2float(*ui->lineRotCamProj_02),
-                        line2float(*ui->lineRotCamProj_10),     line2float(*ui->lineRotCamProj_11),     line2float(*ui->lineRotCamProj_12),
-                        line2float(*ui->lineRotCamProj_20),     line2float(*ui->lineRotCamProj_21),     line2float(*ui->lineRotCamProj_22);
-
-//    T_cam2projVTK <<    R_cam2projVTK(0,0),     R_cam2projVTK(0,1),     R_cam2projVTK(0,2),     t_cam2projVTK(0),
-//                        R_cam2projVTK(1,0),     R_cam2projVTK(1,1),     R_cam2projVTK(1,2),     t_cam2projVTK(1),
-//                        R_cam2projVTK(2,0),     R_cam2projVTK(2,1),     R_cam2projVTK(2,2),     t_cam2projVTK(2),
-//                        0,                      0,                      0,                      1;
-    this->setTransformationMatrix(R_cam2projVTK, t_cam2projVTK, T_cam2projVTK);
-
-    //transformation from world to camera_rgb_optical_frame
-    T_world2camVTK = T_world2camlinkVTK * T_camlink2camVTK;
+////    T_camlink2camVTK << R_camlink2camVTK(0,0),  R_camlink2camVTK(0,1),  R_camlink2camVTK(0,2),  t_camlink2camVTK(0),
+////                        R_camlink2camVTK(1,0),  R_camlink2camVTK(1,1),  R_camlink2camVTK(1,2),  t_camlink2camVTK(1),
+////                        R_camlink2camVTK(2,0),  R_camlink2camVTK(2,1),  R_camlink2camVTK(2,2),  t_camlink2camVTK(2),
+////                        0,                      0,                      0,                      1;
+//    this->setTransformationMatrix(R_camlink2camVTK, t_camlink2camVTK, T_camlink2camVTK);
 
 
-    //transformation for VTK camera (180° yaw)
-//    Eigen::AngleAxisf yawAngleVTKcam(M_PI, Eigen::Vector3f::UnitZ());
-//    Eigen::AngleAxisf pitchAngleVTKcam(0.0, Eigen::Vector3f::UnitY());
-//    Eigen::AngleAxisf rollAngleVTKcam(0.0, Eigen::Vector3f::UnitX());
+//    //transfromation from camera_rgb_optical_frame to projector frame
+//    t_cam2projVTK(0) = line2float(*ui->lineTransCamProjX);            //TODO: load calibration values
+//    t_cam2projVTK(1) = line2float(*ui->lineTransCamProjY);
+//    t_cam2projVTK(2) = line2float(*ui->lineTransCamProjZ);
 
-//    Eigen::Quaternion<float> qVTKcam= yawAngleVTKcam* pitchAngleVTKcam * rollAngleVTKcam;
+//    R_cam2projVTK <<    line2float(*ui->lineRotCamProj_00),     line2float(*ui->lineRotCamProj_01),     line2float(*ui->lineRotCamProj_02),
+//                        line2float(*ui->lineRotCamProj_10),     line2float(*ui->lineRotCamProj_11),     line2float(*ui->lineRotCamProj_12),
+//                        line2float(*ui->lineRotCamProj_20),     line2float(*ui->lineRotCamProj_21),     line2float(*ui->lineRotCamProj_22);
 
-////    cout << "q.x = " << qVTKcam.x() << endl << "q.y = " << qVTKcam.y() << endl << "q.z = " << qVTKcam.z() << endl << "q.w = " << qVTKcam.w() << endl;
+////    T_cam2projVTK <<    R_cam2projVTK(0,0),     R_cam2projVTK(0,1),     R_cam2projVTK(0,2),     t_cam2projVTK(0),
+////                        R_cam2projVTK(1,0),     R_cam2projVTK(1,1),     R_cam2projVTK(1,2),     t_cam2projVTK(1),
+////                        R_cam2projVTK(2,0),     R_cam2projVTK(2,1),     R_cam2projVTK(2,2),     t_cam2projVTK(2),
+////                        0,                      0,                      0,                      1;
+//    this->setTransformationMatrix(R_cam2projVTK, t_cam2projVTK, T_cam2projVTK);
 
-//    R_VTKcam = qVTKcam.matrix();
-    this->setRotationMatrixFromYPR(M_PI, 0.0, 0.0, R_VTKcam);
-
-//    T_VTKcam << R_VTKcam(0,0),  R_VTKcam(0,1),  R_VTKcam(0,2),  0,
-//                R_VTKcam(1,0),  R_VTKcam(1,1),  R_VTKcam(1,2),  0,
-//                R_VTKcam(2,0),  R_VTKcam(2,1),  R_VTKcam(2,2),  0,
-//                0,              0,              0,              1;
-    this->setTransformationMatrix(R_VTKcam, Eigen::Vector3f(0,0,0), T_VTKcam);
-
-
-    //transformation from world to projector
-/********** FOR TESTING
-//    Eigen::Matrix4f first, second, last;
-//    if(ui->comboBoxMatMult1->currentIndex() == 0){
-//        first = T_world2camlinkVTK;
-//    }else if(ui->comboBoxMatMult1->currentIndex() == 1){
-//        first = T_camlink2camVTK;
-//    }else if(ui->comboBoxMatMult1->currentIndex() == 2){
-//        first = T_cam2projVTK;
-//    }else if(ui->comboBoxMatMult1->currentIndex() == 3){
-//        first = T_world2camlinkVTK.inverse();
-//    }else if(ui->comboBoxMatMult1->currentIndex() == 4){
-//        first = T_camlink2camVTK.inverse();
-//    }else if(ui->comboBoxMatMult1->currentIndex() == 5){
-//        first = T_cam2projVTK.inverse();
-//    }else if(ui->comboBoxMatMult1->currentIndex() == 6){
-//        first = Eigen::Matrix4f::Identity();
-//    }
-
-//    if(ui->comboBoxMatMult2->currentIndex() == 0){
-//        second = T_world2camlinkVTK;
-//    }else if(ui->comboBoxMatMult2->currentIndex() == 1){
-//        second = T_camlink2camVTK;
-//    }else if(ui->comboBoxMatMult2->currentIndex() == 2){
-//        second = T_cam2projVTK;
-//    }else if(ui->comboBoxMatMult2->currentIndex() == 3){
-//        second = T_world2camlinkVTK.inverse();
-//    }else if(ui->comboBoxMatMult2->currentIndex() == 4){
-//        second = T_camlink2camVTK.inverse();
-//    }else if(ui->comboBoxMatMult2->currentIndex() == 5){
-//        second = T_cam2projVTK.inverse();
-//    }else if(ui->comboBoxMatMult2->currentIndex() == 6){
-//        second = Eigen::Matrix4f::Identity();
-//    }
-
-//    if(ui->comboBoxMatMult3->currentIndex() == 0){
-//        last = T_world2camlinkVTK;
-//    }else if(ui->comboBoxMatMult3->currentIndex() == 1){
-//        last = T_camlink2camVTK;
-//    }else if(ui->comboBoxMatMult3->currentIndex() == 2){
-//        last = T_cam2projVTK;
-//    }else if(ui->comboBoxMatMult3->currentIndex() == 3){
-//        last = T_world2camlinkVTK.inverse();
-//    }else if(ui->comboBoxMatMult3->currentIndex() == 4){
-//        last = T_camlink2camVTK.inverse();
-//    }else if(ui->comboBoxMatMult3->currentIndex() == 5){
-//        last = T_cam2projVTK.inverse();
-//    }else if(ui->comboBoxMatMult3->currentIndex() == 6){
-//        last = Eigen::Matrix4f::Identity();
-//    }
-
-//    T_world2camVTK = first * second;
-//    T_world2projVTK = first * second * last;
-**********/
-    T_world2projVTK = T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK * T_VTKcam;
-    T_world2proj    = T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK;
+//    //transformation from world to camera_rgb_optical_frame
+//    T_world2camVTK = T_world2camlinkVTK * T_camlink2camVTK;
 
 
-    //intrinsic projector transformation for use with VTK
-    T_intrProjVTK <<    line2float(*ui->lineIntrinsicParamsProj_fx),   0,                                             line2float(*ui->lineIntrinsicParamsProj_cx),
-                        0,                                             line2float(*ui->lineIntrinsicParamsProj_fy),   line2float(*ui->lineIntrinsicParamsProj_cy),
-                        0,                                             0,                                             1;
+//    //transformation for VTK camera (180° yaw)
+////    Eigen::AngleAxisf yawAngleVTKcam(M_PI, Eigen::Vector3f::UnitZ());
+////    Eigen::AngleAxisf pitchAngleVTKcam(0.0, Eigen::Vector3f::UnitY());
+////    Eigen::AngleAxisf rollAngleVTKcam(0.0, Eigen::Vector3f::UnitX());
+
+////    Eigen::Quaternion<float> qVTKcam= yawAngleVTKcam* pitchAngleVTKcam * rollAngleVTKcam;
+
+//////    cout << "q.x = " << qVTKcam.x() << endl << "q.y = " << qVTKcam.y() << endl << "q.z = " << qVTKcam.z() << endl << "q.w = " << qVTKcam.w() << endl;
+
+////    R_VTKcam = qVTKcam.matrix();
+//    this->setRotationMatrixFromYPR(M_PI, 0.0, 0.0, R_VTKcam);
+
+////    T_VTKcam << R_VTKcam(0,0),  R_VTKcam(0,1),  R_VTKcam(0,2),  0,
+////                R_VTKcam(1,0),  R_VTKcam(1,1),  R_VTKcam(1,2),  0,
+////                R_VTKcam(2,0),  R_VTKcam(2,1),  R_VTKcam(2,2),  0,
+////                0,              0,              0,              1;
+//    this->setTransformationMatrix(R_VTKcam, Eigen::Vector3f(0,0,0), T_VTKcam);
 
 
-    //intrinsic projector transformation from calibration used for calibration validation
-//    T_intrProj <<   1515.51089,     0,              437.37754,
+//    //transformation from world to projector
+///********** FOR TESTING
+////    Eigen::Matrix4f first, second, last;
+////    if(ui->comboBoxMatMult1->currentIndex() == 0){
+////        first = T_world2camlinkVTK;
+////    }else if(ui->comboBoxMatMult1->currentIndex() == 1){
+////        first = T_camlink2camVTK;
+////    }else if(ui->comboBoxMatMult1->currentIndex() == 2){
+////        first = T_cam2projVTK;
+////    }else if(ui->comboBoxMatMult1->currentIndex() == 3){
+////        first = T_world2camlinkVTK.inverse();
+////    }else if(ui->comboBoxMatMult1->currentIndex() == 4){
+////        first = T_camlink2camVTK.inverse();
+////    }else if(ui->comboBoxMatMult1->currentIndex() == 5){
+////        first = T_cam2projVTK.inverse();
+////    }else if(ui->comboBoxMatMult1->currentIndex() == 6){
+////        first = Eigen::Matrix4f::Identity();
+////    }
+
+////    if(ui->comboBoxMatMult2->currentIndex() == 0){
+////        second = T_world2camlinkVTK;
+////    }else if(ui->comboBoxMatMult2->currentIndex() == 1){
+////        second = T_camlink2camVTK;
+////    }else if(ui->comboBoxMatMult2->currentIndex() == 2){
+////        second = T_cam2projVTK;
+////    }else if(ui->comboBoxMatMult2->currentIndex() == 3){
+////        second = T_world2camlinkVTK.inverse();
+////    }else if(ui->comboBoxMatMult2->currentIndex() == 4){
+////        second = T_camlink2camVTK.inverse();
+////    }else if(ui->comboBoxMatMult2->currentIndex() == 5){
+////        second = T_cam2projVTK.inverse();
+////    }else if(ui->comboBoxMatMult2->currentIndex() == 6){
+////        second = Eigen::Matrix4f::Identity();
+////    }
+
+////    if(ui->comboBoxMatMult3->currentIndex() == 0){
+////        last = T_world2camlinkVTK;
+////    }else if(ui->comboBoxMatMult3->currentIndex() == 1){
+////        last = T_camlink2camVTK;
+////    }else if(ui->comboBoxMatMult3->currentIndex() == 2){
+////        last = T_cam2projVTK;
+////    }else if(ui->comboBoxMatMult3->currentIndex() == 3){
+////        last = T_world2camlinkVTK.inverse();
+////    }else if(ui->comboBoxMatMult3->currentIndex() == 4){
+////        last = T_camlink2camVTK.inverse();
+////    }else if(ui->comboBoxMatMult3->currentIndex() == 5){
+////        last = T_cam2projVTK.inverse();
+////    }else if(ui->comboBoxMatMult3->currentIndex() == 6){
+////        last = Eigen::Matrix4f::Identity();
+////    }
+
+////    T_world2camVTK = first * second;
+////    T_world2projVTK = first * second * last;
+//**********/
+//    T_world2projVTK = T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK * T_VTKcam;
+//    T_world2proj    = T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK;
+
+
+//    //intrinsic projector transformation for use with VTK
+//    T_intrProjVTK <<    line2float(*ui->lineIntrinsicParamsProj_fx),   0,                                             line2float(*ui->lineIntrinsicParamsProj_cx),
+//                        0,                                             line2float(*ui->lineIntrinsicParamsProj_fy),   line2float(*ui->lineIntrinsicParamsProj_cy),
+//                        0,                                             0,                                             1;
+
+
+//    //intrinsic projector transformation from calibration used for calibration validation
+////    T_intrProj <<   1515.51089,     0,              437.37754,
+////                    0,              1447.40731,     515.55742,
+////                    0,              0,              1;
+//    //modified intrinsic projector matrix, TODO: why is the transformation (in VTK) more corrrect when using fy as fx, does this also apply when the real projector is used?
+//    T_intrProj <<   1447.40731,     0,              437.37754,
 //                    0,              1447.40731,     515.55742,
 //                    0,              0,              1;
-    //modified intrinsic projector matrix, TODO: why is the transformation (in VTK) more corrrect when using fy as fx, does this also apply when the real projector is used?
-    T_intrProj <<   1447.40731,     0,              437.37754,
-                    0,              1447.40731,     515.55742,
-                    0,              0,              1;
 
 
 
-    //might be redundant if same tansformation as T_cam2projVTK is used
-//    T_cam2proj <<   0.9999,    -0.0104,    -0.0106,     0.027,
-//                    0.0073,     0.9661,    -0.2582,     0.049,
-//                    0.0129,     0.2581,     0.9660,     0.020,
-//                    0,          0,          0,          1;
-    T_cam2proj = T_cam2projVTK;
+//    //might be redundant if same tansformation as T_cam2projVTK is used
+////    T_cam2proj <<   0.9999,    -0.0104,    -0.0106,     0.027,
+////                    0.0073,     0.9661,    -0.2582,     0.049,
+////                    0.0129,     0.2581,     0.9660,     0.020,
+////                    0,          0,          0,          1;
+//    T_cam2proj = T_cam2projVTK;
 
 
-}
+//}
 
 void MainWindow::applyPassthrough(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
 {
@@ -1203,17 +1292,22 @@ void MainWindow::createProjectionImageFromGUI()
     vtkImageData* vtkimage = windowToImageFilter->GetOutput();
     int dimsImage[3];
     vtkimage->GetDimensions(dimsImage);
-    cv::Mat cvImage(dimsImage[1], dimsImage[0], CV_8UC3, vtkimage->GetScalarPointer());
-    cv::cvtColor( cvImage, cvImage, CV_RGB2BGR); //convert color
-    cv::flip( cvImage, cvImage, 0); //align axis with visualizer
-    cv::Rect roi(0,0,848,480);      //TODO projector size param
-    this->projectorImage = cvImage(roi).clone();
-    if(this->laserPoint.x != 0.0 && this->laserPoint.y != 0.0 )
-        circle(this->projectorImage, this->laserPoint, 8.0, Scalar(0, 255, 0),3);
 
-    if(this->drawClickingCircle) {
-        double angle = (this->selectionDuration.toSec() / this->selection_thresh.toSec()) * 360.0;
-        ellipse(this->projectorImage, Point(424,240), Size(40, 40), angle, 0.0, 360.0, Scalar(0, 0, 0), 5);
+    try{
+        cv::Mat cvImage(dimsImage[1], dimsImage[0], CV_8UC3, vtkimage->GetScalarPointer());
+        cv::cvtColor( cvImage, cvImage, CV_RGB2BGR); //convert color
+        cv::flip( cvImage, cvImage, 0); //align axis with visualizer
+        cv::Rect roi(0,0,848,480);      //TODO projector size param
+        this->projectorImage = cvImage(roi).clone();
+        if(this->laserPoint.x != 0.0 && this->laserPoint.y != 0.0 )
+            circle(this->projectorImage, this->laserPoint, 8.0, Scalar(0, 255, 0),3);
+
+        if(this->drawClickingCircle) {
+            double angle = (this->selectionDuration.toSec() / this->selection_thresh.toSec()) * 360.0;
+            ellipse(this->projectorImage, Point(424,240), Size(40, 40), angle, 0.0, 360.0, Scalar(0, 0, 0), 5);
+        }
+    }catch (cv::Exception e) {
+        cout << "could not create image! Error: " << e.what() << endl;
     }
 
 }
@@ -1238,7 +1332,8 @@ void MainWindow::on_checkBoxCoordSys_toggled(bool checked)
 
 void MainWindow::on_btnSetCamView_clicked()
 {
-    this->setTransformations();
+//    this->setTransformations();
+    emit setTransformations(*ui);
 
     pclWidget->vis->setCameraParameters(T_intrProjVTK, T_world2projVTK);
     ui->qvtkWidget->update();
@@ -1285,7 +1380,8 @@ void MainWindow::on_btnSavePointcloud_clicked()
 
 void MainWindow::on_btnTransformApply_clicked()
 {
-    this->setTransformations();
+//    this->setTransformations();
+    emit setTransformations(*ui);
 }
 
 void MainWindow::on_btnResetIntrFoc_clicked()
@@ -1563,12 +1659,11 @@ void MainWindow::on_btnCreateProjImage_clicked()
 void MainWindow::on_btnLoadModel_clicked()
 {
     string filename = ui->lineLoadModel->text().toStdString();
-    string actorname = ui->lineLoadActor->text().toStdString();
-    const char *cstr = actorname.c_str();
+    double scale = line2double(*ui->lineLoadModelScale);
     cout << "Reading: " << filename << endl;
 
-    vtkSmartPointer<vtkPLYReader> reader = vtkSmartPointer<vtkPLYReader>::New();
-//    vtkSmartPointer<vtkOBJReader> reader = vtkSmartPointer<vtkOBJReader>::New();
+//    vtkSmartPointer<vtkPLYReader> reader = vtkSmartPointer<vtkPLYReader>::New();
+    vtkSmartPointer<vtkOBJReader> reader = vtkSmartPointer<vtkOBJReader>::New();
 //    vtkSmartPointer<vtkSTLReader> reader = vtkSmartPointer<vtkSTLReader>::New();
 
     reader->SetFileName(filename.c_str());
@@ -1580,6 +1675,7 @@ void MainWindow::on_btnLoadModel_clicked()
 
     vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
     actor->SetMapper(mapper);
+    actor->SetScale(scale, scale, scale);
 //    actor->AddPosition(2.5, 1.0, 0.0);
 //    double color[3];
 //    actor->GetProperty()->GetColor(color);
@@ -1772,36 +1868,167 @@ void MainWindow::moveModel() {
                 cout << "Warning: model not visible!" << endl;
             }
 
+            double scale[3];
+            modelVec.at(id).actor->GetScale(scale);
+
+            float rpyIn[4], rpyOut[4];
+            float diffX, diffY, diffZ;
+            diffX = ui->spinBoxMoveObjRoll->value()     -   modelVec.at(id).orientationYPR(2);
+            diffY = ui->spinBoxMoveObjPitch->value()    -   modelVec.at(id).orientationYPR(1);
+            diffZ = ui->spinBoxMoveObjYaw->value()      -   modelVec.at(id).orientationYPR(0);
+            rpyIn[0] = diffX;
+            rpyIn[1] = diffY;
+            rpyIn[2] = diffZ;
+            rpyIn[3] = 1;
+
+            modelVec.at(id).orientationYPR(2) = ui->spinBoxMoveObjRoll->value();
+            modelVec.at(id).orientationYPR(1) = ui->spinBoxMoveObjPitch->value();
+            modelVec.at(id).orientationYPR(0) = ui->spinBoxMoveObjYaw->value();
+
+            cout << "RPY_I: " << rpyIn[0] << " " << rpyIn[1] << " " << rpyIn[2] << endl;
+
+            vtkSmartPointer<vtkMatrix4x4> mat = modelVec.at(id).actor->GetMatrix();
+            mat->MultiplyPoint(rpyIn, rpyOut);
+            cout << "RPY_O: " << rpyOut[0] << " " << rpyOut[1] << " " << rpyOut[2] << " " << rpyOut[3] << endl;
+
+//            vtkSmartPointer<vtkTransform> transformBB = vtkSmartPointer<vtkTransform>::New();
+//            transformBB->PostMultiply();
+//            transformBB->Translate(-modelVec.at(id).positionXYZ(0)/scale[0], -modelVec.at(id).positionXYZ(1)/scale[0], -modelVec.at(id).positionXYZ(2)/scale[0]);
+//            transformBB->RotateWXYZ(diffX, mat->GetElement(0,0), mat->GetElement(1,0), mat->GetElement(2,0));
+//            transformBB->RotateWXYZ(diffY, mat->GetElement(0,1), mat->GetElement(1,1), mat->GetElement(2,1));
+//            transformBB->RotateWXYZ(diffZ, mat->GetElement(0,2), mat->GetElement(1,2), mat->GetElement(2,2));
+//            transformBB->Translate(ui->spinBoxMoveObjX->value()/scale[0], ui->spinBoxMoveObjY->value()/scale[0], ui->spinBoxMoveObjZ->value()/scale[0]);
+
+
+            modelVec.at(id).actor->SetPosition(0, 0, 0);
+            modelVec.at(id).actor->RotateWXYZ(diffX, mat->GetElement(0,0), mat->GetElement(1,0), mat->GetElement(2,0));
+            modelVec.at(id).actor->RotateWXYZ(diffY, mat->GetElement(0,1), mat->GetElement(1,1), mat->GetElement(2,1));
+            modelVec.at(id).actor->RotateWXYZ(diffZ, mat->GetElement(0,2), mat->GetElement(1,2), mat->GetElement(2,2));
+            modelVec.at(id).actor->SetPosition(ui->spinBoxMoveObjX->value(), ui->spinBoxMoveObjY->value(), ui->spinBoxMoveObjZ->value());
+
+            mat = modelVec.at(id).actor->GetMatrix();
+            cout << "Pre Actor Matrix:" << endl;
+            cout << mat->Element[0][0] << "\t\t" << mat->Element[0][1] << "\t\t" << mat->Element[0][2] << "\t\t" << mat->Element[0][3] << endl;
+            cout << mat->Element[1][0] << "\t\t" << mat->Element[1][1] << "\t\t" << mat->Element[1][2] << "\t\t" << mat->Element[1][3] << endl;
+            cout << mat->Element[2][0] << "\t\t" << mat->Element[2][1] << "\t\t" << mat->Element[2][2] << "\t\t" << mat->Element[2][3] << endl;
+            cout << mat->Element[3][0] << "\t\t" << mat->Element[3][1] << "\t\t" << mat->Element[3][2] << "\t\t" << mat->Element[3][3] << endl;
+
+
+            //move the model first back to origin and then using the new input values TODO: transform in body coordinates not world coordinates
+//            vtkSmartPointer<vtkTransform> transform = vtkSmartPointer<vtkTransform>::New();
+//            transform->PostMultiply();
+//            transform->Translate(-modelVec.at(id).positionXYZ(0)/scale[0], -modelVec.at(id).positionXYZ(1)/scale[0], -modelVec.at(id).positionXYZ(2)/scale[0]);
+//            transform->RotateZ(-modelVec.at(id).orientationYPR(0));
+//            transform->RotateY(-modelVec.at(id).orientationYPR(1));
+//            transform->RotateX(-modelVec.at(id).orientationYPR(2));
+//            transform->RotateX(ui->spinBoxMoveObjRoll->value());
+//            transform->RotateY(ui->spinBoxMoveObjPitch->value());
+//            transform->RotateZ(ui->spinBoxMoveObjYaw->value());
+//            transform->Translate(ui->spinBoxMoveObjX->value()/scale[0], ui->spinBoxMoveObjY->value()/scale[0], ui->spinBoxMoveObjZ->value()/scale[0]);
+
+//            vtkSmartPointer<vtkTransformPolyDataFilter> transformFilter = vtkSmartPointer<vtkTransformPolyDataFilter>::New();
+//            transformFilter->SetInput(modelVec.at(id).actor->GetMapper()->GetInput());
+//            transformFilter->SetTransform(transformWXYZ);
+//            transformFilter->Update();
+
+//            // Create a mapper and actor
+//            vtkSmartPointer<vtkPolyDataMapper> transformedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+//            transformedMapper->SetInputConnection(transformFilter->GetOutputPort());
+//            modelVec.at(id).actor->SetMapper(transformedMapper);
+
+            //update values to new position
+            modelVec.at(id).positionXYZ = Eigen::Vector3f(ui->spinBoxMoveObjX->value(), ui->spinBoxMoveObjY->value(), ui->spinBoxMoveObjZ->value());
+            modelVec.at(id).orientationYPR = Eigen::Vector3f(ui->spinBoxMoveObjYaw->value(), ui->spinBoxMoveObjPitch->value(), ui->spinBoxMoveObjRoll->value());
+
+            mat = modelVec.at(id).actor->GetMatrix();
+            cout << "Post Actor Matrix:" << endl;
+            cout << mat->Element[0][0] << "\t\t" << mat->Element[0][1] << "\t\t" << mat->Element[0][2] << "\t\t" << mat->Element[0][3] << endl;
+            cout << mat->Element[1][0] << "\t\t" << mat->Element[1][1] << "\t\t" << mat->Element[1][2] << "\t\t" << mat->Element[1][3] << endl;
+            cout << mat->Element[2][0] << "\t\t" << mat->Element[2][1] << "\t\t" << mat->Element[2][2] << "\t\t" << mat->Element[2][3] << endl;
+            cout << mat->Element[3][0] << "\t\t" << mat->Element[3][1] << "\t\t" << mat->Element[3][2] << "\t\t" << mat->Element[3][3] << endl;
+
+            ui->qvtkWidget->update();
+        }
+
+    }
+}
+
+void MainWindow::moveModel(actorEntry &entry, Eigen::Vector3f translateXYZ, Eigen::Vector3f rotateYPR) {
+            if(!entry.visible) {
+                cout << "Warning: model not visible!" << endl;
+            }
+
             //move the model first back to origin and then using the new input values TODO: transform in body coordinates not world coordinates
             vtkSmartPointer<vtkTransform> transform = vtkSmartPointer<vtkTransform>::New();
             transform->PostMultiply();
-            transform->Translate(-modelVec.at(id).positionXYZ(0), -modelVec.at(id).positionXYZ(1), -modelVec.at(id).positionXYZ(2));
-            transform->RotateZ(-modelVec.at(id).orientationYPR(0));
-            transform->RotateY(-modelVec.at(id).orientationYPR(1));
-            transform->RotateX(-modelVec.at(id).orientationYPR(2));
-            transform->RotateX(ui->spinBoxMoveObjRoll->value());
-            transform->RotateY(ui->spinBoxMoveObjPitch->value());
-            transform->RotateZ(ui->spinBoxMoveObjYaw->value());
-            transform->Translate(ui->spinBoxMoveObjX->value(), ui->spinBoxMoveObjY->value(), ui->spinBoxMoveObjZ->value());
+            transform->Translate(-entry.positionXYZ(0), -entry.positionXYZ(1), -entry.positionXYZ(2));
+            transform->RotateZ(-entry.orientationYPR(0));
+            transform->RotateY(-entry.orientationYPR(1));
+            transform->RotateX(-entry.orientationYPR(2));
+            transform->RotateX(rotateYPR(2));
+            transform->RotateY(rotateYPR(1));
+            transform->RotateZ(rotateYPR(0));
+            transform->Translate(translateXYZ(0), translateXYZ(1), translateXYZ(2));
 
             vtkSmartPointer<vtkTransformPolyDataFilter> transformFilter = vtkSmartPointer<vtkTransformPolyDataFilter>::New();
-            transformFilter->SetInput(modelVec.at(id).actor->GetMapper()->GetInput());
+            transformFilter->SetInput(entry.actor->GetMapper()->GetInput());
             transformFilter->SetTransform(transform);
             transformFilter->Update();
 
             // Create a mapper and actor
             vtkSmartPointer<vtkPolyDataMapper> transformedMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
             transformedMapper->SetInputConnection(transformFilter->GetOutputPort());
-            modelVec.at(id).actor->SetMapper(transformedMapper);
+            entry.actor->SetMapper(transformedMapper);
 
             //update values to new position
-            modelVec.at(id).positionXYZ = Eigen::Vector3f(ui->spinBoxMoveObjX->value(), ui->spinBoxMoveObjY->value(), ui->spinBoxMoveObjZ->value());
-            modelVec.at(id).orientationYPR = Eigen::Vector3f(ui->spinBoxMoveObjYaw->value(), ui->spinBoxMoveObjPitch->value(), ui->spinBoxMoveObjRoll->value());
+            entry.positionXYZ = translateXYZ;
+            entry.orientationYPR = rotateYPR;
 
             ui->qvtkWidget->update();
-        }
+}
 
+void MainWindow::moveModelRelative(actorEntry &entry, Eigen::Vector3f translateXYZ, Eigen::Vector3f rotateYPR) {
+
+
+    if(!entry.visible) {
+        cout << "Warning: model not visible!" << endl;
     }
+    double position[3];
+    entry.actor->GetPosition(position);
+//    cout << "Pre: position of model " << entry.id.c_str() << " is: " << "x = " << position[0] << " y = " << position[1] << " z = " << position[2] << endl;
+
+    float rpyIn[4], rpyOut[4];
+    rpyIn[0] = rotateYPR(2);
+    rpyIn[1] = rotateYPR(1);
+    rpyIn[2] = rotateYPR(0);
+    rpyIn[3] = 1;
+
+    entry.orientationYPR(2) = ui->spinBoxMoveObjRoll->value();
+    entry.orientationYPR(1) = ui->spinBoxMoveObjPitch->value();
+    entry.orientationYPR(0) = ui->spinBoxMoveObjYaw->value();
+
+//    cout << "RPY_I: " << rpyIn[0] << " " << rpyIn[1] << " " << rpyIn[2] << endl;
+
+    vtkSmartPointer<vtkMatrix4x4> mat = entry.actor->GetMatrix();
+    mat->MultiplyPoint(rpyIn, rpyOut);
+//    cout << "RPY_O: " << rpyOut[0] << " " << rpyOut[1] << " " << rpyOut[2] << endl;
+
+    entry.actor->SetPosition(0, 0, 0);
+    entry.actor->RotateWXYZ(rpyIn[0], mat->GetElement(0,0), mat->GetElement(1,0), mat->GetElement(2,0));
+    entry.actor->RotateWXYZ(rpyIn[1], mat->GetElement(0,1), mat->GetElement(1,1), mat->GetElement(2,1));
+    entry.actor->RotateWXYZ(rpyIn[2], mat->GetElement(0,2), mat->GetElement(1,2), mat->GetElement(2,2));
+
+    double orientation[3];
+    entry.actor->GetOrientation(orientation);
+    entry.orientationYPR = Eigen::Vector3f(orientation[2], orientation[1], orientation[0]);
+
+    position[0] += translateXYZ(0);
+    position[1] += translateXYZ(1);
+    position[2] += translateXYZ(2);
+    entry.actor->SetPosition(position[0], position[1], position[2]);
+    entry.positionXYZ = Eigen::Vector3f(position[0], position[1], position[2]);
+
+    ui->qvtkWidget->update();
 }
 
 void MainWindow::on_btnPCMove_clicked()
@@ -2001,6 +2228,8 @@ void MainWindow::on_btnModelReset_clicked()
 
 void MainWindow::resetModelPose() {
     if(!modelVec.empty()) {
+        int id = ui->comboBoxModelSelect->currentIndex();
+
         this->waitForLines = true;
         ui->spinBoxMoveObjX->setValue(0);
         ui->spinBoxMoveObjY->setValue(0);
@@ -2011,7 +2240,23 @@ void MainWindow::resetModelPose() {
         ui->spinBoxMoveObjRoll->setValue(0);
         this->waitForLines = false;
 
-        this->moveModel();
+//        this->moveModel();
+
+        modelVec.at(id).actor->SetPosition(0, 0, 0);
+        modelVec.at(id).actor->SetOrientation(0, 0, 0);
+
+        //update values to new position
+        modelVec.at(id).positionXYZ = Eigen::Vector3f(0, 0, 0);
+        modelVec.at(id).orientationYPR = Eigen::Vector3f(0, 0, 0);
+
+        ui->qvtkWidget->update();
+
+        double o[3];
+        modelVec.at(id).actor->GetOrientation(o);
+//        vtkSmartPointer<vtkActor> ac;
+//        ac->GetOrientation(o);
+        cout << "orientation: " << o[0] << " " << o[1] << " " << o[2] << endl;
+
     }
 }
 
@@ -2063,7 +2308,7 @@ void MainWindow::on_btnPCSendOcto_clicked()
 
 void MainWindow::on_btnAddCone_clicked()
 {
-    this->addArrowsforActor(modelVec.at(0));
+    this->addArrowsForActor(modelVec.at(0));
 }
 
 void MainWindow::on_btnRemoveCone_clicked()
@@ -2078,9 +2323,12 @@ void MainWindow::switchOperationMode(int mode){
     for(size_t i = 0; i < modelVec.size(); i++) {
         modelVec.at(i).actor->GetProperty()->SetColor(1, 1, 1);
     }
-    for(size_t j = 0; j < coneActors.size(); j++) {
-        coneActors.at(j)->GetProperty()->SetColor(1, 1, 1);
+//    cout << "arrowvec size: " << arrowVec.size() << endl;
+    for(size_t j = 0; j < arrowVec.size(); j++) {
+        arrowVec.at(j).actor->GetProperty()->SetColor(1, 1, 1);
     }
+
+    this->currentObjectIndex = 99; //TODO: get rid of workaround
 }
 
 void MainWindow::on_comboBox_currentIndexChanged(int index)
@@ -2134,4 +2382,435 @@ void MainWindow::on_btnToggleVisOdom_clicked()
     } else {
         ui->labelVisOdomStatus->setText("Off");
     }
+}
+
+void MainWindow::newCam2ProjVTKTransform(Eigen::Matrix4f T) {
+    boost::lock_guard<boost::mutex> guard(m_positionMutex);
+    T_cam2projVTK = T;
+}
+
+void MainWindow::newMap2WorldVTKTransform(Eigen::Matrix4f T){
+    boost::lock_guard<boost::mutex> guard(m_positionMutex);
+    T_map2worldVTK = T;
+}
+
+void MainWindow::newWorld2CamlinkVTKTransform(Eigen::Matrix4f T){
+    boost::lock_guard<boost::mutex> guard(m_positionMutex);
+    T_world2camlinkVTK = T;
+}
+
+void MainWindow::newCamlink2CamVTKTransform(Eigen::Matrix4f T){
+    boost::lock_guard<boost::mutex> guard(m_positionMutex);
+    T_camlink2camVTK = T;
+}
+
+void MainWindow::newWorld2CamVTKTransform(Eigen::Matrix4f T){
+    boost::lock_guard<boost::mutex> guard(m_positionMutex);
+    T_world2camVTK = T;
+}
+
+void MainWindow::newVTKCamTransform(Eigen::Matrix4f T){
+    boost::lock_guard<boost::mutex> guard(m_positionMutex);
+    T_VTKcam = T;
+}
+
+void MainWindow::newWorld2ProjVTKTransform(Eigen::Matrix4f T){
+    boost::lock_guard<boost::mutex> guard(m_positionMutex);
+    T_world2projVTK = T;
+    transformReady = true;
+}
+
+void MainWindow::newWorld2ProjTransform(Eigen::Matrix4f T){
+    boost::lock_guard<boost::mutex> guard(m_positionMutex);
+    T_world2proj = T;
+}
+
+void MainWindow::newCam2ProjTransform(Eigen::Matrix4f T){
+    boost::lock_guard<boost::mutex> guard(m_positionMutex);
+    T_cam2proj = T;
+}
+
+void MainWindow::newIntrProjVTKTransform(Eigen::Matrix3f T){
+    boost::lock_guard<boost::mutex> guard(m_positionMutex);
+    T_intrProjVTK = T;
+}
+
+void MainWindow::newIntrProjTransform(Eigen::Matrix3f T){
+    boost::lock_guard<boost::mutex> guard(m_positionMutex);
+    T_intrProj =T;
+}
+
+void MainWindow::on_btnAddTexture_clicked()
+{
+    int id = ui->comboBoxModelSelect->currentIndex();
+
+    // Read the image which will be the texture
+
+    std::string imagename = ui->lineAddTexture->text().toStdString();
+
+//    std::cout << "Reading image " << imagename << "..." << std::endl;
+
+    vtkSmartPointer<vtkJPEGReader> jPEGReader = vtkSmartPointer<vtkJPEGReader>::New();
+
+    jPEGReader->SetFileName ( imagename.c_str() );
+
+    jPEGReader->Update();
+
+//    std::cout << "Done" << std::endl;
+
+    // Creating the texture
+
+//    std::cout << "Making a texture out of the image... " << std::endl;
+
+    vtkSmartPointer<vtkTexture> texture = vtkSmartPointer<vtkTexture>::New();
+
+    texture->SetInputConnection(jPEGReader->GetOutputPort());
+
+//    std::cout << "Done" << std::endl;
+
+//    // Import geometry from an OBJ file
+//    std::string iname = ui->lineLoadModel->text().toStdString();
+
+//    std::cout << "Reading OBJ file " << iname << "..." << std::endl;
+
+//    vtkOBJReader* reader = vtkOBJReader::New();
+
+//    reader->SetFileName(iname.c_str());
+
+//    reader->Update();
+
+//    vtkPolyData *polyData2 = reader->GetOutput();
+
+//    std::cout << "Obj reader = " << polyData2->GetNumberOfPoints() << std::endl;
+
+////    std::cout << "Obj point data = " << polyData2->GetPointData()->GetNumberOfArrays() << std::endl;
+
+////    std::cout << "Obj point data tuples = " << polyData2->GetPointData()->GetArray(0)->GetNumberOfTuples() << std::endl;
+
+////    std::cout << "Obj point data compon = " << polyData2->GetPointData()->GetArray(0)->GetNumberOfComponents() << std::endl;
+
+//    // Renderer
+
+//    vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+
+//    mapper->SetInput(polyData2);
+
+//    vtkSmartPointer<vtkActor> texturedQuad = vtkSmartPointer<vtkActor>::New();
+
+//    texturedQuad->SetMapper(mapper);
+
+//    texturedQuad->SetTexture(texture);
+
+//    pclWidget->vis->addActorToRenderer(texturedQuad);
+
+    modelVec.at(id).actor->SetTexture(texture);
+
+    ui->qvtkWidget->update();
+}
+
+void MainWindow::on_btnTestChess_clicked()
+{
+    vector<Point2f> corners;
+    Mat chessimage = imread("/home/sysadm/chessboard.png", CV_LOAD_IMAGE_COLOR);
+    if(findChessboardCorners(chessimage, Size(3,3), corners)) {
+        drawChessboardCorners(chessimage, Size(3,3),Mat(corners), true);
+    }else {
+        cout << "no chessboard found" << endl;
+    }
+    imshow("img", chessimage);
+}
+
+void MainWindow::on_btnGetARTransform_clicked()
+{
+//    cout << "calling ar slot" << endl;
+    emit signalGetARTransform();
+}
+
+void MainWindow::newARTransform(std::vector<geometry_msgs::TransformStamped> transforms) {
+//    cout << "transform received" << endl;
+    if(!transforms.empty()) {
+        for(size_t i = 0; i < transforms.size(); i++) {
+            if(!strcmp(transforms.at(i).child_frame_id.c_str(), "/board1")) {
+                arMarker1 = transforms.at(i);
+//                cout << "arMarker1" << endl;
+                tf::StampedTransform t;
+                tf::transformStampedMsgToTF(arMarker1, t);
+                tf::Quaternion q = t.getRotation();
+                double x, y, z, roll, pitch, yaw;
+                x = arMarker1.transform.translation.x;
+                y = arMarker1.transform.translation.y;
+                z = arMarker1.transform.translation.z;
+                tf::Matrix3x3(q).getEulerYPR(yaw, pitch, roll);
+                double2line(*ui->lineARPoseX, x);
+                double2line(*ui->lineARPoseY, y);
+                double2line(*ui->lineARPoseZ, z);
+                double2line(*ui->lineARPoseRoll, roll);
+                double2line(*ui->lineARPosePitch, pitch);
+                double2line(*ui->lineARPoseYaw, yaw);
+
+                Eigen::Vector3f trans(x, y, z);
+                Eigen::Matrix3f rotMat;
+                setRotationMatrixFromYPR(yaw, pitch, roll, rotMat);
+                setTransformationMatrix(rotMat, trans, T_cam2AR);
+
+                Eigen::Matrix4f T_world2AR;
+                Eigen::Matrix3f rotAR;
+
+                int id = ui->comboBoxModelSelect->currentIndex();
+                setRotationMatrixFromYPR(DEG2RAD(modelVec.at(id).orientationYPR), rotAR);
+                setTransformationMatrix(rotAR, modelVec.at(id).positionXYZ, T_world2AR);
+                T_projInWorldFromAR = T_world2AR * T_cam2AR.inverse() * T_cam2projVTK * T_VTKcam;
+                T_camInWorldFromAR = T_world2AR * T_cam2AR.inverse();
+                T_camInWorldFromLoc = T_world2camVTK;
+                T_camlinkInWorldFromAR = T_camInWorldFromAR * T_camlink2camVTK.inverse();
+            }else if(!strcmp(transforms.at(i).child_frame_id.c_str(), "/board2")) {
+                arMarker2 = transforms.at(i);
+//                cout << "arMarker2" << endl;
+            }
+        }
+    }
+}
+
+void MainWindow::on_btnTransformByAR_clicked()
+{
+//    int index = ui->comboBoxARTrafo->currentIndex();
+//    switch (index) {
+//    case 0:
+//        T_combined = T_world2AR * T_cam2AR;
+//        break;
+//    case 1:
+//        T_combined = T_world2AR * T_cam2AR.inverse();
+//        break;
+//    case 2:
+//        T_combined = T_cam2AR * T_world2AR;
+//        break;
+//    case 3:
+//        T_combined = T_cam2AR.inverse() * T_world2AR;
+//        break;
+//    default:
+//        break;
+//    }
+
+//    addCoordinateSystem(T_projInWorldFromAR.col(3), T_projInWorldFromAR.col(0), T_projInWorldFromAR.col(1), T_projInWorldFromAR.col(2), ui->lineCoordName->text().toStdString());
+//    addCoordinateSystem(T_camInWorldFromLoc.col(3), T_camInWorldFromLoc.col(0), T_camInWorldFromLoc.col(1), T_camInWorldFromLoc.col(2), "camfromTF");
+//    addCoordinateSystem(T_camInWorldFromAR.col(3), T_camInWorldFromAR.col(0), T_camInWorldFromAR.col(1), T_camInWorldFromAR.col(2), "camfromMarker");
+
+
+    pclWidget->vis->setCameraParameters(T_intrProjVTK, T_projInWorldFromAR);
+    ui->qvtkWidget->update();
+}
+
+void MainWindow::addCoordinateSystem(Eigen::Vector4f origin, Eigen::Vector4f x, Eigen::Vector4f y, Eigen::Vector4f z, string name) {
+
+    //create coordinate system from the vectors
+    stringstream ss;
+    pcl::PointXYZ p0, p1;
+    p0 = pcl::PointXYZ(origin(0), origin(1), origin(2));
+
+    //x-axis
+    ss << name << "_x";
+    p1 = pcl::PointXYZ(origin(0) + x(0), origin(1) + x(1), origin(2) + x(2));
+    pclWidget->vis->removeShape(ss.str());
+    pclWidget->vis->addArrow<pcl::PointXYZ>(p0, p1, 1.0, 0.0, 0.0, ss.str(), 0);
+    ss.str("");
+
+    //y-axis
+    ss << name << "_y";
+    p1 = pcl::PointXYZ(origin(0) + y(0), origin(1) + y(1), origin(2) + y(2));
+    pclWidget->vis->removeShape(ss.str());
+    pclWidget->vis->addArrow<pcl::PointXYZ>(p0, p1, 0.0, 1.0, 0.0, ss.str(), 0);
+    ss.str("");
+
+    //z-axis
+    ss << name << "_z";
+    p1 = pcl::PointXYZ(origin(0) + z(0), origin(1) + z(1), origin(2) + z(2));
+    pclWidget->vis->removeShape(ss.str());
+    pclWidget->vis->addArrow<pcl::PointXYZ>(p0, p1, 0.0, 0.0, 1.0, ss.str(), 0);
+    ss.str("");
+}
+
+void MainWindow::on_btnProjectBoard_clicked()
+{
+    this->createProjectionImageFromGUI();
+
+    showProjectionImage();
+
+    emit signalProjectImage(this->projectorImage);
+}
+
+void MainWindow::on_btnGetPoseErrorProj_clicked()
+{
+    tf::StampedTransform t1,t2;
+    tf::transformStampedMsgToTF(arMarker1, t1);
+    tf::transformStampedMsgToTF(arMarker2, t2);
+    tf::Quaternion q1, q2;
+    q1 = t1.getRotation();
+    q2 = t2.getRotation();
+    double roll1, pitch1, yaw1, roll2, pitch2, yaw2;
+    tf::Matrix3x3(q1).getEulerYPR(yaw1, pitch1, roll1);
+    tf::Matrix3x3(q2).getEulerYPR(yaw2, pitch2, roll2);
+    double E_x, E_y, E_z, E_roll, E_pitch, E_yaw;
+    E_x = arMarker1.transform.translation.x - arMarker2.transform.translation.x;
+    E_y = arMarker1.transform.translation.y - arMarker2.transform.translation.y;
+    E_z = arMarker1.transform.translation.z - arMarker2.transform.translation.z;
+    E_roll = roll1 - roll2;
+    E_pitch = pitch1 - pitch2;
+    E_yaw = yaw1 - yaw2;
+
+    double2line(*ui->lineExProj, E_x);
+    double2line(*ui->lineEyProj, E_y);
+    double2line(*ui->lineEzProj, E_z);
+    double2line(*ui->lineErollProj, E_roll);
+    double2line(*ui->lineEpitchProj, E_pitch);
+    double2line(*ui->lineEyawProj, E_yaw);
+}
+
+void MainWindow::on_btnGetPoseErrorLoc_clicked()
+{
+    Eigen::Affine3f affineAR(T_camInWorldFromAR), affineLoc(T_camInWorldFromLoc);
+    float rollAR, pitchAR, yawAR, rollLoc, pitchLoc, yawLoc;
+    pcl::getEulerAngles(affineAR, rollAR, pitchAR, yawAR);          //gives angle rotations beeing executed in order yaw, pitch', roll''
+    pcl::getEulerAngles(affineLoc, rollLoc, pitchLoc, yawLoc);
+
+//    cout << "AR: Roll = " << rollAR << "\tPitch = " << pitchAR << "\tYaw = " << yawAR << endl;
+//    cout << "Loc: Roll = " << rollLoc << "\tPitch = " << pitchLoc << "\tYaw = " << yawLoc << endl;
+
+    double E_x, E_y, E_z, E_roll, E_pitch, E_yaw;
+    E_x = T_camInWorldFromAR(0,3) - T_camInWorldFromLoc(0,3);
+    E_y = T_camInWorldFromAR(1,3) - T_camInWorldFromLoc(1,3);
+    E_z = T_camInWorldFromAR(2,3) - T_camInWorldFromLoc(2,3);
+    E_roll = rollAR - rollLoc;
+    E_pitch = pitchAR - pitchLoc;
+    E_yaw = yawAR - yawLoc;
+
+    double2line(*ui->lineExLoc, E_x);
+    double2line(*ui->lineEyLoc, E_y);
+    double2line(*ui->lineEzLoc, E_z);
+    double2line(*ui->lineErollLoc, E_roll);
+    double2line(*ui->lineEpitchLoc, E_pitch);
+    double2line(*ui->lineEyawLoc, E_yaw);
+}
+
+void MainWindow::on_btnSetInitPoseByAR_clicked()
+{
+    Eigen::Matrix3f rot_camLink;
+    rot_camLink <<  T_camlinkInWorldFromAR(0,0),  T_camlinkInWorldFromAR(0,1),  T_camlinkInWorldFromAR(0,2),
+                    T_camlinkInWorldFromAR(1,0),  T_camlinkInWorldFromAR(1,1),  T_camlinkInWorldFromAR(1,2),
+                    T_camlinkInWorldFromAR(2,0),  T_camlinkInWorldFromAR(2,1),  T_camlinkInWorldFromAR(2,2);
+    Eigen::Quaternionf q_camLink(rot_camLink);
+
+    geometry_msgs::PoseWithCovarianceStamped pose;
+    pose.pose.pose.position.x =     T_camlinkInWorldFromAR(0,3);
+    pose.pose.pose.position.y =     T_camlinkInWorldFromAR(1,3);
+    pose.pose.pose.position.z =     T_camlinkInWorldFromAR(2,3);
+    pose.pose.pose.orientation.x =  q_camLink.x();
+    pose.pose.pose.orientation.y =  q_camLink.y();
+    pose.pose.pose.orientation.z =  q_camLink.z();
+    pose.pose.pose.orientation.w =  q_camLink.w();
+
+    pose.header.frame_id = "map";
+    emit signalPublishInitialPose(pose);
+}
+
+void MainWindow::on_btnTestMove_clicked()
+{
+    float x, y, z;
+    x = ui->spinBoxTestMoveX->value();
+    y = ui->spinBoxTestMoveY->value();
+    z = ui->spinBoxTestMoveZ->value();
+
+
+    //select the model
+    this->currentModel = &modelVec.at(0);
+
+    if(this->operationMode == BASIC){
+//                    cout << "updated current model" << endl;
+        //show the arrows for the highlighted actor
+        cout << "adding arrows..." << endl;
+        this->addArrowsForActor(modelVec.at(0));
+        cout << "...done" << endl;
+        //activate the object movement mode
+//        this->switchOperationMode(MOVEOBJECTS);
+    }else {
+
+        highlightActor(ui->comboBoxArrowTest->currentIndex());
+
+        float rpyIn[4], rpyOut[4];
+        float diffX, diffY, diffZ;
+        diffX = ui->spinBoxTestMoveRoll->value();
+        diffY = ui->spinBoxTestMovePitch->value();
+        diffZ = ui->spinBoxTestMoveYaw->value();
+        rpyIn[0] = diffX;
+        rpyIn[1] = diffY;
+        rpyIn[2] = diffZ;
+        rpyIn[3] = 1;
+
+        int id = 0;
+
+        double orientation[3];
+        modelVec.at(id).actor->GetOrientation(orientation); //returned as x,y,z; order to achieve rotation is to be performed as z,x,y
+        modelVec.at(id).orientationYPR(2) = orientation[0];
+        modelVec.at(id).orientationYPR(1) = orientation[1];
+        modelVec.at(id).orientationYPR(0) = orientation[2];
+
+//        cout << "RPY_I: " << rpyIn[0] << " " << rpyIn[1] << " " << rpyIn[2] << endl;
+
+        vtkSmartPointer<vtkMatrix4x4> mat = modelVec.at(id).actor->GetMatrix();
+        mat->MultiplyPoint(rpyIn, rpyOut);
+//        cout << "RPY_O: " << rpyOut[0] << " " << rpyOut[1] << " " << rpyOut[2] << endl;
+
+        Eigen::Vector3f rotation;
+
+//        modelVec.at(id).actor->SetPosition(0, 0, 0);
+
+        modelVec.at(id).actor->RotateWXYZ(diffX, mat->GetElement(0,0), mat->GetElement(1,0), mat->GetElement(2,0));
+        rotation = Eigen::Vector3f(diffZ, 0, 0);
+        moveArrows(Eigen::Vector3f(0,0,0), rotation);
+        modelVec.at(id).actor->RotateWXYZ(diffY, mat->GetElement(0,1), mat->GetElement(1,1), mat->GetElement(2,1));
+        rotation = Eigen::Vector3f(0, diffY, 0);
+        moveArrows(Eigen::Vector3f(0,0,0), rotation);
+        modelVec.at(id).actor->RotateWXYZ(diffZ, mat->GetElement(0,2), mat->GetElement(1,2), mat->GetElement(2,2));
+        rotation = Eigen::Vector3f(0, 0, diffX);
+        moveArrows(Eigen::Vector3f(0,0,0), rotation);
+
+
+        //detect which arrow was clicked and create movement in the selected direction
+        Eigen::Vector3f translation, moveX, moveY, moveZ;
+        moveX = Eigen::Vector3f(mat->GetElement(0,0), mat->GetElement(1,0), mat->GetElement(2,0));
+        moveY = Eigen::Vector3f(mat->GetElement(0,1), mat->GetElement(1,1), mat->GetElement(2,1));
+        moveZ = Eigen::Vector3f(mat->GetElement(0,2), mat->GetElement(1,2), mat->GetElement(2,2));
+
+        //select direction
+        translation = x*moveX + y*moveY + z*moveZ;
+//                Eigen::Vector3f(x,y,z);
+
+
+//        Eigen::Matrix3f rotMat;
+//        setRotationMatrixFromYPR(currentModel->orientationYPR, rotMat);
+//        Eigen::Vector3f newTranslation;
+//        newTranslation = rotMat * translation;
+
+        moveArrows(translation, Eigen::Vector3f(0,0,0));
+//        moveArrows(newTranslation, Eigen::Vector3f(0,0,0));
+
+//        vtkSmartPointer<vtkMatrix4x4> mat = currentModel->actor->GetMatrix();
+//        cout << "Actor Matrix:" << endl;
+//        cout << mat->Element[0][0] << "\t" << mat->Element[0][1] << "\t" << mat->Element[0][2] << "\t" << mat->Element[0][3] << endl;
+//        cout << mat->Element[1][0] << "\t" << mat->Element[1][1] << "\t" << mat->Element[1][2] << "\t" << mat->Element[1][3] << endl;
+//        cout << mat->Element[2][0] << "\t" << mat->Element[2][1] << "\t" << mat->Element[2][2] << "\t" << mat->Element[2][3] << endl;
+//        cout << mat->Element[3][0] << "\t" << mat->Element[3][1] << "\t" << mat->Element[3][2] << "\t" << mat->Element[3][3] << endl;
+
+
+//        translation += currentModel->positionXYZ;
+//        modelVec.at(id).actor
+        moveModelRelative(modelVec.at(id), translation, Eigen::Vector3f(0,0,0));
+
+        ui->spinBoxTestMoveX->setValue(0.0);
+        ui->spinBoxTestMoveY->setValue(0.0);
+        ui->spinBoxTestMoveZ->setValue(0.0);
+        ui->spinBoxTestMoveRoll->setValue(0.0);
+        ui->spinBoxTestMovePitch->setValue(0.0);
+        ui->spinBoxTestMoveYaw->setValue(0.0);
+    }
+    ui->qvtkWidget->update();
 }

@@ -33,6 +33,7 @@
 #include <sensor_msgs/Image.h>
 
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <geometry_msgs/TransformStamped.h>
 #include <std_srvs/Empty.h>
 
 #include <kinpro_interaction/line.h>
@@ -61,6 +62,7 @@ class QtROS: public QThread {
         void pointCloudReceived(pcl::PointCloud<pcl::PointXYZRGB> pc);
         void positionReceived(nav_msgs::Odometry msg);
         void lineReceived(kinpro_interaction::line line);
+        void signalSendARTransform(std::vector<geometry_msgs::TransformStamped> transforms);
 
     public slots:
 
@@ -72,6 +74,8 @@ class QtROS: public QThread {
         void slotCallPauseLoc();
         void slotCallResumeLoc();
         void slotToggleVisOdom();
+        void slotGetARTransform();
+        void slotToggleARDet();
 
     public:
         /**
@@ -100,6 +104,7 @@ class QtROS: public QThread {
         void pointcloudCallback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg);
         void positionCallback(const nav_msgs::Odometry::ConstPtr& msg);
         void lineCallback(const kinpro_interaction::lineConstPtr& line);
+        void arCallback(const geometry_msgs::TransformStamped::ConstPtr& msg);
 
 
     private:
@@ -110,6 +115,7 @@ class QtROS: public QThread {
         ros::Subscriber                     pc_sub;
         ros::Subscriber                     pos_sub;
         ros::Subscriber                     line_sub;
+        ros::Subscriber                     ar_sub;
         ros::Publisher                      pc_pub;
         ros::ServiceClient                  octomapClient;
         ros::ServiceClient                  globalLocClient;
@@ -121,6 +127,7 @@ class QtROS: public QThread {
 
         pcl::PointCloud<pcl::PointXYZRGB>   pclCloud;
         sensor_msgs::Image                  projectorImg;
+        std::vector<geometry_msgs::TransformStamped>     arTransforms;
 
         void publishImage();
 };

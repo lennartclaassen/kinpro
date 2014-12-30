@@ -16,7 +16,7 @@
  *
  ******************************************************************/
 /**
- * @file   mainwindow.cpp
+ * @file   mainwindow.hpp
  * @author Lennart Claassen
  * @date   Sep 08 2014
  *
@@ -26,6 +26,7 @@
 #define _KINPRO_MAIN_WINDOW_H
 
 #include <kinpro/qtros.hpp>
+//#include <kinpro/transformationProcessing.hpp>
 #include "../../build/kinpro/ui_mainwindow.h"
 
 #include <math.h>
@@ -65,6 +66,7 @@
 #include <vtkWindowToImageFilter.h>
 #include <QVTKWidget.h>
 #include <QVTKInteractor.h>
+#include <vtkJPEGReader.h>
 
 #include <vtkVersion.h>
 #include <vtkDataSet.h>
@@ -139,22 +141,9 @@
 
 //Eigen
 #include <eigen3/Eigen/LU>
+#include <eigen3/Eigen/Geometry>
 
 #define Instantiate( obj, class ) vtkSmartPointer<class> obj = vtkSmartPointer<class>::New();
-
-class PositionTransformer: public QObject
-{
-    Q_OBJECT
-
-public slots:
-    void newPositionReceived(nav_msgs::Odometry msg);
-
-signals:
-    void transformDone(tf::StampedTransform transform);
-
-private:
-    Eigen::Matrix4f m_transformMat;
-};
 
 class VTKPointCloudWidget: QVTKWidget
 {
@@ -209,9 +198,15 @@ class MainWindow: public QMainWindow {
         void signalCallPauseLoc();
         void signalCallResumeLoc();
         void signalToggleVisOdom();
+        void signalGetARTransform();
+        void signalToggleARDet();
+
+        void setTransformations(Ui::MainWindow& ui);
 
 
     private slots:
+        void timerCallback();
+
         void on_checkBoxRGBCloud_toggled(bool checked);
 
         void on_checkBoxCoordSys_toggled(bool checked);
@@ -310,14 +305,55 @@ class MainWindow: public QMainWindow {
 
         void on_btnToggleVisOdom_clicked();
 
+        void on_btnAddTexture_clicked();
+
+        void on_btnTestChess_clicked();
+
+        void on_btnGetARTransform_clicked();
+
+        void on_btnTransformByAR_clicked();
+
+        void on_btnGetPoseErrorProj_clicked();
+
+        void on_btnProjectBoard_clicked();
+
+        void on_btnGetPoseErrorLoc_clicked();
+
+        void on_btnSetInitPoseByAR_clicked();
+
+        void on_btnTestMove_clicked();
+
 public slots:
 
         void newPointCloud(pcl::PointCloud<pcl::PointXYZRGB> pc);
-        void newPosition(nav_msgs::Odometry msg);
+//        void newPosition(nav_msgs::Odometry msg);
         void newLine(kinpro_interaction::line line);
-        void newTransform(tf::StampedTransform transform);
+        void newTransform();
+        void transformationProcessingReady();
+        void newARTransform(std::vector<geometry_msgs::TransformStamped> transforms);
+
+
+        void newCam2ProjVTKTransform(Eigen::Matrix4f T);
+        void newMap2WorldVTKTransform(Eigen::Matrix4f T);
+        void newWorld2CamlinkVTKTransform(Eigen::Matrix4f T);
+        void newCamlink2CamVTKTransform(Eigen::Matrix4f T);
+        void newWorld2CamVTKTransform(Eigen::Matrix4f T);
+        void newVTKCamTransform(Eigen::Matrix4f T);
+        void newWorld2ProjVTKTransform(Eigen::Matrix4f T);
+        void newWorld2ProjTransform(Eigen::Matrix4f T);
+        void newCam2ProjTransform(Eigen::Matrix4f T);
+        void newIntrProjVTKTransform(Eigen::Matrix3f T);
+        void newIntrProjTransform(Eigen::Matrix3f T);
+
 
     private:
+        //structure for VTK actor entries
+        struct actorEntry { vtkSmartPointer<vtkActor> actor; std::string id; bool visible; Eigen::Vector3f positionXYZ; Eigen::Vector3f orientationYPR; std::vector<double> bounds;};
+
+        //structure for point cloud entries, position in m, orientation in DEG
+        struct PCEntry { pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud; std::string id; bool visible; Eigen::Vector3f positionXYZ; Eigen::Vector3f orientationYPR; std::vector<double> bounds;};
+
+        bool transformReady;
 
         Ui::MainWindow* ui;
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_pc;
@@ -337,7 +373,7 @@ public slots:
         void savePointCloud(std::string filename = std::string("pointcloud.pcd"));
         void setRenderWindowVis2Qt();
         void displayCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc, std::string id = std::string("cloud"));
-        void setTransformations();
+//        void setTransformations();
         void processCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
         void applyVoxelization(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
         void applyPassthrough(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
@@ -354,6 +390,8 @@ public slots:
         void updatePCButtons();
 
         void moveModel();
+        void moveModel(actorEntry &entry, Eigen::Vector3f translateXYZ, Eigen::Vector3f rotateYPR);
+        void moveModelRelative(actorEntry &entry, Eigen::Vector3f translateXYZ, Eigen::Vector3f rotateYPR);
         void movePC();
 
         void resetPCPose();
@@ -381,12 +419,12 @@ public slots:
         void setModelTransformationLines();
 
         void transformLineToWorld(Eigen::Vector4f &pt_start, Eigen::Vector4f &pt_end, Eigen::Vector4f &pt_start_world, Eigen::Vector4f &pt_end_world);
-        void intersectLineWithModels(Eigen::Vector4f &start, Eigen::Vector4f &end, std::vector<Eigen::Vector3f> &intersections, std::vector<string> &ids);
+        void intersectLineWithModels(Eigen::Vector4f &start, Eigen::Vector4f &end, std::vector<Eigen::Vector3f> &intersections, std::vector<int> &ids);
 
         void projectWorldPointToProjectorImage(Eigen::Vector3f &pt_world, cv::Point &pt_projector);
 
         void visualizeLine(Eigen::Vector4f &start, Eigen::Vector4f &end);
-        bool checkForClick(std::string &id);
+        bool checkForClick(int id);
 
         void addSphere(Eigen::Vector3f &center, string id);
         void removeSphere(std::string &id);
@@ -396,20 +434,21 @@ public slots:
 
         void addArrow(Eigen::Vector3f &center, Eigen::Vector3f &axis, float length = 1.0, float radius = 1.0, float resolution = 10.0, int id = 0);
         void removeArrow(int id = 0);
-        void highlightActor(std::string &id);
+//        void highlightActor(std::string &id);
+        void highlightActor(int id);
 
         int operationMode;
 
+        void addArrowsForActor(actorEntry &actor);
+        void moveArrows(Eigen::Vector3f translateXYZ, Eigen::Vector3f rotateYPR);
 
+        void addCoordinateSystem(Eigen::Vector4f origin, Eigen::Vector4f x, Eigen::Vector4f y, Eigen::Vector4f z, std::string name = "coordinates");
 
-        //structure for VTK actor entries
-        struct actorEntry { vtkSmartPointer<vtkActor> actor; std::string id; bool visible; Eigen::Vector3f positionXYZ; Eigen::Vector3f orientationYPR; std::vector<double> bounds;};
-        void addArrowsforActor(actorEntry &actor);
-
-        //structure for point cloud entries, position in m, orientation in DEG
-        struct PCEntry { pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud; std::string id; bool visible; Eigen::Vector3f positionXYZ; Eigen::Vector3f orientationYPR; std::vector<double> bounds;};
         std::vector< PCEntry > PCVec;
         std::vector< actorEntry > modelVec;
+//        std::vector<vtkSmartPointer<vtkActor> > coneActors;
+        std::vector< actorEntry > arrowVec;
+        actorEntry* currentModel;
 
         vtkSmartPointer<vtkActor> m_lineActor;
         vtkSmartPointer<vtkOBBTree> obbTree;
@@ -417,7 +456,6 @@ public slots:
         vtkSmartPointer<vtkActor> obbTreeActor;
         vtkSmartPointer<vtkActor> bspTreeActor;
 
-        std::vector<vtkSmartPointer<vtkActor> > coneActors;
 
         std::vector<std::string> sphereIDs;
         cv::Point laserPoint;
@@ -472,16 +510,36 @@ public slots:
         //intrinsic projector transformation from calibration
         Eigen::Matrix3f T_intrProj;
 
+        //transformation matrix between ar marker and camera
+        Eigen::Matrix4f T_cam2AR;
+
+        //transformations of the projector and camera in the world coordinates determined by AR and Localization
+        Eigen::Matrix4f T_projInWorldFromAR;
+        Eigen::Matrix4f T_camInWorldFromAR;
+        Eigen::Matrix4f T_camlinkInWorldFromAR;
+        Eigen::Matrix4f T_camInWorldFromLoc;
+
         vector< vector<cv::Point> > projectionContour;
         cv::Mat projectorImage;
 
         bool waitForLines;
         std::string locationPrefix;
 
-        std::string currentObject;
+//        std::string currentObject;
+        int currentObjectIndex;
         ros::Duration selection_thresh;
         ros::Duration selectionDuration;
         ros::Time selectionBegin;
+        ros::Time lastSelectionTime;
+        ros::Duration idleDuration;
+        ros::Duration idle_thresh;
+
+        QTimer *timer;
+        bool timerRunning;
+
+        geometry_msgs::TransformStamped arMarker1;
+        geometry_msgs::TransformStamped arMarker2;
+
 };
 
 #endif // _KINPRO_MAIN_WINDOW_H

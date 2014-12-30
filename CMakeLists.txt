@@ -54,7 +54,7 @@ add_definitions(${OpenCV_DEFINITIONS})
 ##############################################################################
 
 #file(GLOB_RECURSE QT_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} FOLLOW_SYMLINKS src/*.cpp)
-set(QT_SOURCES src/qtros.cpp src/mainwindow.cpp)
+set(QT_SOURCES src/qtros.cpp src/mainwindow.cpp src/transformationProcessing.cpp src/tfProcessing.cpp)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures

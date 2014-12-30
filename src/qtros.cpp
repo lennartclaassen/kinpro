@@ -21,6 +21,8 @@ QtROS::QtROS(int argc, char *argv[], const char* node_name) {
     pc_sub = nh->subscribe< pcl::PointCloud<pcl::PointXYZRGB> >("/camera/depth_registered/points", 1, &QtROS::pointcloudCallback, this);
     pos_sub = nh->subscribe< nav_msgs::Odometry >("/odometry/filtered", 1, &QtROS::positionCallback, this);
     line_sub = nh->subscribe< kinpro_interaction::line >("/line", 1, &QtROS::lineCallback, this);
+//    ar_sub = nh->subscribe< geometry_msgs::TransformStamped >("/ar_single_board/transform", 1, &QtROS::arCallback, this);
+    ar_sub = nh->subscribe< geometry_msgs::TransformStamped >("/ar_multi_boards/transform", 2, &QtROS::arCallback, this);
 
 //    octomapClient = nh->serviceClient<octomap_msgs::BoundingBoxQuery>("/octomap_server_node/clear_bbx");
 
@@ -54,7 +56,7 @@ QtROS::~QtROS() {
 
 
 void QtROS::run() {
-    ros::Rate rate(30);
+    ros::Rate rate(60);
 
     while(ros::ok()){
 
@@ -72,6 +74,26 @@ void QtROS::pointcloudCallback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr
 
 void QtROS::positionCallback(const nav_msgs::Odometry::ConstPtr& msg) {
     emit positionReceived(*msg);
+}
+
+void QtROS::arCallback(const geometry_msgs::TransformStamped::ConstPtr& msg) {
+    if(!this->arTransforms.empty()) {
+//        cout << "transforms not empty: size = " << this->arTransforms.size() << endl;
+        if((this->arTransforms.at(0).header.stamp.toNSec() == (msg->header.stamp.toNSec()))){
+//            cout << "header the same" << endl;
+            this->arTransforms.push_back(*msg);
+        }else {
+//            cout << "different headers" << endl;
+            this->arTransforms.clear();
+            this->arTransforms.push_back(*msg);
+        }
+    }else {
+        cout << "transforms empty, adding message" << endl;
+        this->arTransforms.push_back(*msg);
+    }
+
+//    this->arTransform = *msg->header.stamp;
+
 }
 
 void QtROS::publishImage() {
@@ -111,7 +133,6 @@ void QtROS::slotCallGlobalLoc() {
 void QtROS::slotCallLocalLoc() {
     std_srvs::Empty e;
     localLocClient.call(e);
-    cout << "local loc called" << endl;
 }
 
 void QtROS::slotCallPauseLoc() {
@@ -127,4 +148,16 @@ void QtROS::slotCallResumeLoc() {
 void QtROS::slotToggleVisOdom() {
     std_srvs::Empty e;
     visOdomClient.call(e);
+}
+
+void QtROS::slotGetARTransform() {
+    if(!arTransforms.empty()) {
+//        cout << "sending transforms" << endl;
+        emit signalSendARTransform(arTransforms);
+    }
+}
+
+void QtROS::slotToggleARDet() {
+//    std_srvs::Empty e;
+//    arClient.call(e);
 }
