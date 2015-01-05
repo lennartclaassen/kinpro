@@ -111,6 +111,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     //load pointcloud to speed up the workflow in the beginning
 //    this->on_btnLoadPointcloud_clicked();
     this->lastSelectionTime = ros::Time::now();
+
+    //TODO: just for the GUI, has to be reworked!
+    this->previousValueSpinBoxOrientation[0] = 0;
+    this->previousValueSpinBoxOrientation[1] = 0;
+    this->previousValueSpinBoxOrientation[2] = 0;
 }
 
 MainWindow::~MainWindow() {
@@ -148,6 +153,8 @@ void MainWindow::newTransform() {
             emit signalProjectImage(this->projectorImage);
 
         transformReady = false;
+
+        ui->checkBoxUsePosSig->setChecked(false);
     }
 }
 
@@ -453,6 +460,10 @@ void MainWindow::addArrow(Eigen::Vector3f &center, Eigen::Vector3f &axis, float 
     vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     mapper->SetInputConnection(coneSource->GetOutputPort());
 
+//    vtkSmartPointer<vtkActor> testAc = vtkSmartPointer<vtkActor>::New();
+//    testAc->SetMapper(mapper);
+//    pclWidget->vis->addActorToRenderer(testAc);
+
     arrowVec.at(id).actor->SetMapper(mapper);
     arrowVec.at(id).positionXYZ = center;
     arrowVec.at(id).orientationYPR = axis;
@@ -465,7 +476,9 @@ void MainWindow::addArrow(Eigen::Vector3f &center, Eigen::Vector3f &axis, float 
 }
 
 void MainWindow::removeArrow(int id) {
-    pclWidget->vis->removeActorFromRenderer(arrowVec.at(id).actor);
+    for(int i = 0; i<arrowVec.size(); i++){
+        pclWidget->vis->removeActorFromRenderer(arrowVec.at(i).actor);
+    }
 }
 
 void MainWindow::addArrowsForActor(actorEntry &actor) {
@@ -493,7 +506,6 @@ void MainWindow::addArrowsForActor(actorEntry &actor) {
     actor.actor->GetBounds(bounds);
     for(int i = 0; i < 6; i++){
         actor.bounds.at(i) = bounds[i];
-        cout << "i = " << i << " " << bounds[i] << endl;
     }
     length = abs(actor.bounds[0]);
     for(int i = 2; i < actor.bounds.size(); i+=2) {
@@ -1386,7 +1398,7 @@ void MainWindow::on_btnTransformApply_clicked()
 
 void MainWindow::on_btnResetIntrFoc_clicked()
 {
-    //original transformation params from camera calibration
+    //original transformation params from camera calibration TODO: these are the old values, can be changed if calibration is validated as correct
     ui->lineIntrinsicParamsProj_fx->setText("1515.51089");
     ui->lineIntrinsicParamsProj_fy->setText("1447.40731");
 }
@@ -1871,19 +1883,22 @@ void MainWindow::moveModel() {
             double scale[3];
             modelVec.at(id).actor->GetScale(scale);
 
+            double position[3];
+            modelVec.at(id).actor->GetPosition(position);
+
             float rpyIn[4], rpyOut[4];
             float diffX, diffY, diffZ;
-            diffX = ui->spinBoxMoveObjRoll->value()     -   modelVec.at(id).orientationYPR(2);
-            diffY = ui->spinBoxMoveObjPitch->value()    -   modelVec.at(id).orientationYPR(1);
-            diffZ = ui->spinBoxMoveObjYaw->value()      -   modelVec.at(id).orientationYPR(0);
+            diffX = ui->spinBoxMoveObjRoll->value()     -   this->previousValueSpinBoxOrientation[0];
+            diffY = ui->spinBoxMoveObjPitch->value()    -   this->previousValueSpinBoxOrientation[1];
+            diffZ = ui->spinBoxMoveObjYaw->value()      -   this->previousValueSpinBoxOrientation[2];
             rpyIn[0] = diffX;
             rpyIn[1] = diffY;
             rpyIn[2] = diffZ;
             rpyIn[3] = 1;
 
-            modelVec.at(id).orientationYPR(2) = ui->spinBoxMoveObjRoll->value();
-            modelVec.at(id).orientationYPR(1) = ui->spinBoxMoveObjPitch->value();
-            modelVec.at(id).orientationYPR(0) = ui->spinBoxMoveObjYaw->value();
+            this->previousValueSpinBoxOrientation[0] = ui->spinBoxMoveObjRoll->value();
+            this->previousValueSpinBoxOrientation[1] = ui->spinBoxMoveObjPitch->value();
+            this->previousValueSpinBoxOrientation[2]= ui->spinBoxMoveObjYaw->value();
 
             cout << "RPY_I: " << rpyIn[0] << " " << rpyIn[1] << " " << rpyIn[2] << endl;
 
@@ -1938,7 +1953,11 @@ void MainWindow::moveModel() {
 
             //update values to new position
             modelVec.at(id).positionXYZ = Eigen::Vector3f(ui->spinBoxMoveObjX->value(), ui->spinBoxMoveObjY->value(), ui->spinBoxMoveObjZ->value());
-            modelVec.at(id).orientationYPR = Eigen::Vector3f(ui->spinBoxMoveObjYaw->value(), ui->spinBoxMoveObjPitch->value(), ui->spinBoxMoveObjRoll->value());
+            double orientation[3];
+            modelVec.at(id).actor->GetOrientation(orientation);
+            modelVec.at(id).orientationYPR = Eigen::Vector3f(orientation[2], orientation[1], orientation[0]);
+            cout << "yaw = " << orientation[2] << "\tpitch = " << orientation[1] << "\troll = " << orientation[0] << endl;
+//            modelVec.at(id).orientationYPR = Eigen::Vector3f(ui->spinBoxMoveObjYaw->value(), ui->spinBoxMoveObjPitch->value(), ui->spinBoxMoveObjRoll->value());
 
             mat = modelVec.at(id).actor->GetMatrix();
             cout << "Post Actor Matrix:" << endl;
@@ -2003,9 +2022,9 @@ void MainWindow::moveModelRelative(actorEntry &entry, Eigen::Vector3f translateX
     rpyIn[2] = rotateYPR(0);
     rpyIn[3] = 1;
 
-    entry.orientationYPR(2) = ui->spinBoxMoveObjRoll->value();
-    entry.orientationYPR(1) = ui->spinBoxMoveObjPitch->value();
-    entry.orientationYPR(0) = ui->spinBoxMoveObjYaw->value();
+//    entry.orientationYPR(2) = ui->spinBoxMoveObjRoll->value();
+//    entry.orientationYPR(1) = ui->spinBoxMoveObjPitch->value();
+//    entry.orientationYPR(0) = ui->spinBoxMoveObjYaw->value();
 
 //    cout << "RPY_I: " << rpyIn[0] << " " << rpyIn[1] << " " << rpyIn[2] << endl;
 
@@ -2229,6 +2248,10 @@ void MainWindow::on_btnModelReset_clicked()
 void MainWindow::resetModelPose() {
     if(!modelVec.empty()) {
         int id = ui->comboBoxModelSelect->currentIndex();
+
+        this->previousValueSpinBoxOrientation[0] = 0;
+        this->previousValueSpinBoxOrientation[1] = 0;
+        this->previousValueSpinBoxOrientation[2]= 0;
 
         this->waitForLines = true;
         ui->spinBoxMoveObjX->setValue(0);
@@ -2557,8 +2580,22 @@ void MainWindow::newARTransform(std::vector<geometry_msgs::TransformStamped> tra
                 Eigen::Matrix3f rotAR;
 
                 int id = ui->comboBoxModelSelect->currentIndex();
+                //TODO also actor->GetOrientation possible as input for the rotation matrix? Or even necessary?
                 setRotationMatrixFromYPR(DEG2RAD(modelVec.at(id).orientationYPR), rotAR);
-                setTransformationMatrix(rotAR, modelVec.at(id).positionXYZ, T_world2AR);
+//                setTransformationMatrix(rotAR, modelVec.at(id).positionXYZ, T_world2AR);
+
+                vtkSmartPointer<vtkMatrix4x4> mat = modelVec.at(id).actor->GetMatrix();
+                cout << "Actor Matrix:" << endl;
+                cout << mat->Element[0][0] << "\t\t" << mat->Element[0][1] << "\t\t" << mat->Element[0][2] << "\t\t" << mat->Element[0][3] << endl;
+                cout << mat->Element[1][0] << "\t\t" << mat->Element[1][1] << "\t\t" << mat->Element[1][2] << "\t\t" << mat->Element[1][3] << endl;
+                cout << mat->Element[2][0] << "\t\t" << mat->Element[2][1] << "\t\t" << mat->Element[2][2] << "\t\t" << mat->Element[2][3] << endl;
+                cout << mat->Element[3][0] << "\t\t" << mat->Element[3][1] << "\t\t" << mat->Element[3][2] << "\t\t" << mat->Element[3][3] << endl;
+                T_world2AR <<   mat->Element[0][0], mat->Element[0][1], mat->Element[0][2], mat->Element[0][3],
+                                mat->Element[1][0], mat->Element[1][1], mat->Element[1][2], mat->Element[1][3],
+                                mat->Element[2][0], mat->Element[2][1], mat->Element[2][2], mat->Element[2][3],
+                                mat->Element[3][0], mat->Element[3][1], mat->Element[3][2], mat->Element[3][3];
+
+
                 T_projInWorldFromAR = T_world2AR * T_cam2AR.inverse() * T_cam2projVTK * T_VTKcam;
                 T_camInWorldFromAR = T_world2AR * T_cam2AR.inverse();
                 T_camInWorldFromLoc = T_world2camVTK;
@@ -2730,7 +2767,7 @@ void MainWindow::on_btnTestMove_clicked()
         this->addArrowsForActor(modelVec.at(0));
         cout << "...done" << endl;
         //activate the object movement mode
-//        this->switchOperationMode(MOVEOBJECTS);
+        this->switchOperationMode(MOVEOBJECTS);
     }else {
 
         highlightActor(ui->comboBoxArrowTest->currentIndex());
@@ -2746,12 +2783,6 @@ void MainWindow::on_btnTestMove_clicked()
         rpyIn[3] = 1;
 
         int id = 0;
-
-        double orientation[3];
-        modelVec.at(id).actor->GetOrientation(orientation); //returned as x,y,z; order to achieve rotation is to be performed as z,x,y
-        modelVec.at(id).orientationYPR(2) = orientation[0];
-        modelVec.at(id).orientationYPR(1) = orientation[1];
-        modelVec.at(id).orientationYPR(0) = orientation[2];
 
 //        cout << "RPY_I: " << rpyIn[0] << " " << rpyIn[1] << " " << rpyIn[2] << endl;
 
@@ -2811,6 +2842,12 @@ void MainWindow::on_btnTestMove_clicked()
         ui->spinBoxTestMoveRoll->setValue(0.0);
         ui->spinBoxTestMovePitch->setValue(0.0);
         ui->spinBoxTestMoveYaw->setValue(0.0);
+
+        double orientation[3];
+        modelVec.at(id).actor->GetOrientation(orientation); //returned as x,y,z; order to achieve rotation is to be performed as z,x,y
+        modelVec.at(id).orientationYPR(2) = orientation[0];
+        modelVec.at(id).orientationYPR(1) = orientation[1];
+        modelVec.at(id).orientationYPR(0) = orientation[2];
     }
     ui->qvtkWidget->update();
 }

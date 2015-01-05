@@ -540,6 +540,8 @@ public slots:
         geometry_msgs::TransformStamped arMarker1;
         geometry_msgs::TransformStamped arMarker2;
 
+        double previousValueSpinBoxOrientation[3];
+
 };
 
 #endif // _KINPRO_MAIN_WINDOW_H

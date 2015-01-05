@@ -24,7 +24,7 @@
      </rect>
     </property>
     <property name="currentIndex">
-     <number>7</number>
+     <number>4</number>
     </property>
     <widget class="QWidget" name="tab_controls">
      <attribute name="title">
@@ -593,7 +593,7 @@
          <x>220</x>
          <y>20</y>
          <width>111</width>
-         <height>191</height>
+         <height>190</height>
         </rect>
        </property>
        <property name="title">
@@ -609,7 +609,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>-0.020</string>
+         <string>-0.0205514</string>
         </property>
        </widget>
        <widget class="QLineEdit" name="lineTransCamProjY">
@@ -622,7 +622,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>-0.049</string>
+         <string>-0.0495066</string>
         </property>
        </widget>
        <widget class="QLabel" name="labelTransCamProjZ">
@@ -661,7 +661,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>-0.027</string>
+         <string>-0.0272556</string>
         </property>
        </widget>
        <widget class="QLabel" name="labelTransCamProjX">
@@ -3376,7 +3376,7 @@
        </rect>
       </property>
       <property name="text">
-       <string>/home/sysadm/octomaps/Lab/PKM_lab_wall_02_clean.pcd</string>
+       <string>/home/sysadm/octomaps/033/14-11-12/033_stitched_merged.pcd</string>
       </property>
      </widget>
      <widget class="QPushButton" name="btnLoadPointcloud">

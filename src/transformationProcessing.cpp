@@ -226,6 +226,10 @@ void TransformationProcessor::setTransformations(Ui::MainWindow &ui)
     T_intrProj <<   1447.40731,     0,              437.37754,
                     0,              1447.40731,     515.55742,
                     0,              0,              1;
+//    //new calibration, TODO: why is the transformation (in VTK) more corrrect when using fy as fx, does this also apply when the real projector is used?
+//    T_intrProj <<   1466.64727,     0,              485.94118,
+//                    0,              1466.64727,     500.66169,
+//                    0,              0,              1;
 
     emit newIntrProjTransform(T_intrProj);
 
