@@ -30,6 +30,8 @@ int main(int argc, char **argv) {
     qRegisterMetaType< Eigen::Matrix3f >("Eigen::Matrix3f");
     qRegisterMetaType< Eigen::Matrix4f >("Eigen::Matrix4f");
     qRegisterMetaType< std::vector<geometry_msgs::TransformStamped> >("std::vector<geometry_msgs::TransformStamped>");
+    qRegisterMetaType< float >("float");
+
 
 
 
@@ -57,12 +59,15 @@ int main(int argc, char **argv) {
     app.connect(&gui,   SIGNAL(signalCallLocalLoc()),                                               &qtRos, SLOT(slotCallLocalLoc()) );
     app.connect(&gui,   SIGNAL(signalCallPauseLoc()),                                               &qtRos, SLOT(slotCallPauseLoc()) );
     app.connect(&gui,   SIGNAL(signalCallResumeLoc()),                                              &qtRos, SLOT(slotCallResumeLoc()) );
-    app.connect(&gui,   SIGNAL(signalToggleVisOdom()),                                              &qtRos, SLOT(slotToggleVisOdom()) );
+    app.connect(&gui,   SIGNAL(signalPauseVisOdom()),                                              &qtRos, SLOT(slotPauseVisOdom()) );
+    app.connect(&gui,   SIGNAL(signalResumeVisOdom()),                                              &qtRos, SLOT(slotResumeVisOdom()) );
+
     app.connect(&gui,   SIGNAL(signalGetARTransform()),                                             &qtRos, SLOT(slotGetARTransform()));
     app.connect(&qtRos, SIGNAL(signalSendARTransform(std::vector<geometry_msgs::TransformStamped>)),             &gui,   SLOT(newARTransform(std::vector<geometry_msgs::TransformStamped>)));
+    app.connect(&qtRos, SIGNAL(signalPoseRMS(float)), &gui, SLOT(slotPoseRMS(float)));
 
     app.connect(&gui,   SIGNAL(setTransformations(Ui::MainWindow&)),                                transformProc, SLOT(setTransformations(Ui::MainWindow&)) );
-    app.connect(gui.timer,   SIGNAL(timeout()),                                                    &gui, SLOT(timerCallback()) );
+    app.connect(&gui.timer,   SIGNAL(timeout()),                                                    &gui, SLOT(timerCallback()) );
 
 
     app.connect(&qtRos,         SIGNAL(positionReceived(nav_msgs::Odometry)),           tfProc,         SLOT(newPositionReceived(nav_msgs::Odometry)) );

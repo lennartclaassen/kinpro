@@ -197,7 +197,9 @@ class MainWindow: public QMainWindow {
         void signalCallLocalLoc();
         void signalCallPauseLoc();
         void signalCallResumeLoc();
-        void signalToggleVisOdom();
+        void signalPauseVisOdom();
+        void signalResumeVisOdom();
+
         void signalGetARTransform();
         void signalToggleARDet();
 
@@ -303,7 +305,9 @@ class MainWindow: public QMainWindow {
 
         void on_btnSetInitPose_clicked();
 
-        void on_btnToggleVisOdom_clicked();
+        void on_btnPauseVisOdom_clicked();
+
+        void on_btnResumeVisOdom_clicked();
 
         void on_btnAddTexture_clicked();
 
@@ -331,6 +335,7 @@ public slots:
         void newTransform();
         void transformationProcessingReady();
         void newARTransform(std::vector<geometry_msgs::TransformStamped> transforms);
+        void slotPoseRMS(float rmsVal);
 
 
         void newCam2ProjVTKTransform(Eigen::Matrix4f T);
@@ -534,13 +539,18 @@ public slots:
         ros::Duration idleDuration;
         ros::Duration idle_thresh;
 
-        QTimer *timer;
+        QTimer timer;
         bool timerRunning;
 
         geometry_msgs::TransformStamped arMarker1;
         geometry_msgs::TransformStamped arMarker2;
 
         double previousValueSpinBoxOrientation[3];
+
+        int noOfArrows;
+
+        float currRMSVal;
+        ros::Time lastLocTime;
 
 };
 

@@ -53,7 +53,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     //create empty mat as projector image
     projectorImage = cv::Mat::zeros(480, 848, CV_8UC3);
 
-    timer = new QTimer(this);
+//    timer = new QTimer(this);
     timerRunning = false;
 
     //set initial bool values
@@ -76,11 +76,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     bspTree = vtkSmartPointer<vtkModifiedBSPTree>::New();
     pclWidget->vis->addActorToRenderer(m_lineActor);
 
+    noOfArrows = 4;
+
     actorEntry entry;
     entry.visible = true;
     entry.positionXYZ = Eigen::Vector3f(0,0,0);
     entry.orientationYPR = Eigen::Vector3f(0,0,0);
-    for(int i = 0; i < 6; i++) {
+    for(int i = 0; i < noOfArrows; i++) {
         vtkSmartPointer<vtkActor> actor;
         actor = vtkSmartPointer<vtkActor>::New();
         entry.actor = actor;
@@ -99,7 +101,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     this->currentObjectIndex = 99;  //TODO: get rid of workaround
     this->selectionDuration = ros::Duration(0);
     this->idleDuration = ros::Duration(0);
-    this->selection_thresh = ros::Duration(3);
+    this->selection_thresh = ros::Duration(2);
 
     this->operationMode = BASIC;
 
@@ -116,6 +118,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     this->previousValueSpinBoxOrientation[0] = 0;
     this->previousValueSpinBoxOrientation[1] = 0;
     this->previousValueSpinBoxOrientation[2] = 0;
+
+    currRMSVal = 1.0;
 }
 
 MainWindow::~MainWindow() {
@@ -133,7 +137,7 @@ void MainWindow::timerCallback() {
         }
         switchOperationMode(BASIC);
     }
-    timer->stop();
+    timer.stop();
     this->timerRunning = false;
 }
 
@@ -154,12 +158,24 @@ void MainWindow::newTransform() {
 
         transformReady = false;
 
-        ui->checkBoxUsePosSig->setChecked(false);
+//        ui->checkBoxUsePosSig->setChecked(false);
     }
 }
 
 void MainWindow::newLine(kinpro_interaction::line line) {
     boost::lock_guard<boost::mutex> guard(m_lineMutex);
+
+    if(!timerRunning) {
+        cout << "starting timer" << endl;
+        timer.start(5000);
+        timerRunning = true;
+    }
+    bool lineEmpty = true;
+    if(line.end.z > 0.0) {
+        lineEmpty = false;
+        timer.stop();
+        timerRunning = false;
+    }
 
     //clear actors
     pclWidget->vis->removeActorFromRenderer(m_lineActor);
@@ -184,171 +200,173 @@ void MainWindow::newLine(kinpro_interaction::line line) {
     //activate bounding boxes for intersection determination
     if(ui->checkBoxActivateBB->isChecked()) {
 
-        //calculate intersections of line with models
-        vector<Eigen::Vector3f> intersections;
-        vector<int> ids;
-        this->intersectLineWithModels(start_world, end_world, intersections, ids);
+        if(!lineEmpty) {
+            //calculate intersections of line with models
+            vector<Eigen::Vector3f> intersections;
+            vector<int> ids;
+            this->intersectLineWithModels(start_world, end_world, intersections, ids);
 
-        //check if intersections were found TODO: handle cases of multiple objects
-        if(!intersections.empty()) {
-            timer->stop();
-            timerRunning = false;
+            //check if intersections were found TODO: handle cases of multiple objects
+            if(!intersections.empty()) {
 
-            this->lastSelectionTime = ros::Time::now();
+                this->lastSelectionTime = ros::Time::now();
 
-            //draw the intersection points (laserpointer) and highlight the models
-            for(size_t i = 0; i<intersections.size(); i++) {
-                //create spheres (laser pointer) for the intersections
-                stringstream sphereID;
-                sphereID << "Sphere " << i;
-                this->addSphere(intersections.at(i), sphereID.str());
+                //draw the intersection points (laserpointer) and highlight the models
+                for(size_t i = 0; i<intersections.size(); i++) {
+                    //create spheres (laser pointer) for the intersections
+                    stringstream sphereID;
+                    sphereID << "Sphere " << i;
+                    this->addSphere(intersections.at(i), sphereID.str());
 
-                //create laser points to visualize in projection image TODO: decide how to determine the most suitable intersection point if there are multiple
-                projectWorldPointToProjectorImage(intersections.at(i), this->laserPoint);
+                    //create laser points to visualize in projection image TODO: decide how to determine the most suitable intersection point if there are multiple
+                    projectWorldPointToProjectorImage(intersections.at(i), this->laserPoint);
 
-                //highlight the intersected models
-                for(size_t j=0; j<ids.size(); j++) {
-                    this->highlightActor(ids.at(j));
-                }
-            }
-
-            //check if a "click" happened on the selected object
-            if(this->checkForClick(ids.at(0))){
-
-                if(this->operationMode == BASIC){
-                    //select the model
-                    this->currentModel = &modelVec.at(ids.at(0));
-//                    cout << "updated current model" << endl;
-                    //show the arrows for the highlighted actor
-                    cout << "adding arrows..." << endl;
-                    this->addArrowsForActor(modelVec.at(ids.at(0)));
-                    cout << "...done" << endl;
-                    //activate the object movement mode
-                    this->switchOperationMode(MOVEOBJECTS);
-                }else {
-                    //detect which arrow was clicked and create movement in the selected direction TODO: rotation
-                    Eigen::Vector3f translation;
-                    float x, y, z;
-                    x = y = z = 0;
-
-                    //select direction
-                    switch (ids.at(0)) {
-                    case 0:
-//                        translation = Eigen::Vector3f(-0.1,0,0);
-                        x = -0.1;
-                        break;
-                    case 1:
-//                        translation = Eigen::Vector3f(0.1,0,0);
-                        x = 0.1;
-                        break;
-                    case 2:
-//                        translation = Eigen::Vector3f(0,-0.1,0);
-                        y = -0.1;
-                        break;
-                    case 3:
-//                        translation = Eigen::Vector3f(0,0.1,0);
-                        y = 0.1;
-                        break;
-                    case 4:
-//                        translation = Eigen::Vector3f(0,0,-0.1);
-                        z = -0.1;
-                        break;
-                    case 5:
-//                        translation = Eigen::Vector3f(0,0,0.1);
-                        z = 0.1;
-                        break;
-                    default:
-                        break;
+                    //highlight the intersected models
+                    for(size_t j=0; j<ids.size(); j++) {
+                        this->highlightActor(ids.at(j));
                     }
-//                    Eigen::Matrix3f rotMat;
-//                    setRotationMatrixFromYPR(currentModel->orientationYPR, rotMat);
-//                    Eigen::Vector3f newTranslation;
-//                    newTranslation = rotMat * translation;
-
-//                    moveArrows(translation, Eigen::Vector3f(0,0,0));
-//                    translation += currentModel->positionXYZ;
-//                    moveModel(*currentModel, translation, currentModel->orientationYPR);
-
-                    //for orientation
-//                    float rpyIn[4], rpyOut[4];
-//                    float diffX, diffY, diffZ;
-//                    diffX = ui->spinBoxTestMoveRoll->value();
-//                    diffY = ui->spinBoxTestMovePitch->value();
-//                    diffZ = ui->spinBoxTestMoveYaw->value();
-//                    rpyIn[0] = diffX;
-//                    rpyIn[1] = diffY;
-//                    rpyIn[2] = diffZ;
-//                    rpyIn[3] = 1;
-
-//                    double orientation[3];
-//                    modelVec.at(id).actor->GetOrientation(orientation); //returned as x,y,z; order to achieve rotation is to be performed as z,x,y
-//                    modelVec.at(id).orientationYPR(2) = orientation[0];
-//                    modelVec.at(id).orientationYPR(1) = orientation[1];
-//                    modelVec.at(id).orientationYPR(0) = orientation[2];
-
-                    vtkSmartPointer<vtkMatrix4x4> mat = currentModel->actor->GetMatrix();
-//                    mat->MultiplyPoint(rpyIn, rpyOut);
-
-//                    Eigen::Vector3f rotation;
-
-//                    modelVec.at(id).actor->RotateWXYZ(diffX, mat->GetElement(0,0), mat->GetElement(1,0), mat->GetElement(2,0));
-//                    rotation = Eigen::Vector3f(diffZ, 0, 0);
-//                    moveArrows(Eigen::Vector3f(0,0,0), rotation);
-//                    modelVec.at(id).actor->RotateWXYZ(diffY, mat->GetElement(0,1), mat->GetElement(1,1), mat->GetElement(2,1));
-//                    rotation = Eigen::Vector3f(0, diffY, 0);
-//                    moveArrows(Eigen::Vector3f(0,0,0), rotation);
-//                    modelVec.at(id).actor->RotateWXYZ(diffZ, mat->GetElement(0,2), mat->GetElement(1,2), mat->GetElement(2,2));
-//                    rotation = Eigen::Vector3f(0, 0, diffX);
-//                    moveArrows(Eigen::Vector3f(0,0,0), rotation);
-
-
-                    //detect which arrow was clicked and create movement in the selected direction
-                    Eigen::Vector3f moveX, moveY, moveZ;
-                    moveX = Eigen::Vector3f(mat->GetElement(0,0), mat->GetElement(1,0), mat->GetElement(2,0));
-                    moveY = Eigen::Vector3f(mat->GetElement(0,1), mat->GetElement(1,1), mat->GetElement(2,1));
-                    moveZ = Eigen::Vector3f(mat->GetElement(0,2), mat->GetElement(1,2), mat->GetElement(2,2));
-
-                    //select direction
-                    translation = x*moveX + y*moveY + z*moveZ;
-                    moveArrows(translation, Eigen::Vector3f(0,0,0));
-
-                    moveModelRelative(*currentModel, translation, Eigen::Vector3f(0,0,0));
                 }
-            }
-        } else {
-            //reset clicking Times
-            this->selectionBegin = ros::Time::now();
-            this->selectionDuration = ros::Duration(0);
 
-            //stop drawing the clicking circle
-            this->drawClickingCircle = false;
+                //check if a "click" happened on the selected object
+                if(this->checkForClick(ids.at(0))){
 
-            //set point coordinates to zero to use if no intersections were found
-            this->laserPoint = Point(0.0, 0.0);
+                    if(this->operationMode == BASIC){
+                        //select the model
+                        this->currentModel = &modelVec.at(ids.at(0));
+                        //                    cout << "updated current model" << endl;
+                        //show the arrows for the highlighted actor
+                        cout << "adding arrows..." << endl;
+                        this->addArrowsForActor(modelVec.at(ids.at(0)));
+                        cout << "...done" << endl;
+                        //activate the object movement mode
+                        this->switchOperationMode(MOVEOBJECTS);
+                    }else {
+                        //detect which arrow was clicked and create movement in the selected direction TODO: rotation
+                        Eigen::Vector3f translation;
+                        float x, y, z;
+                        x = y = z = 0;
 
-//            cout << "intersection empty" << endl;
-//            if(operationMode == MOVEOBJECTS) {
-//                idleDuration = ros::Time::now() - this->lastSelectionTime;
-//                cout << "idleDuration: " << idleDuration.toSec() << endl;
-//                if(idleDuration.toSec() > this->idle_thresh.toSec()) {
-//                    for(size_t k = 0; k < arrowVec.size(); k++) {
-//                        removeArrow(k);
-//                    }
-//                    switchOperationMode(BASIC);
-//                }
-//            }
-            if(!timerRunning) {
-                cout << "starting timer" << endl;
-                timer->start(10000);
-                timerRunning = true;
+                        //select direction
+                        switch (ids.at(0)) {
+                        case 0:
+                            //                        translation = Eigen::Vector3f(-0.1,0,0);
+                            x = 0.1;
+                            break;
+                        case 1:
+                            //                        translation = Eigen::Vector3f(0.1,0,0);
+                            x = -0.1;
+                            break;
+                        case 2:
+                            //                        translation = Eigen::Vector3f(0,-0.1,0);
+                            y = 0.1;
+                            break;
+                        case 3:
+                            //                        translation = Eigen::Vector3f(0,0.1,0);
+                            y = -0.1;
+                            break;
+                        case 4:
+                            //                        translation = Eigen::Vector3f(0,0,-0.1);
+                            z = 0.1;
+                            break;
+                        case 5:
+                            //                        translation = Eigen::Vector3f(0,0,0.1);
+                            z = -0.1;
+                            break;
+                        default:
+                            break;
+                        }
+                        //                    Eigen::Matrix3f rotMat;
+                        //                    setRotationMatrixFromYPR(currentModel->orientationYPR, rotMat);
+                        //                    Eigen::Vector3f newTranslation;
+                        //                    newTranslation = rotMat * translation;
+
+                        //                    moveArrows(translation, Eigen::Vector3f(0,0,0));
+                        //                    translation += currentModel->positionXYZ;
+                        //                    moveModel(*currentModel, translation, currentModel->orientationYPR);
+
+                        //for orientation
+                        //                    float rpyIn[4], rpyOut[4];
+                        //                    float diffX, diffY, diffZ;
+                        //                    diffX = ui->spinBoxTestMoveRoll->value();
+                        //                    diffY = ui->spinBoxTestMovePitch->value();
+                        //                    diffZ = ui->spinBoxTestMoveYaw->value();
+                        //                    rpyIn[0] = diffX;
+                        //                    rpyIn[1] = diffY;
+                        //                    rpyIn[2] = diffZ;
+                        //                    rpyIn[3] = 1;
+
+                        //                    double orientation[3];
+                        //                    modelVec.at(id).actor->GetOrientation(orientation); //returned as x,y,z; order to achieve rotation is to be performed as z,x,y
+                        //                    modelVec.at(id).orientationYPR(2) = orientation[0];
+                        //                    modelVec.at(id).orientationYPR(1) = orientation[1];
+                        //                    modelVec.at(id).orientationYPR(0) = orientation[2];
+
+                        vtkSmartPointer<vtkMatrix4x4> mat = currentModel->actor->GetMatrix();
+                        //                    mat->MultiplyPoint(rpyIn, rpyOut);
+
+                        //                    Eigen::Vector3f rotation;
+
+                        //                    modelVec.at(id).actor->RotateWXYZ(diffX, mat->GetElement(0,0), mat->GetElement(1,0), mat->GetElement(2,0));
+                        //                    rotation = Eigen::Vector3f(diffZ, 0, 0);
+                        //                    moveArrows(Eigen::Vector3f(0,0,0), rotation);
+                        //                    modelVec.at(id).actor->RotateWXYZ(diffY, mat->GetElement(0,1), mat->GetElement(1,1), mat->GetElement(2,1));
+                        //                    rotation = Eigen::Vector3f(0, diffY, 0);
+                        //                    moveArrows(Eigen::Vector3f(0,0,0), rotation);
+                        //                    modelVec.at(id).actor->RotateWXYZ(diffZ, mat->GetElement(0,2), mat->GetElement(1,2), mat->GetElement(2,2));
+                        //                    rotation = Eigen::Vector3f(0, 0, diffX);
+                        //                    moveArrows(Eigen::Vector3f(0,0,0), rotation);
+
+
+                        //detect which arrow was clicked and create movement in the selected direction
+                        Eigen::Vector3f moveX, moveY, moveZ;
+                        moveX = Eigen::Vector3f(mat->GetElement(0,0), mat->GetElement(1,0), mat->GetElement(2,0));
+                        moveY = Eigen::Vector3f(mat->GetElement(0,1), mat->GetElement(1,1), mat->GetElement(2,1));
+                        moveZ = Eigen::Vector3f(mat->GetElement(0,2), mat->GetElement(1,2), mat->GetElement(2,2));
+
+                        //select direction
+                        translation = x*moveX + y*moveY + z*moveZ;
+                        moveArrows(translation, Eigen::Vector3f(0,0,0));
+
+                        moveModelRelative(*currentModel, translation, Eigen::Vector3f(0,0,0));
+                    }
+                }
+            } else {
+                //reset clicking Times
+                this->selectionBegin = ros::Time::now();
+                this->selectionDuration = ros::Duration(0);
+
+                //stop drawing the clicking circle
+                this->drawClickingCircle = false;
+
+                //set point coordinates to zero to use if no intersections were found
+                this->laserPoint = Point(0.0, 0.0);
+
+                if(end_world(0) > 0.0 && end_world(1) > 0.0 && end_world(2) > 0.0) {
+                    stringstream sphereID;
+                    sphereID << "Sphere end";
+                    Eigen::Vector3f lineEnd(end_world(0), end_world(1), end_world(2));
+                    this->addSphere(lineEnd, sphereID.str());
+                }
+
+                //            cout << "intersection empty" << endl;
+                //            if(operationMode == MOVEOBJECTS) {
+                //                idleDuration = ros::Time::now() - this->lastSelectionTime;
+                //                cout << "idleDuration: " << idleDuration.toSec() << endl;
+                //                if(idleDuration.toSec() > this->idle_thresh.toSec()) {
+                //                    for(size_t k = 0; k < arrowVec.size(); k++) {
+                //                        removeArrow(k);
+                //                    }
+                //                    switchOperationMode(BASIC);
+                //                }
+                //            }
             }
         }
     }
 
-    if(ui->checkBoxShowProjImage->isChecked()) {
-        this->createProjectionImageFromGUI();
-        showProjectionImage();
-    }
+//    if(ui->checkBoxShowProjImage->isChecked()) {
+//        this->createProjectionImageFromGUI();
+//        showProjectionImage();
+//    }
 
     ui->qvtkWidget->update();
 }
@@ -387,6 +405,7 @@ void MainWindow::visualizeLine(Eigen::Vector4f &start, Eigen::Vector4f &end) {
     vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     mapper->SetInputConnection(lineSource->GetOutputPort());
     m_lineActor->SetMapper(mapper);
+    m_lineActor->GetProperty()->SetColor(1.0,1.0,1.0);
     pclWidget->vis->addActorToRenderer(m_lineActor);
 }
 
@@ -397,6 +416,7 @@ bool MainWindow::checkForClick(int id) {
         this->selectionDuration = ros::Time::now() - this->selectionBegin;
 
         //draw timing circle onto projector image
+//        this->drawClickingCircle = true;
         this->drawClickingCircle = true;
 
         //check if the selection duration threshold was reached
@@ -423,8 +443,8 @@ bool MainWindow::checkForClick(int id) {
 
 void MainWindow::addSphere(Eigen::Vector3f &center, string id) {
 
-    if(!pclWidget->vis->addSphere(pcl::PointXYZ(center(0), center(1), center(2)), 0.01, 1.0, 0.0, 0.0, id))
-        pclWidget->vis->updateSphere(pcl::PointXYZ(center(0), center(1), center(2)), 0.01, 1.0, 0.0, 0.0, id);
+    if(!pclWidget->vis->addSphere(pcl::PointXYZ(center(0), center(1), center(2)), 0.01, 0.0, 1.0, 0.0, id))
+        pclWidget->vis->updateSphere(pcl::PointXYZ(center(0), center(1), center(2)), 0.01, 0.0, 1.0, 0.0, id);
     sphereIDs.push_back(id);                //store sphere names for later removal
 }
 
@@ -450,7 +470,7 @@ void MainWindow::addArrow(Eigen::Vector3f &center, Eigen::Vector3f &axis, float 
     //Create a cone
     vtkSmartPointer<vtkConeSource> coneSource = vtkSmartPointer<vtkConeSource>::New();
     coneSource->SetResolution(resolution);
-    coneSource->SetCenter(center(0), center(1), center(2));
+    coneSource->SetCenter(0, 0, 0);
     coneSource->SetDirection(axis(0), axis(1), axis(2));
     coneSource->SetRadius(radius);
     coneSource->SetHeight(length);
@@ -465,6 +485,11 @@ void MainWindow::addArrow(Eigen::Vector3f &center, Eigen::Vector3f &axis, float 
 //    pclWidget->vis->addActorToRenderer(testAc);
 
     arrowVec.at(id).actor->SetMapper(mapper);
+    double position[3];
+    position[0] = center(0);
+    position[1] = center(1);
+    position[2] = center(2);
+    arrowVec.at(id).actor->SetPosition(position[0], position[1], position[2]);
     arrowVec.at(id).positionXYZ = center;
     arrowVec.at(id).orientationYPR = axis;
 
@@ -493,7 +518,8 @@ void MainWindow::addArrowsForActor(actorEntry &actor) {
 
 
     //get actor position and orientation
-    setRotationMatrixFromYPR(DEG2RAD(actor.orientationYPR), rotMat);
+//    setRotationMatrixFromYPR(DEG2RAD(actor.orientationYPR), rotMat);
+    vtkSmartPointer<vtkMatrix4x4> mat = actor.actor->GetMatrix();
 //    cout    << "Rotation Matrix" << endl
 //            << rotMat(0,0) << "\t" << rotMat(0,1) << "\t" << rotMat(0,2) << endl
 //            << rotMat(1,0) << "\t" << rotMat(1,1) << "\t" << rotMat(1,2) << endl
@@ -502,18 +528,22 @@ void MainWindow::addArrowsForActor(actorEntry &actor) {
     //get actor size regarding all 3 dimensions
     double position[3];
     actor.actor->GetPosition(position);
+    cout << "Position: " << position[0] << "\t" << position[1] << "\t" << position[2] << endl;
+
     double bounds[6];
     actor.actor->GetBounds(bounds);
-    for(int i = 0; i < 6; i++){
-        actor.bounds.at(i) = bounds[i];
+//    for(int i = 0; i < 6; i++){
+//        actor.bounds.at(i) = bounds[i];
+//    }
+    length = 0;
+    for(int i = 0; i < actor.bounds.size(); i+=2) {
+        double diff = abs(actor.bounds[i]-actor.bounds[i+1]);
+        cout << "diff: " << diff << endl;
+        if(diff/2 > length)
+            length = diff/2;
     }
-    length = abs(actor.bounds[0]);
-    for(int i = 2; i < actor.bounds.size(); i+=2) {
-        if(abs(actor.bounds[i]) > length)
-            length = actor.bounds[i];
-    }
-    length /= 10;
-    length += 0.1;
+//    length /= 2;
+//    length += 0.1;
     radius = length/2;
 
     cout << "radius = " << radius << "\tlength = " << length << endl;
@@ -521,17 +551,19 @@ void MainWindow::addArrowsForActor(actorEntry &actor) {
     for(size_t i = 0; i < arrowVec.size(); i++) {
 
         int col = i/2;
-        axis << rotMat(0,col), rotMat(1,col), rotMat(2,col);
-        center << (actor.bounds[0]+actor.bounds[1])/2, (actor.bounds[2]+actor.bounds[3])/2, (actor.bounds[4]+actor.bounds[5])/2;
+//        axis << rotMat(0,col), rotMat(1,col), rotMat(2,col);
+        axis << mat->GetElement(0,col) , mat->GetElement(1,col), mat->GetElement(2,col);
+        center << (bounds[0]+bounds[1])/2, (bounds[2]+bounds[3])/2, (bounds[4]+bounds[5])/2;
 
 
         if(i%2){
-            axis *= ((actor.bounds[i]-center(col))+length);
+            axis *= (-abs(actor.bounds[i]-actor.bounds[i-1])/2-length);
         }else {
-            axis *= ((actor.bounds[i]-center(col))-length);
+            axis *= (+abs(actor.bounds[i]-actor.bounds[i+1])/2+length);
         }
 
         center += axis;
+        cout << "Center: " << center(0) << "\t" << center(1) << "\t" << center(2) <<  "\t" << "(" << i << ")" << endl;
 
         //add arrows for all dimensions
         this->addArrow(center, axis, length, radius, resolution, i);
@@ -593,15 +625,15 @@ void MainWindow::intersectLineWithModels(Eigen::Vector4f& start, Eigen::Vector4f
                     //copy actor
                     vtkSmartPointer<vtkActor> intersectionActor = vtkSmartPointer<vtkActor>::New();
                     intersectionActor->ShallowCopy(modelVec.at(cnt).actor);
-                    vtkSmartPointer<vtkPolyData> intersectionDataSet = vtkSmartPointer<vtkPolyData>::New();
-                    intersectionDataSet->DeepCopy(intersectionActor->GetMapper()->GetInput());
+//                    vtkSmartPointer<vtkPolyData> intersectionDataSet = vtkSmartPointer<vtkPolyData>::New();
+//                    intersectionDataSet->DeepCopy(intersectionActor->GetMapper()->GetInput());
 
                     //generate transform
                     vtkSmartPointer<vtkTransform> transformBB = vtkSmartPointer<vtkTransform>::New();
                     transformBB->SetMatrix(intersectionActor->GetMatrix());
 
                     vtkSmartPointer<vtkTransformPolyDataFilter> transformFilter = vtkSmartPointer<vtkTransformPolyDataFilter>::New();
-                    transformFilter->SetInput(intersectionDataSet);
+                    transformFilter->SetInput(intersectionActor->GetMapper()->GetInput());
                     transformFilter->SetTransform(transformBB);
                     transformFilter->Update();
 
@@ -614,7 +646,7 @@ void MainWindow::intersectLineWithModels(Eigen::Vector4f& start, Eigen::Vector4f
                     if(ui->radioButtonOBB->isChecked()) {
 
                         //create obbTree
-                        obbTree->SetDataSet(intersectionDataSet);
+                        obbTree->SetDataSet(intersectionActor->GetMapper()->GetInput());
                         obbTree->BuildLocator();
 
                         //Visualize obbTree bounding box
@@ -651,7 +683,7 @@ void MainWindow::intersectLineWithModels(Eigen::Vector4f& start, Eigen::Vector4f
                     if(ui->radioButtonBSP->isChecked()) {
 
                         //build bspTree
-                        bspTree->SetDataSet(intersectionDataSet);
+                        bspTree->SetDataSet(intersectionActor->GetMapper()->GetInput());
                         bspTree->BuildLocator();
 
                         //visualize bspTree bounding box
@@ -716,7 +748,7 @@ void MainWindow::intersectLineWithModels(Eigen::Vector4f& start, Eigen::Vector4f
                     transformBB->SetMatrix(intersectionActor->GetMatrix());
 
                     vtkSmartPointer<vtkTransformPolyDataFilter> transformFilter = vtkSmartPointer<vtkTransformPolyDataFilter>::New();
-                    transformFilter->SetInput(intersectionDataSet);
+                    transformFilter->SetInput(intersectionActor->GetMapper()->GetInput());
                     transformFilter->SetTransform(transformBB);
                     transformFilter->Update();
 
@@ -729,7 +761,7 @@ void MainWindow::intersectLineWithModels(Eigen::Vector4f& start, Eigen::Vector4f
                     if(ui->radioButtonOBB->isChecked()) {
 
                         //create obbTree
-                        obbTree->SetDataSet(intersectionDataSet);
+                        obbTree->SetDataSet(intersectionActor->GetMapper()->GetInput());
                         obbTree->BuildLocator();
 
                         //Visualize obbTree bounding box
@@ -768,7 +800,7 @@ void MainWindow::intersectLineWithModels(Eigen::Vector4f& start, Eigen::Vector4f
                     if(ui->radioButtonBSP->isChecked()) {
 
                         //build bspTree
-                        bspTree->SetDataSet(intersectionDataSet);
+                        bspTree->SetDataSet(intersectionActor->GetMapper()->GetInput());
                         bspTree->BuildLocator();
 
                         //visualize bspTree bounding box
@@ -1309,15 +1341,21 @@ void MainWindow::createProjectionImageFromGUI()
         cv::Mat cvImage(dimsImage[1], dimsImage[0], CV_8UC3, vtkimage->GetScalarPointer());
         cv::cvtColor( cvImage, cvImage, CV_RGB2BGR); //convert color
         cv::flip( cvImage, cvImage, 0); //align axis with visualizer
-        cv::Rect roi(0,0,848,480);      //TODO projector size param
-        this->projectorImage = cvImage(roi).clone();
-        if(this->laserPoint.x != 0.0 && this->laserPoint.y != 0.0 )
-            circle(this->projectorImage, this->laserPoint, 8.0, Scalar(0, 255, 0),3);
+        ros::Duration t_diff = ros::Time::now()-lastLocTime;
+        int border = (t_diff.toSec() > 8.0 ? 4 : 20-2*(int)(t_diff.toSec()));
+        cv::Rect roi(border,border,848-2*border,480-2*border);      //TODO projector size param
+        if(currRMSVal > 0.1)
+            currRMSVal = 0.1;
+        this->projectorImage.setTo(Scalar(255*(currRMSVal*10),255*(1-currRMSVal*10),0));
+//        this->projectorImage = cvImage(roi).clone();
+        cvImage(roi).copyTo(this->projectorImage(roi));
+//        if(this->laserPoint.x != 0.0 && this->laserPoint.y != 0.0 )
+//            circle(this->projectorImage, this->laserPoint, 8.0, Scalar(0, 255, 0),3);
 
-        if(this->drawClickingCircle) {
-            double angle = (this->selectionDuration.toSec() / this->selection_thresh.toSec()) * 360.0;
-            ellipse(this->projectorImage, Point(424,240), Size(40, 40), angle, 0.0, 360.0, Scalar(0, 0, 0), 5);
-        }
+//        if(this->drawClickingCircle) {
+//            double angle = (this->selectionDuration.toSec() / this->selection_thresh.toSec()) * 360.0;
+//            ellipse(this->projectorImage, Point(424,240), Size(40, 40), angle, 0.0, 360.0, Scalar(0, 0, 0), 5);
+//        }
     }catch (cv::Exception e) {
         cout << "could not create image! Error: " << e.what() << endl;
     }
@@ -1734,6 +1772,7 @@ void MainWindow::on_btnLoadModel_clicked()
 //    ui->qvtkWidget->GetRenderWindow()->AddRenderer(renderer);
     ui->qvtkWidget->update();
     this->updateModelIndex();
+
 }
 
 void MainWindow::updateModelIndex()
@@ -2014,7 +2053,7 @@ void MainWindow::moveModelRelative(actorEntry &entry, Eigen::Vector3f translateX
     }
     double position[3];
     entry.actor->GetPosition(position);
-//    cout << "Pre: position of model " << entry.id.c_str() << " is: " << "x = " << position[0] << " y = " << position[1] << " z = " << position[2] << endl;
+    cout << "Pre: position of model " << entry.id.c_str() << " is: " << "x = " << position[0] << " y = " << position[1] << " z = " << position[2] << endl;
 
     float rpyIn[4], rpyOut[4];
     rpyIn[0] = rotateYPR(2);
@@ -2220,9 +2259,17 @@ void MainWindow::setModelTransformationLines() {
         ui->spinBoxMoveObjY->setValue((double)modelVec.at(id).positionXYZ(1));
         ui->spinBoxMoveObjZ->setValue((double)modelVec.at(id).positionXYZ(2));
 
-        ui->spinBoxMoveObjYaw->setValue((double)(modelVec.at(id).orientationYPR(0)));
-        ui->spinBoxMoveObjPitch->setValue((double)modelVec.at(id).orientationYPR(1));
-        ui->spinBoxMoveObjRoll->setValue((double)modelVec.at(id).orientationYPR(2));
+//        ui->spinBoxMoveObjYaw->setValue((double)(modelVec.at(id).orientationYPR(0)));
+//        ui->spinBoxMoveObjPitch->setValue((double)modelVec.at(id).orientationYPR(1));
+//        ui->spinBoxMoveObjRoll->setValue((double)modelVec.at(id).orientationYPR(2));
+
+        ui->spinBoxMoveObjYaw->setValue(0.0);
+        ui->spinBoxMoveObjPitch->setValue(0.0);
+        ui->spinBoxMoveObjRoll->setValue(0.0);
+        this->previousValueSpinBoxOrientation[0] = 0.0;
+        this->previousValueSpinBoxOrientation[1] = 0.0;
+        this->previousValueSpinBoxOrientation[2]= 0.0;
+
         this->waitForLines = false;
 
         this->moveModel();
@@ -2235,7 +2282,9 @@ void MainWindow::on_btnPCSave_clicked()
     if(PCVec.size() > id) {
         PointCloud<PointXYZRGB> pc_save(*PCVec.at(id).cloud);
         stringstream filename;
-        filename << PCVec.at(id).id << ".pcd";
+        string lineTxt = ui->lineLoadPointcloud->text().toStdString();
+//        filename << PCVec.at(id).id << ".pcd";
+        filename << lineTxt;
         pcl::io::savePCDFileBinary(filename.str(), pc_save);
     }
 }
@@ -2396,15 +2445,18 @@ void MainWindow::on_btnSetInitPose_clicked()
     emit signalPublishInitialPose(pose);
 }
 
-void MainWindow::on_btnToggleVisOdom_clicked()
+void MainWindow::on_btnPauseVisOdom_clicked()
 {
-    emit signalToggleVisOdom();
-    visualOdometryActive = !visualOdometryActive;
-    if(visualOdometryActive) {
-        ui->labelVisOdomStatus->setText("On");
-    } else {
-        ui->labelVisOdomStatus->setText("Off");
-    }
+    emit signalPauseVisOdom();
+    visualOdometryActive = false;
+    ui->labelVisOdomStatus->setText("Off");
+}
+
+void MainWindow::on_btnResumeVisOdom_clicked()
+{
+    emit signalResumeVisOdom();
+    visualOdometryActive = true;
+    ui->labelVisOdomStatus->setText("On");
 }
 
 void MainWindow::newCam2ProjVTKTransform(Eigen::Matrix4f T) {
@@ -2726,6 +2778,8 @@ void MainWindow::on_btnGetPoseErrorLoc_clicked()
     double2line(*ui->lineErollLoc, E_roll);
     double2line(*ui->lineEpitchLoc, E_pitch);
     double2line(*ui->lineEyawLoc, E_yaw);
+
+    cout << "LocErr:" << endl << E_x << "\t" << E_y << "\t" << E_z << "\t" << E_roll << "\t" << E_pitch << "\t" << E_yaw << endl;
 }
 
 void MainWindow::on_btnSetInitPoseByAR_clicked()
@@ -2796,13 +2850,13 @@ void MainWindow::on_btnTestMove_clicked()
 
         modelVec.at(id).actor->RotateWXYZ(diffX, mat->GetElement(0,0), mat->GetElement(1,0), mat->GetElement(2,0));
         rotation = Eigen::Vector3f(diffZ, 0, 0);
-        moveArrows(Eigen::Vector3f(0,0,0), rotation);
+//        moveArrows(Eigen::Vector3f(0,0,0), rotation);
         modelVec.at(id).actor->RotateWXYZ(diffY, mat->GetElement(0,1), mat->GetElement(1,1), mat->GetElement(2,1));
         rotation = Eigen::Vector3f(0, diffY, 0);
-        moveArrows(Eigen::Vector3f(0,0,0), rotation);
+//        moveArrows(Eigen::Vector3f(0,0,0), rotation);
         modelVec.at(id).actor->RotateWXYZ(diffZ, mat->GetElement(0,2), mat->GetElement(1,2), mat->GetElement(2,2));
         rotation = Eigen::Vector3f(0, 0, diffX);
-        moveArrows(Eigen::Vector3f(0,0,0), rotation);
+//        moveArrows(Eigen::Vector3f(0,0,0), rotation);
 
 
         //detect which arrow was clicked and create movement in the selected direction
@@ -2821,7 +2875,7 @@ void MainWindow::on_btnTestMove_clicked()
 //        Eigen::Vector3f newTranslation;
 //        newTranslation = rotMat * translation;
 
-        moveArrows(translation, Eigen::Vector3f(0,0,0));
+//        moveArrows(translation, Eigen::Vector3f(0,0,0));
 //        moveArrows(newTranslation, Eigen::Vector3f(0,0,0));
 
 //        vtkSmartPointer<vtkMatrix4x4> mat = currentModel->actor->GetMatrix();
@@ -2835,6 +2889,7 @@ void MainWindow::on_btnTestMove_clicked()
 //        translation += currentModel->positionXYZ;
 //        modelVec.at(id).actor
         moveModelRelative(modelVec.at(id), translation, Eigen::Vector3f(0,0,0));
+        this->addArrowsForActor(modelVec.at(id));
 
         ui->spinBoxTestMoveX->setValue(0.0);
         ui->spinBoxTestMoveY->setValue(0.0);
@@ -2850,4 +2905,10 @@ void MainWindow::on_btnTestMove_clicked()
         modelVec.at(id).orientationYPR(0) = orientation[2];
     }
     ui->qvtkWidget->update();
+}
+
+void MainWindow::slotPoseRMS(float rmsVal) {
+    currRMSVal = rmsVal;
+    lastLocTime = ros::Time::now();
+//    ROS_INFO("NewRMS val received %f", currRMSVal);
 }

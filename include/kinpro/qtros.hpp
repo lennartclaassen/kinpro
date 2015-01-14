@@ -31,6 +31,7 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/Image.h>
+#include <std_msgs/Float32.h>
 
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <geometry_msgs/TransformStamped.h>
@@ -63,6 +64,7 @@ class QtROS: public QThread {
         void positionReceived(nav_msgs::Odometry msg);
         void lineReceived(kinpro_interaction::line line);
         void signalSendARTransform(std::vector<geometry_msgs::TransformStamped> transforms);
+        void signalPoseRMS(float rmsVal);
 
     public slots:
 
@@ -73,7 +75,9 @@ class QtROS: public QThread {
         void slotCallLocalLoc();
         void slotCallPauseLoc();
         void slotCallResumeLoc();
-        void slotToggleVisOdom();
+        void slotPauseVisOdom();
+        void slotResumeVisOdom();
+
         void slotGetARTransform();
         void slotToggleARDet();
 
@@ -105,6 +109,7 @@ class QtROS: public QThread {
         void positionCallback(const nav_msgs::Odometry::ConstPtr& msg);
         void lineCallback(const kinpro_interaction::lineConstPtr& line);
         void arCallback(const geometry_msgs::TransformStamped::ConstPtr& msg);
+        void poseRMSCallback(const std_msgs::Float32::ConstPtr& rmsMsg);
 
 
     private:
@@ -116,6 +121,7 @@ class QtROS: public QThread {
         ros::Subscriber                     pos_sub;
         ros::Subscriber                     line_sub;
         ros::Subscriber                     ar_sub;
+        ros::Subscriber                     posRMS_sub;
         ros::Publisher                      pc_pub;
         ros::ServiceClient                  octomapClient;
         ros::ServiceClient                  globalLocClient;
@@ -123,11 +129,17 @@ class QtROS: public QThread {
         ros::ServiceClient                  pauseLocClient;
         ros::ServiceClient                  resumeLocClient;
         ros::Publisher                      initPosePub;
-        ros::ServiceClient                  visOdomClient;
+        ros::ServiceClient                  pauseVisOdomClient;
+        ros::ServiceClient                  resumeVisOdomClient;
+        std_srvs::Empty                     m_e;
 
         pcl::PointCloud<pcl::PointXYZRGB>   pclCloud;
         sensor_msgs::Image                  projectorImg;
         std::vector<geometry_msgs::TransformStamped>     arTransforms;
+
+        int posSigCnt;
+        int posSigCntVal;
+        float currRMSVal;
 
         void publishImage();
 };
