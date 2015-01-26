@@ -1342,7 +1342,7 @@ void MainWindow::createProjectionImageFromGUI()
         cv::cvtColor( cvImage, cvImage, CV_RGB2BGR); //convert color
         cv::flip( cvImage, cvImage, 0); //align axis with visualizer
         ros::Duration t_diff = ros::Time::now()-lastLocTime;
-        int border = (t_diff.toSec() > 8.0 ? 4 : 20-2*(int)(t_diff.toSec()));
+        int border = (t_diff.toSec() > 8.0 ? 8 : 24-2*(int)(t_diff.toSec()));
         cv::Rect roi(border,border,848-2*border,480-2*border);      //TODO projector size param
         if(currRMSVal > 0.1)
             currRMSVal = 0.1;
