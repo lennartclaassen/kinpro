@@ -229,14 +229,6 @@ class MainWindow: public QMainWindow {
 
         void on_btnResetExtrTrans_clicked();
 
-        void on_btnSetCamViewPos_clicked();
-
-        void on_btnGetCamParams_clicked();
-
-        void on_btnSetCamParams_clicked();
-
-        void on_btnResetCamParams_clicked();
-
         void on_btnCreateImgFromGUI_clicked();
 
         void on_sliderPass_min_valueChanged(int value);
@@ -256,8 +248,6 @@ class MainWindow: public QMainWindow {
         void on_btnFilterPlane_clicked();
 
         void on_btnLoadModel_clicked();
-
-        void on_btnSetCamTrafo_clicked();
 
         void on_btnModelShow_clicked();
 
@@ -289,9 +279,7 @@ class MainWindow: public QMainWindow {
 
         void on_btnPCSendOcto_clicked();
 
-        void on_btnAddCone_clicked();
-
-        void on_btnRemoveCone_clicked();
+        void on_btnAddArrows_clicked();
 
         void on_comboBox_currentIndexChanged(int index);
 
@@ -319,13 +307,27 @@ class MainWindow: public QMainWindow {
 
         void on_btnGetPoseErrorProj_clicked();
 
-        void on_btnProjectBoard_clicked();
-
         void on_btnGetPoseErrorLoc_clicked();
 
         void on_btnSetInitPoseByAR_clicked();
 
         void on_btnTestMove_clicked();
+
+        void on_btnPublishImage_clicked();
+
+        void on_btnPassthroughApply_clicked();
+
+        void on_btnResetCalibCloud_clicked();
+
+        void on_btnSegmentatePre_clicked();
+
+        void on_btnVoxelizePre_clicked();
+
+        void on_btnVoxelize_clicked();
+
+        void on_btnFilterPlanePre_clicked();
+
+        void on_btnPassthroughPreview_clicked();
 
 public slots:
 
@@ -362,6 +364,7 @@ public slots:
 
         Ui::MainWindow* ui;
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_pc;
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_pc_bckp;
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_bg;
         vector<pcl::PointCloud<pcl::PointXYZRGB> >segmentedPlanes;
 
@@ -377,7 +380,8 @@ public slots:
         void loadPointCloud(std::string filename = std::string("pointcloud.pcd"));
         void savePointCloud(std::string filename = std::string("pointcloud.pcd"));
         void setRenderWindowVis2Qt();
-        void displayCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc, std::string id = std::string("cloud"));
+        void displayCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc, bool color = false, std::string id = std::string("cloud"));
+        void displayCloudSingleColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc, float red, float green, float blue, std::string id = std::string("cloud"));
 //        void setTransformations();
         void processCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
         void applyVoxelization(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
@@ -439,6 +443,7 @@ public slots:
 
         void addArrow(Eigen::Vector3f &center, Eigen::Vector3f &axis, float length = 1.0, float radius = 1.0, float resolution = 10.0, int id = 0);
         void removeArrow(int id = 0);
+        void removeAllArrows();
 //        void highlightActor(std::string &id);
         void highlightActor(int id);
 

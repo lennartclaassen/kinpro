@@ -24,69 +24,31 @@ void TransformationProcessor::newTFTransform(tf::StampedTransform transform) {
 void TransformationProcessor::newPositionReceived(nav_msgs::Odometry msg) {
     if(transformationsSet) {
 
-//        cout << "new position received" << endl;
-//        bool transformOK = false;
+        t_world2camlinkVTK(0) = msg.pose.pose.position.x;
+        t_world2camlinkVTK(1) = msg.pose.pose.position.y;
+        t_world2camlinkVTK(2) = msg.pose.pose.position.z;
 
-//        tf::TransformListener ls;
-//        tf::StampedTransform transform;
-//        try{
-//            std::string targetFrame, sourceFrame;
-//            targetFrame = std::string("/map");
-//            sourceFrame = std::string("/odom");
+        Eigen::Quaternion<float> qworld2camlink;
+        qworld2camlink.x() = msg.pose.pose.orientation.x;
+        qworld2camlink.y() = msg.pose.pose.orientation.y;
+        qworld2camlink.z() = msg.pose.pose.orientation.z;
+        qworld2camlink.w() = msg.pose.pose.orientation.w;
 
-//            ls.waitForTransform(targetFrame, sourceFrame, ros::Time(0), ros::Duration(0.2));
-//            ls.lookupTransform(targetFrame, sourceFrame, ros::Time(0), transform);
-//            transformOK = true;
-//        }catch(tf::TransformException& ex){
-//            ROS_ERROR_STREAM( "Transform error for map to odom transform: " << ex.what());
-//        }
+        R_world2camlinkVTK = qworld2camlink.matrix();
 
-//        if(transformOK) {
-//            t_map2worldVTK(0) = transform.getOrigin().x();
-//            t_map2worldVTK(1) = transform.getOrigin().y();
-//            t_map2worldVTK(2) = transform.getOrigin().z();
+        this->setTransformationMatrix(R_world2camlinkVTK, t_world2camlinkVTK, T_world2camlinkVTK);
+        emit newWorld2CamlinkVTKTransform(T_world2camlinkVTK);
 
-//            Eigen::Quaternion<float> qmap2world;
-//            qmap2world.x() = transform.getRotation().x();
-//            qmap2world.y() = transform.getRotation().y();
-//            qmap2world.z() = transform.getRotation().z();
-//            qmap2world.w() = transform.getRotation().w();
+        T_world2camVTK  = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK;
+        emit newWorld2CamVTKTransform(T_world2camVTK);
+        //        T_world2proj    = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK;
+        T_world2proj    = T_world2camVTK * T_cam2projVTK;
+        emit newWorld2ProjTransform(T_world2proj);
+        //        T_world2projVTK = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK * T_VTKcam;
+        T_world2projVTK = T_world2proj * T_VTKcam;
+        emit newWorld2ProjVTKTransform(T_world2projVTK);
 
-//            R_map2worldVTK = qmap2world.matrix();
-
-//            this->setTransformationMatrix(R_map2worldVTK, t_map2worldVTK, T_map2worldVTK);
-//            emit newMap2WorldVTKTransform(T_map2worldVTK);
-
-            t_world2camlinkVTK(0) = msg.pose.pose.position.x;
-            t_world2camlinkVTK(1) = msg.pose.pose.position.y;
-            t_world2camlinkVTK(2) = msg.pose.pose.position.z;
-
-            Eigen::Quaternion<float> qworld2camlink;
-            qworld2camlink.x() = msg.pose.pose.orientation.x;
-            qworld2camlink.y() = msg.pose.pose.orientation.y;
-            qworld2camlink.z() = msg.pose.pose.orientation.z;
-            qworld2camlink.w() = msg.pose.pose.orientation.w;
-
-            R_world2camlinkVTK = qworld2camlink.matrix();
-
-//            T_world2camlinkVTK <<   R_world2camlinkVTK(0,0),    R_world2camlinkVTK(0,1),    R_world2camlinkVTK(0,2),    t_world2camlinkVTK(0),
-//                    R_world2camlinkVTK(1,0),    R_world2camlinkVTK(1,1),    R_world2camlinkVTK(1,2),    t_world2camlinkVTK(1),
-//                    R_world2camlinkVTK(2,0),    R_world2camlinkVTK(2,1),    R_world2camlinkVTK(2,2),    t_world2camlinkVTK(2),
-//                    0,                          0,                          0,                          1;
-            this->setTransformationMatrix(R_world2camlinkVTK, t_world2camlinkVTK, T_world2camlinkVTK);
-            emit newWorld2CamlinkVTKTransform(T_world2camlinkVTK);
-
-            T_world2camVTK  = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK;
-            emit newWorld2CamVTKTransform(T_world2camVTK);
-            //        T_world2proj    = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK;
-            T_world2proj    = T_world2camVTK * T_cam2projVTK;
-            emit newWorld2ProjTransform(T_world2proj);
-            //        T_world2projVTK = T_map2worldVTK * T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK * T_VTKcam;
-            T_world2projVTK = T_world2proj * T_VTKcam;
-            emit newWorld2ProjVTKTransform(T_world2projVTK);
-
-            emit transformDone();
-//        }
+        emit transformDone();
     }else {
         emit transformationProcessingReady();
     }
@@ -94,16 +56,17 @@ void TransformationProcessor::newPositionReceived(nav_msgs::Odometry msg) {
 
 void TransformationProcessor::setTransformations(Ui::MainWindow &ui)
 {
+    cout << "Setting Transformations" << endl;
+
     //transformation from world to camera_link
     float rollworld2camlink, pitchworld2camlink, yawworld2camlink;
-//    ui.lineCamTrafoX->setText(QString("test"));
-    t_world2camlinkVTK(0) = line2float(*ui.lineCamTrafoX);
-    t_world2camlinkVTK(1) = line2float(*ui.lineCamTrafoY);
-    t_world2camlinkVTK(2) = line2float(*ui.lineCamTrafoZ);
+    t_world2camlinkVTK(0) = 0;
+    t_world2camlinkVTK(1) = 0;
+    t_world2camlinkVTK(2) = 0;
 
-    yawworld2camlink = DEG2RAD(line2float(*ui.lineCamTrafoYaw));
-    pitchworld2camlink = DEG2RAD(line2float(*ui.lineCamTrafoPitch));
-    rollworld2camlink = DEG2RAD(line2float(*ui.lineCamTrafoRoll));
+    yawworld2camlink = 0;
+    pitchworld2camlink = 0;
+    rollworld2camlink = 0;
 
     this->setRotationMatrixFromYPR(yawworld2camlink, pitchworld2camlink, rollworld2camlink, R_world2camlinkVTK);
     this->setTransformationMatrix(R_world2camlinkVTK, t_world2camlinkVTK, T_world2camlinkVTK);
@@ -151,60 +114,6 @@ void TransformationProcessor::setTransformations(Ui::MainWindow &ui)
     emit newVTKCamTransform(T_VTKcam);
 
     //transformation from world to projector
-/********** FOR TESTING
-//    Eigen::Matrix4f first, second, last;
-//    if(ui.comboBoxMatMult1->currentIndex() == 0){
-//        first = T_world2camlinkVTK;
-//    }else if(ui.comboBoxMatMult1->currentIndex() == 1){
-//        first = T_camlink2camVTK;
-//    }else if(ui.comboBoxMatMult1->currentIndex() == 2){
-//        first = T_cam2projVTK;
-//    }else if(ui.comboBoxMatMult1->currentIndex() == 3){
-//        first = T_world2camlinkVTK.inverse();
-//    }else if(ui.comboBoxMatMult1->currentIndex() == 4){
-//        first = T_camlink2camVTK.inverse();
-//    }else if(ui.comboBoxMatMult1->currentIndex() == 5){
-//        first = T_cam2projVTK.inverse();
-//    }else if(ui.comboBoxMatMult1->currentIndex() == 6){
-//        first = Eigen::Matrix4f::Identity();
-//    }
-
-//    if(ui.comboBoxMatMult2->currentIndex() == 0){
-//        second = T_world2camlinkVTK;
-//    }else if(ui.comboBoxMatMult2->currentIndex() == 1){
-//        second = T_camlink2camVTK;
-//    }else if(ui.comboBoxMatMult2->currentIndex() == 2){
-//        second = T_cam2projVTK;
-//    }else if(ui.comboBoxMatMult2->currentIndex() == 3){
-//        second = T_world2camlinkVTK.inverse();
-//    }else if(ui.comboBoxMatMult2->currentIndex() == 4){
-//        second = T_camlink2camVTK.inverse();
-//    }else if(ui.comboBoxMatMult2->currentIndex() == 5){
-//        second = T_cam2projVTK.inverse();
-//    }else if(ui.comboBoxMatMult2->currentIndex() == 6){
-//        second = Eigen::Matrix4f::Identity();
-//    }
-
-//    if(ui.comboBoxMatMult3->currentIndex() == 0){
-//        last = T_world2camlinkVTK;
-//    }else if(ui.comboBoxMatMult3->currentIndex() == 1){
-//        last = T_camlink2camVTK;
-//    }else if(ui.comboBoxMatMult3->currentIndex() == 2){
-//        last = T_cam2projVTK;
-//    }else if(ui.comboBoxMatMult3->currentIndex() == 3){
-//        last = T_world2camlinkVTK.inverse();
-//    }else if(ui.comboBoxMatMult3->currentIndex() == 4){
-//        last = T_camlink2camVTK.inverse();
-//    }else if(ui.comboBoxMatMult3->currentIndex() == 5){
-//        last = T_cam2projVTK.inverse();
-//    }else if(ui.comboBoxMatMult3->currentIndex() == 6){
-//        last = Eigen::Matrix4f::Identity();
-//    }
-
-//    T_world2camVTK = first * second;
-//    T_world2projVTK = first * second * last;
-**********/
-
     T_world2proj    = T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK;
     emit newWorld2ProjTransform(T_world2proj);
 //    T_world2projVTK = T_world2camlinkVTK * T_camlink2camVTK * T_cam2projVTK * T_VTKcam;
