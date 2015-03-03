@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<modelscene>
+	<name>Model World 2</name>
+	<object>
+		<name>objects/board.obj</name>
+		<position>
+			<x>0.35</x>
+			<y>3.38</y>
+			<z>1.21</z>
+		</position>
+		<orientation>
+			<y>92</y>
+			<p>-90</p>
+			<r>-2</r>
+		</orientation>
+		<texture>textures/board_01.jpg</texture>
+		<geometry>objects/board.obj</geometry>
+		<visible>true</visible>
+	</object>
+	<object>
+		<name>maps/room033.pcd</name>
+		<position>
+			<x>0</x>
+			<y>0</y>
+			<z>0</z>
+		</position>
+		<orientation>
+			<y>0</y>
+			<p>0</p>
+			<r>0</r>
+		</orientation>
+		<texture/>
+		<geometry>maps/room033.pcd</geometry>
+		<visible>true</visible>
+	</object>
+</modelscene>
+
