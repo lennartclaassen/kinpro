@@ -12,6 +12,6 @@ void TFProcessor::newPositionReceived(nav_msgs::Odometry msg) {
 
         emit signalNewTFTransform(transform);
     }catch(tf::TransformException& ex){
-        ROS_ERROR_STREAM( "Transform error for map to odom transform: " << ex.what());
+        ROS_ERROR_STREAM( "Transform error for map to odom transform: " << ex.what() << " (Is the localization running and initialised?)");
     }
 }

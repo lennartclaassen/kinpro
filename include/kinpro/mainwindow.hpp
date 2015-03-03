@@ -143,6 +143,13 @@
 #include <eigen3/Eigen/LU>
 #include <eigen3/Eigen/Geometry>
 
+//XML
+#include <kinpro/rapidxml.hpp>
+#include <kinpro/rapidxml_print.hpp>
+//#include <kinpro/rapidxml_iterators.hpp>
+#include <kinpro/rapidxml_utils.hpp>
+
+
 #define Instantiate( obj, class ) vtkSmartPointer<class> obj = vtkSmartPointer<class>::New();
 
 class VTKPointCloudWidget: QVTKWidget
@@ -329,6 +336,14 @@ class MainWindow: public QMainWindow {
 
         void on_btnPassthroughPreview_clicked();
 
+        void on_btnLoadWorld_clicked();
+
+        void on_btnSaveWorld_clicked();
+
+        void on_btnModelMoveAbs_clicked();
+
+        void on_btnClearScene_clicked();
+
 public slots:
 
         void newPointCloud(pcl::PointCloud<pcl::PointXYZRGB> pc);
@@ -355,7 +370,7 @@ public slots:
 
     private:
         //structure for VTK actor entries
-        struct actorEntry { vtkSmartPointer<vtkActor> actor; std::string id; bool visible; Eigen::Vector3f positionXYZ; Eigen::Vector3f orientationYPR; std::vector<double> bounds;};
+        struct actorEntry { vtkSmartPointer<vtkActor> actor; std::string id; bool visible; Eigen::Vector3f positionXYZ; Eigen::Vector3f orientationYPR; std::vector<double> bounds; std::string texture;};
 
         //structure for point cloud entries, position in m, orientation in DEG
         struct PCEntry { pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud; std::string id; bool visible; Eigen::Vector3f positionXYZ; Eigen::Vector3f orientationYPR; std::vector<double> bounds;};
@@ -372,12 +387,14 @@ public slots:
         boost::mutex m_positionMutex;
         boost::mutex m_lineMutex;
 
+        std::string resourceDir;
+
         enum OperationMode{
             BASIC = 0,
             MOVEOBJECTS
         };
 
-        void loadPointCloud(std::string filename = std::string("pointcloud.pcd"));
+        void loadPointCloud(std::string filename = std::string("pointcloud.pcd"), std::string name = std::string("pointcloud.pcd"));
         void savePointCloud(std::string filename = std::string("pointcloud.pcd"));
         void setRenderWindowVis2Qt();
         void displayCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc, bool color = false, std::string id = std::string("cloud"));
@@ -398,13 +415,23 @@ public slots:
         void updatePCIndex();
         void updatePCButtons();
 
+        void loadModel(std::string modelname);
+        void addTexture(int actorID, std::string texturename);
         void moveModel();
         void moveModel(actorEntry &entry, Eigen::Vector3f translateXYZ, Eigen::Vector3f rotateYPR);
         void moveModelRelative(actorEntry &entry, Eigen::Vector3f translateXYZ, Eigen::Vector3f rotateYPR);
+        void moveModelAbsolute();
+        void showModel(int id);
+        void hideModel(int id);
         void movePC();
+        void movePC(int id, double x, double y, double z, double yaw, double pitch, double roll);
+        void showPC(int id);
+        void hidePC(int id);
 
         void resetPCPose();
         void resetModelPose();
+
+        void clearScene();
 
         void sendPCToOctomapServer();
 

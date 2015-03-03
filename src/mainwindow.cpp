@@ -28,6 +28,7 @@ using namespace Qt;
 using namespace std;
 using namespace pcl;
 using namespace cv;
+using namespace rapidxml;
 
 VTKPointCloudWidget::VTKPointCloudWidget(QWidget *parent) : QVTKWidget(parent)
 {
@@ -120,6 +121,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     this->previousValueSpinBoxOrientation[2] = 0;
 
     currRMSVal = 1.0;
+
+    resourceDir = (ros::package::getPath("kinpro") + "/resources/");
 }
 
 MainWindow::~MainWindow() {
@@ -869,7 +872,11 @@ void MainWindow::projectWorldPointToProjectorImage(Eigen::Vector3f &pt_world, cv
     pt_projector.y  = p_proj2D(1);
 }
 
-void MainWindow::loadPointCloud(string filename) {
+void MainWindow::loadPointCloud(string filename, string name) {
+    std::stringstream cloudName;
+    cloudName << resourceDir << filename;
+    filename = cloudName.str();
+
     boost::lock_guard<boost::mutex> guard(m_cloudMtx);
 
     //stop getting pointclouds from the kinect input stream
@@ -894,14 +901,14 @@ void MainWindow::loadPointCloud(string filename) {
         int cnt = 1;
         bool nameIsValid = false;
         stringstream newName;
-        newName << filename;
+        newName << name;
         if(!PCVec.empty()){
             while(!nameIsValid) {
                 for(int i = 0; i < PCVec.size(); i++) {
                     string currentID = PCVec.at(i).id;
                     if(!strcmp(currentID.c_str(), newName.str().c_str())) {
                         newName.str(std::string());;
-                        newName << filename << " (" << cnt << ")";
+                        newName << name << "_(" << cnt << ")";
                         break;
                     }else if(i==PCVec.size()-1) {
                         nameIsValid = true;
@@ -1236,18 +1243,16 @@ void MainWindow::on_btnSetCamView_clicked()
 
 void MainWindow::on_btnLoadPointcloud_clicked()
 {
-    std::stringstream cloudName;
     string lineTxt = ui->lineLoadPointcloud->text().toStdString();
-    cloudName << lineTxt;
 
-    this->loadPointCloud(cloudName.str());
+    this->loadPointCloud(lineTxt, lineTxt);
 }
 
 void MainWindow::on_btnSavePointcloud_clicked()
 {
     std::stringstream cloudName;
     string lineTxt = ui->lineSavePointcloud->text().toStdString();
-    cloudName << lineTxt;
+    cloudName << resourceDir << lineTxt;
 
     this->savePointCloud(cloudName.str());
 }
@@ -1493,8 +1498,15 @@ void MainWindow::on_btnResetCalibCloud_clicked()
 
 void MainWindow::on_btnLoadModel_clicked()
 {
-    string filename = ui->lineLoadModel->text().toStdString();
-    double scale = line2double(*ui->lineLoadModelScale);
+    string modelname = ui->lineLoadModel->text().toStdString();
+    loadModel(modelname);
+}
+
+
+void MainWindow::loadModel(string modelname)
+{
+    string filename = resourceDir;
+    filename += modelname;
     cout << "Reading: " << filename << endl;
 
 //    vtkSmartPointer<vtkPLYReader> reader = vtkSmartPointer<vtkPLYReader>::New();
@@ -1510,28 +1522,20 @@ void MainWindow::on_btnLoadModel_clicked()
 
     vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
     actor->SetMapper(mapper);
-    actor->SetScale(scale, scale, scale);
-//    actor->AddPosition(2.5, 1.0, 0.0);
-//    double color[3];
-//    actor->GetProperty()->GetColor(color);
-//    cout << "actor color is: " << color[0] << ", " << color[1] << ", " << color[2] << endl;
-
-//    renderer->AddActor(actor);
-//    renderer->SetBackground(0.3, 0.6, 0.3); // Background color green
 
     actorEntry entry;
     entry.actor = actor;
     int cnt = 1;
     bool nameIsValid = false;
     stringstream newName;
-    newName << filename;
+    newName << modelname;
     if(!modelVec.empty()){
         while(!nameIsValid) {
             for(int i = 0; i < modelVec.size(); i++) {
                 string currentID = modelVec.at(i).id;
                 if(!strcmp(currentID.c_str(), newName.str().c_str())) {
                     newName.str(std::string());;
-                    newName << filename << " (" << cnt << ")";
+                    newName << modelname << "_(" << cnt << ")";
                     break;
                 }else if(i==modelVec.size()-1) {
                     nameIsValid = true;
@@ -1546,6 +1550,7 @@ void MainWindow::on_btnLoadModel_clicked()
     entry.visible = true;
     entry.positionXYZ = Eigen::Vector3f(0,0,0);
     entry.orientationYPR = Eigen::Vector3f(0,0,0);
+    entry.texture = string("");
     double bounds[6];
     entry.actor->GetBounds(bounds);
     for(int i = 0; i < 6; i++){
@@ -1553,11 +1558,40 @@ void MainWindow::on_btnLoadModel_clicked()
     }
     modelVec.push_back(entry);
     pclWidget->vis->addActorToRenderer(actor);
-//    getRenderWindow()->AddRenderer(renderer);
-//    ui->qvtkWidget->GetRenderWindow()->AddRenderer(renderer);
     ui->qvtkWidget->update();
     this->updateModelIndex();
+}
 
+void MainWindow::on_btnAddTexture_clicked()
+{
+    //check which model is selected
+    int id = ui->comboBoxModelSelect->currentIndex();
+
+    //read the image which will be the texture
+    string texturename = ui->lineAddTexture->text().toStdString();
+
+    addTexture(id, texturename);
+}
+
+void MainWindow::addTexture(int actorID, string texturename)
+{
+    string imagename = resourceDir;
+    imagename += texturename;
+
+    vtkSmartPointer<vtkJPEGReader> jPEGReader = vtkSmartPointer<vtkJPEGReader>::New();
+    jPEGReader->SetFileName ( imagename.c_str() );
+    jPEGReader->Update();
+
+    //creating the vtk texture
+    vtkSmartPointer<vtkTexture> texture = vtkSmartPointer<vtkTexture>::New();
+    texture->SetInputConnection(jPEGReader->GetOutputPort());
+
+    //set the texture
+    modelVec.at(actorID).actor->SetTexture(texture);
+    modelVec.at(actorID).texture = texturename;
+
+    //update the visualizer
+    ui->qvtkWidget->update();
 }
 
 void MainWindow::updateModelIndex()
@@ -1571,7 +1605,11 @@ void MainWindow::updateModelIndex()
 void MainWindow::on_btnModelShow_clicked()
 {
     int id = ui->comboBoxModelSelect->currentIndex();
-    if(!modelVec.empty()) {
+    showModel(id);
+}
+
+void MainWindow::showModel(int id){
+    if(!modelVec.empty() && modelVec.size() > id) {
         if(!modelVec.at(id).visible) {
             pclWidget->vis->addActorToRenderer(modelVec.at(id).actor);
             modelVec.at(id).visible = true;
@@ -1584,7 +1622,11 @@ void MainWindow::on_btnModelShow_clicked()
 void MainWindow::on_btnModelHide_clicked()
 {
     int id = ui->comboBoxModelSelect->currentIndex();
-    if(!modelVec.empty()) {
+    hideModel(id);
+}
+
+void MainWindow::hideModel(int id){
+    if(!modelVec.empty() && modelVec.size() > id) {
         if(modelVec.at(id).visible) {
             pclWidget->vis->removeActorFromRenderer(modelVec.at(id).actor);
             modelVec.at(id).visible = false;
@@ -1636,7 +1678,11 @@ void MainWindow::updatePCIndex()
 void MainWindow::on_btnPCShow_clicked()
 {
     int id = ui->comboBoxPCSelect->currentIndex();
-    if(!PCVec.empty()) {
+    showPC(id);
+}
+
+void MainWindow::showPC(int id){
+    if(!PCVec.empty() && PCVec.size() > id) {
         if(!PCVec.at(id).visible) {
             displayCloud(PCVec.at(id).cloud, displayRGBCloud, PCVec.at(id).id);
             PCVec.at(id).visible = true;
@@ -1649,7 +1695,11 @@ void MainWindow::on_btnPCShow_clicked()
 void MainWindow::on_btnPCHide_clicked()
 {
     int id = ui->comboBoxPCSelect->currentIndex();
-    if(!PCVec.empty()) {
+    hidePC(id);
+}
+
+void MainWindow::hidePC(int id){
+    if(!PCVec.empty() && PCVec.size() > id) {
         if(PCVec.at(id).visible) {
             pclWidget->vis->removePointCloud(PCVec.at(id).id);
             PCVec.at(id).visible = false;
@@ -1724,11 +1774,11 @@ void MainWindow::moveModel() {
             this->previousValueSpinBoxOrientation[1] = ui->spinBoxMoveObjPitch->value();
             this->previousValueSpinBoxOrientation[2]= ui->spinBoxMoveObjYaw->value();
 
-            cout << "RPY_I: " << rpyIn[0] << " " << rpyIn[1] << " " << rpyIn[2] << endl;
+//            cout << "RPY_I: " << rpyIn[0] << " " << rpyIn[1] << " " << rpyIn[2] << endl;
 
             vtkSmartPointer<vtkMatrix4x4> mat = modelVec.at(id).actor->GetMatrix();
-            mat->MultiplyPoint(rpyIn, rpyOut);
-            cout << "RPY_O: " << rpyOut[0] << " " << rpyOut[1] << " " << rpyOut[2] << " " << rpyOut[3] << endl;
+            //mat->MultiplyPoint(rpyIn, rpyOut);
+            //cout << "RPY_O: " << rpyOut[0] << " " << rpyOut[1] << " " << rpyOut[2] << " " << rpyOut[3] << endl;
 
 //            vtkSmartPointer<vtkTransform> transformBB = vtkSmartPointer<vtkTransform>::New();
 //            transformBB->PostMultiply();
@@ -1745,12 +1795,12 @@ void MainWindow::moveModel() {
             modelVec.at(id).actor->RotateWXYZ(diffZ, mat->GetElement(0,2), mat->GetElement(1,2), mat->GetElement(2,2));
             modelVec.at(id).actor->SetPosition(ui->spinBoxMoveObjX->value(), ui->spinBoxMoveObjY->value(), ui->spinBoxMoveObjZ->value());
 
-            mat = modelVec.at(id).actor->GetMatrix();
-            cout << "Pre Actor Matrix:" << endl;
-            cout << mat->Element[0][0] << "\t\t" << mat->Element[0][1] << "\t\t" << mat->Element[0][2] << "\t\t" << mat->Element[0][3] << endl;
-            cout << mat->Element[1][0] << "\t\t" << mat->Element[1][1] << "\t\t" << mat->Element[1][2] << "\t\t" << mat->Element[1][3] << endl;
-            cout << mat->Element[2][0] << "\t\t" << mat->Element[2][1] << "\t\t" << mat->Element[2][2] << "\t\t" << mat->Element[2][3] << endl;
-            cout << mat->Element[3][0] << "\t\t" << mat->Element[3][1] << "\t\t" << mat->Element[3][2] << "\t\t" << mat->Element[3][3] << endl;
+//            mat = modelVec.at(id).actor->GetMatrix();
+//            cout << "Pre Actor Matrix:" << endl;
+//            cout << mat->Element[0][0] << "\t\t" << mat->Element[0][1] << "\t\t" << mat->Element[0][2] << "\t\t" << mat->Element[0][3] << endl;
+//            cout << mat->Element[1][0] << "\t\t" << mat->Element[1][1] << "\t\t" << mat->Element[1][2] << "\t\t" << mat->Element[1][3] << endl;
+//            cout << mat->Element[2][0] << "\t\t" << mat->Element[2][1] << "\t\t" << mat->Element[2][2] << "\t\t" << mat->Element[2][3] << endl;
+//            cout << mat->Element[3][0] << "\t\t" << mat->Element[3][1] << "\t\t" << mat->Element[3][2] << "\t\t" << mat->Element[3][3] << endl;
 
 
             //move the model first back to origin and then using the new input values TODO: transform in body coordinates not world coordinates
@@ -1780,15 +1830,19 @@ void MainWindow::moveModel() {
             double orientation[3];
             modelVec.at(id).actor->GetOrientation(orientation);
             modelVec.at(id).orientationYPR = Eigen::Vector3f(orientation[2], orientation[1], orientation[0]);
-            cout << "yaw = " << orientation[2] << "\tpitch = " << orientation[1] << "\troll = " << orientation[0] << endl;
+            ui->spinBoxMoveObjAbsYaw->setValue(orientation[2]);
+            ui->spinBoxMoveObjAbsPitch->setValue(orientation[1]);
+            ui->spinBoxMoveObjAbsRoll->setValue(orientation[0]);
+//            cout << "yaw = " << orientation[2] << "\tpitch = " << orientation[1] << "\troll = " << orientation[0] << endl;
+
 //            modelVec.at(id).orientationYPR = Eigen::Vector3f(ui->spinBoxMoveObjYaw->value(), ui->spinBoxMoveObjPitch->value(), ui->spinBoxMoveObjRoll->value());
 
-            mat = modelVec.at(id).actor->GetMatrix();
-            cout << "Post Actor Matrix:" << endl;
-            cout << mat->Element[0][0] << "\t\t" << mat->Element[0][1] << "\t\t" << mat->Element[0][2] << "\t\t" << mat->Element[0][3] << endl;
-            cout << mat->Element[1][0] << "\t\t" << mat->Element[1][1] << "\t\t" << mat->Element[1][2] << "\t\t" << mat->Element[1][3] << endl;
-            cout << mat->Element[2][0] << "\t\t" << mat->Element[2][1] << "\t\t" << mat->Element[2][2] << "\t\t" << mat->Element[2][3] << endl;
-            cout << mat->Element[3][0] << "\t\t" << mat->Element[3][1] << "\t\t" << mat->Element[3][2] << "\t\t" << mat->Element[3][3] << endl;
+//            mat = modelVec.at(id).actor->GetMatrix();
+//            cout << "Post Actor Matrix:" << endl;
+//            cout << mat->Element[0][0] << "\t\t" << mat->Element[0][1] << "\t\t" << mat->Element[0][2] << "\t\t" << mat->Element[0][3] << endl;
+//            cout << mat->Element[1][0] << "\t\t" << mat->Element[1][1] << "\t\t" << mat->Element[1][2] << "\t\t" << mat->Element[1][3] << endl;
+//            cout << mat->Element[2][0] << "\t\t" << mat->Element[2][1] << "\t\t" << mat->Element[2][2] << "\t\t" << mat->Element[2][3] << endl;
+//            cout << mat->Element[3][0] << "\t\t" << mat->Element[3][1] << "\t\t" << mat->Element[3][2] << "\t\t" << mat->Element[3][3] << endl;
 
             ui->qvtkWidget->update();
         }
@@ -1864,6 +1918,9 @@ void MainWindow::moveModelRelative(actorEntry &entry, Eigen::Vector3f translateX
     double orientation[3];
     entry.actor->GetOrientation(orientation);
     entry.orientationYPR = Eigen::Vector3f(orientation[2], orientation[1], orientation[0]);
+    ui->spinBoxMoveObjAbsYaw->setValue(orientation[2]);
+    ui->spinBoxMoveObjAbsPitch->setValue(orientation[1]);
+    ui->spinBoxMoveObjAbsRoll->setValue(orientation[0]);
 
     position[0] += translateXYZ(0);
     position[1] += translateXYZ(1);
@@ -1874,9 +1931,64 @@ void MainWindow::moveModelRelative(actorEntry &entry, Eigen::Vector3f translateX
     ui->qvtkWidget->update();
 }
 
+void MainWindow::moveModelAbsolute()
+{
+    int id = ui->comboBoxModelSelect->currentIndex();
+    if(!modelVec.empty() && modelVec.size() > id) {
+
+        if(!modelVec.at(id).visible) {
+            cout << "Warning: model not visible!" << endl;
+        }
+
+
+//        double position[3];
+//        modelVec.at(id).actor->GetPosition(position);
+//        modelVec.at(id).actor->SetPosition(ui->spinBoxMoveObjX->value(), ui->spinBoxMoveObjY->value(), ui->spinBoxMoveObjZ->value());
+//        //update values to new position
+//        modelVec.at(id).positionXYZ = Eigen::Vector3f(ui->spinBoxMoveObjX->value(), ui->spinBoxMoveObjY->value(), ui->spinBoxMoveObjZ->value());
+
+        double diffX, diffY, diffZ;
+        diffX = ui->spinBoxMoveObjAbsRoll->value();
+        diffY = ui->spinBoxMoveObjAbsPitch->value();
+        diffZ = ui->spinBoxMoveObjAbsYaw->value();
+
+//        this->previousValueSpinBoxOrientation[0] = ui->spinBoxMoveObjRoll->value();
+//        this->previousValueSpinBoxOrientation[1] = ui->spinBoxMoveObjPitch->value();
+//        this->previousValueSpinBoxOrientation[2]= ui->spinBoxMoveObjYaw->value();
+
+//        vtkSmartPointer<vtkMatrix4x4> mat = modelVec.at(id).actor->GetMatrix();
+
+//        modelVec.at(id).actor->SetPosition(0, 0, 0);
+//        modelVec.at(id).actor->RotateWXYZ(diffX, mat->GetElement(0,0), mat->GetElement(1,0), mat->GetElement(2,0));
+//        modelVec.at(id).actor->RotateWXYZ(diffY, mat->GetElement(0,1), mat->GetElement(1,1), mat->GetElement(2,1));
+//        modelVec.at(id).actor->RotateWXYZ(diffZ, mat->GetElement(0,2), mat->GetElement(1,2), mat->GetElement(2,2));
+
+
+        double orientation[3];
+        modelVec.at(id).actor->GetOrientation(orientation);
+
+//        cout << "Current orientation: " << endl << "Yaw: " << orientation[2] << endl << "Pitch: " << orientation[1] << endl << "Roll: " << orientation[0] << endl << endl;
+//        cout << "Setting orientation: " << endl << "Yaw: " << diffZ << endl << "Pitch: " << diffY << endl << "Roll: " << diffX << endl << endl;
+
+        modelVec.at(id).actor->SetOrientation(diffX, diffY, diffZ);
+        modelVec.at(id).actor->GetOrientation(orientation);
+        modelVec.at(id).orientationYPR = Eigen::Vector3f(orientation[2], orientation[1], orientation[0]);
+
+
+        ui->qvtkWidget->update();
+    }
+}
+
+void MainWindow::on_btnModelMoveAbs_clicked()
+{
+    moveModelAbsolute();
+}
+
 void MainWindow::on_btnPCMove_clicked()
 {
-    this->movePC();
+    int id = ui->comboBoxPCSelect->currentIndex();
+
+    this->movePC(id, ui->spinBoxMovePCX->value(), ui->spinBoxMovePCY->value(), ui->spinBoxMovePCZ->value(), ui->spinBoxMovePCYaw->value(), ui->spinBoxMovePCPitch->value(), ui->spinBoxMovePCRoll->value());
 }
 
 void MainWindow::movePC() {
@@ -1922,6 +2034,49 @@ void MainWindow::movePC() {
         }
     }
 
+}
+
+void MainWindow::movePC(int id, double x, double y, double z, double yaw, double pitch, double roll) {
+    if(!waitForLines){
+        if(!PCVec.empty() && PCVec.size() > id) {
+            if(!PCVec.at(id).visible) {
+                cout << "Warning: pointcloud not visible!" << endl;
+            }
+
+            //copy the pointcloud to perform transformations
+            PointCloud<PointXYZRGB> pc;
+            pc = *PCVec.at(id).cloud;
+
+            //initialize transformation matrices
+            Eigen::Matrix3f rotMat, rotMat_inv;
+            Eigen::Matrix4f transform, transform_inv;
+            Eigen::Matrix4f curr_inv_transform;
+
+            //calculate and apply the inverse transformation to retrieve the original position
+            setRotationMatrixFromYPR(DEG2RAD(PCVec.at(id).orientationYPR), rotMat_inv);
+            setTransformationMatrix(rotMat_inv, PCVec.at(id).positionXYZ, transform_inv);
+            curr_inv_transform = transform_inv.inverse();
+            pcl::transformPointCloud(pc, pc, curr_inv_transform);
+
+            //update the PC entry with the new GUI parameters
+            PCVec.at(id).positionXYZ = Eigen::Vector3f(x, y, z);
+            PCVec.at(id).orientationYPR = Eigen::Vector3f(yaw, pitch, roll);
+
+            //calculate and apply the new transformation as specified by the GUI parameters
+            setRotationMatrixFromYPR(DEG2RAD(PCVec.at(id).orientationYPR), rotMat);
+            setTransformationMatrix(rotMat, PCVec.at(id).positionXYZ, transform);
+            pcl::transformPointCloud(pc, pc, transform);
+
+            //replace the original entry with the transformed pointcloud
+            *PCVec.at(id).cloud = pc;
+
+            //remove pointcloud before displaying the transformed pointcloud
+            pclWidget->vis->removePointCloud(PCVec.at(id).id);
+            displayCloud(PCVec.at(id).cloud, displayRGBCloud, PCVec.at(id).id);
+
+            ui->qvtkWidget->update();
+        }
+    }
 }
 
 void MainWindow::setTransformationMatrix(Eigen::Matrix3f in_R, Eigen::Vector3f in_t, Eigen::Matrix4f &out_T) {
@@ -2043,10 +2198,6 @@ void MainWindow::setModelTransformationLines() {
         ui->spinBoxMoveObjY->setValue((double)modelVec.at(id).positionXYZ(1));
         ui->spinBoxMoveObjZ->setValue((double)modelVec.at(id).positionXYZ(2));
 
-//        ui->spinBoxMoveObjYaw->setValue((double)(modelVec.at(id).orientationYPR(0)));
-//        ui->spinBoxMoveObjPitch->setValue((double)modelVec.at(id).orientationYPR(1));
-//        ui->spinBoxMoveObjRoll->setValue((double)modelVec.at(id).orientationYPR(2));
-
         ui->spinBoxMoveObjYaw->setValue(0.0);
         ui->spinBoxMoveObjPitch->setValue(0.0);
         ui->spinBoxMoveObjRoll->setValue(0.0);
@@ -2068,7 +2219,7 @@ void MainWindow::on_btnPCSave_clicked()
         stringstream filename;
         string lineTxt = ui->lineLoadPointcloud->text().toStdString();
 //        filename << PCVec.at(id).id << ".pcd";
-        filename << lineTxt;
+        filename << resourceDir << lineTxt;
         pcl::io::savePCDFileBinary(filename.str(), pc_save);
     }
 }
@@ -2096,6 +2247,10 @@ void MainWindow::resetModelPose() {
         ui->spinBoxMoveObjRoll->setValue(0);
         this->waitForLines = false;
 
+        ui->spinBoxMoveObjAbsYaw->setValue(0);
+        ui->spinBoxMoveObjAbsPitch->setValue(0);
+        ui->spinBoxMoveObjAbsRoll->setValue(0);
+
 //        this->moveModel();
 
         modelVec.at(id).actor->SetPosition(0, 0, 0);
@@ -2111,7 +2266,7 @@ void MainWindow::resetModelPose() {
         modelVec.at(id).actor->GetOrientation(o);
 //        vtkSmartPointer<vtkActor> ac;
 //        ac->GetOrientation(o);
-        cout << "orientation: " << o[0] << " " << o[1] << " " << o[2] << endl;
+//        cout << "orientation: " << o[0] << " " << o[1] << " " << o[2] << endl;
 
     }
 }
@@ -2294,74 +2449,6 @@ void MainWindow::newIntrProjTransform(Eigen::Matrix3f T){
     T_intrProj =T;
 }
 
-void MainWindow::on_btnAddTexture_clicked()
-{
-    int id = ui->comboBoxModelSelect->currentIndex();
-
-    // Read the image which will be the texture
-
-    std::string imagename = ui->lineAddTexture->text().toStdString();
-
-//    std::cout << "Reading image " << imagename << "..." << std::endl;
-
-    vtkSmartPointer<vtkJPEGReader> jPEGReader = vtkSmartPointer<vtkJPEGReader>::New();
-
-    jPEGReader->SetFileName ( imagename.c_str() );
-
-    jPEGReader->Update();
-
-//    std::cout << "Done" << std::endl;
-
-    // Creating the texture
-
-//    std::cout << "Making a texture out of the image... " << std::endl;
-
-    vtkSmartPointer<vtkTexture> texture = vtkSmartPointer<vtkTexture>::New();
-
-    texture->SetInputConnection(jPEGReader->GetOutputPort());
-
-//    std::cout << "Done" << std::endl;
-
-//    // Import geometry from an OBJ file
-//    std::string iname = ui->lineLoadModel->text().toStdString();
-
-//    std::cout << "Reading OBJ file " << iname << "..." << std::endl;
-
-//    vtkOBJReader* reader = vtkOBJReader::New();
-
-//    reader->SetFileName(iname.c_str());
-
-//    reader->Update();
-
-//    vtkPolyData *polyData2 = reader->GetOutput();
-
-//    std::cout << "Obj reader = " << polyData2->GetNumberOfPoints() << std::endl;
-
-////    std::cout << "Obj point data = " << polyData2->GetPointData()->GetNumberOfArrays() << std::endl;
-
-////    std::cout << "Obj point data tuples = " << polyData2->GetPointData()->GetArray(0)->GetNumberOfTuples() << std::endl;
-
-////    std::cout << "Obj point data compon = " << polyData2->GetPointData()->GetArray(0)->GetNumberOfComponents() << std::endl;
-
-//    // Renderer
-
-//    vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-
-//    mapper->SetInput(polyData2);
-
-//    vtkSmartPointer<vtkActor> texturedQuad = vtkSmartPointer<vtkActor>::New();
-
-//    texturedQuad->SetMapper(mapper);
-
-//    texturedQuad->SetTexture(texture);
-
-//    pclWidget->vis->addActorToRenderer(texturedQuad);
-
-    modelVec.at(id).actor->SetTexture(texture);
-
-    ui->qvtkWidget->update();
-}
-
 void MainWindow::on_btnTestChess_clicked()
 {
     vector<Point2f> corners;
@@ -2416,11 +2503,11 @@ void MainWindow::newARTransform(std::vector<geometry_msgs::TransformStamped> tra
 //                setTransformationMatrix(rotAR, modelVec.at(id).positionXYZ, T_world2AR);
 
                 vtkSmartPointer<vtkMatrix4x4> mat = modelVec.at(id).actor->GetMatrix();
-                cout << "Actor Matrix:" << endl;
-                cout << mat->Element[0][0] << "\t\t" << mat->Element[0][1] << "\t\t" << mat->Element[0][2] << "\t\t" << mat->Element[0][3] << endl;
-                cout << mat->Element[1][0] << "\t\t" << mat->Element[1][1] << "\t\t" << mat->Element[1][2] << "\t\t" << mat->Element[1][3] << endl;
-                cout << mat->Element[2][0] << "\t\t" << mat->Element[2][1] << "\t\t" << mat->Element[2][2] << "\t\t" << mat->Element[2][3] << endl;
-                cout << mat->Element[3][0] << "\t\t" << mat->Element[3][1] << "\t\t" << mat->Element[3][2] << "\t\t" << mat->Element[3][3] << endl;
+//                cout << "Actor Matrix:" << endl;
+//                cout << mat->Element[0][0] << "\t\t" << mat->Element[0][1] << "\t\t" << mat->Element[0][2] << "\t\t" << mat->Element[0][3] << endl;
+//                cout << mat->Element[1][0] << "\t\t" << mat->Element[1][1] << "\t\t" << mat->Element[1][2] << "\t\t" << mat->Element[1][3] << endl;
+//                cout << mat->Element[2][0] << "\t\t" << mat->Element[2][1] << "\t\t" << mat->Element[2][2] << "\t\t" << mat->Element[2][3] << endl;
+//                cout << mat->Element[3][0] << "\t\t" << mat->Element[3][1] << "\t\t" << mat->Element[3][2] << "\t\t" << mat->Element[3][3] << endl;
                 T_world2AR <<   mat->Element[0][0], mat->Element[0][1], mat->Element[0][2], mat->Element[0][3],
                                 mat->Element[1][0], mat->Element[1][1], mat->Element[1][2], mat->Element[1][3],
                                 mat->Element[2][0], mat->Element[2][1], mat->Element[2][2], mat->Element[2][3],
@@ -2526,7 +2613,8 @@ void MainWindow::on_btnGetPoseErrorLoc_clicked()
     double2line(*ui->lineEpitchLoc, E_pitch);
     double2line(*ui->lineEyawLoc, E_yaw);
 
-    cout << "LocErr:" << endl << E_x << "\t" << E_y << "\t" << E_z << "\t" << E_roll << "\t" << E_pitch << "\t" << E_yaw << endl;
+//    cout << "LocErr:"
+    cout << endl << E_x << endl << E_y << endl << E_z << endl << E_roll << endl << E_pitch << endl << E_yaw << endl;
 }
 
 void MainWindow::on_btnSetInitPoseByAR_clicked()
@@ -2665,3 +2753,347 @@ void MainWindow::on_btnPublishImage_clicked()
     emit signalProjectImage(this->projectorImage);
 }
 
+
+void MainWindow::on_btnLoadWorld_clicked()
+{
+    string worldFile = resourceDir;
+    worldFile += ui->lineLoadWorldFile->text().toStdString();
+
+    file<> xmlFile(worldFile.c_str()); // Default template is char
+    xml_document<> doc;
+    doc.parse<0>(xmlFile.data());
+    xml_node<> *rootNode = doc.first_node("modelscene");
+    cout << rootNode->first_node("name")->value() << endl;
+
+    stringstream ss;
+    string modelFile, textureFile, visibility;
+    int id;
+    double x,y,z,yaw,pitch,roll;
+
+    for(xml_node<> * object = rootNode->first_node("object"); object; object = object->next_sibling()) {
+        cout << "Name: " << object->first_node("name")->value() << endl;
+
+        cout << "Geometry: " << object->first_node("geometry")->value() << endl;
+        ss.str(string());
+        ss.clear();
+        ss << object->first_node("geometry")->value();
+        modelFile = ss.str();
+        string teststring = modelFile.substr(modelFile.length() - 3, 3);
+        if(strcmp(teststring.c_str(), "obj") == 0) {
+            //OBJ File
+            id = modelVec.size();
+
+            loadModel(modelFile);
+
+            cout << "Texture: " << object->first_node("texture")->value() << endl;
+            ss.str(string());
+            ss.clear();
+            ss << object->first_node("texture")->value();
+            textureFile = ss.str();
+            if(!textureFile.empty())
+                addTexture(id, textureFile);
+
+            cout << "Position: "    << object->first_node("position")->first_node("x")->value() << "\t"
+                                    << object->first_node("position")->first_node("y")->value() << "\t"
+                                    << object->first_node("position")->first_node("z")->value() << endl;
+            x = atof(object->first_node("position")->first_node("x")->value()) ;
+            y = atof(object->first_node("position")->first_node("y")->value()) ;
+            z = atof(object->first_node("position")->first_node("z")->value()) ;
+
+            modelVec.at(id).actor->SetPosition(x, y, z);
+            modelVec.at(id).positionXYZ = Eigen::Vector3f(x, y, z);
+
+            cout << "Orientation: "     << object->first_node("orientation")->first_node("y")->value() << "\t"
+                                        << object->first_node("orientation")->first_node("p")->value() << "\t"
+                                        << object->first_node("orientation")->first_node("r")->value() << endl;
+            yaw = atof(object->first_node("orientation")->first_node("y")->value()) ;
+            pitch = atof(object->first_node("orientation")->first_node("p")->value()) ;
+            roll = atof(object->first_node("orientation")->first_node("r")->value()) ;
+
+            modelVec.at(id).actor->SetOrientation(roll, pitch, yaw);
+            modelVec.at(id).orientationYPR = Eigen::Vector3f(yaw, pitch, roll);
+
+            cout << endl;
+
+//            ui->spinBoxMoveObjAbsYaw->setValue(yaw);
+//            ui->spinBoxMoveObjAbsPitch->setValue(pitch);
+//            ui->spinBoxMoveObjAbsRoll->setValue(roll);
+//            moveModelAbsolute();
+//            setModelTransformationLines();
+            if(id==0){
+                on_comboBoxModelSelect_currentIndexChanged(id);
+            }else{
+                ui->comboBoxModelSelect->setCurrentIndex(id);
+            }
+
+            cout << "Visible: " << object->first_node("visible")->value() << endl;
+            ss.str(string());
+            ss.clear();
+            ss << object->first_node("visible")->value();
+            visibility = ss.str();
+            if(strcmp(visibility.c_str(), "false") == 0){
+                hideModel(id);
+            }
+
+        }else if(strcmp(teststring.c_str(), "pcd") == 0) {
+            //PCD File
+            id = PCVec.size();
+
+            loadPointCloud(modelFile, modelFile);
+
+            cout << "Position: "    << object->first_node("position")->first_node("x")->value() << "\t"
+                                    << object->first_node("position")->first_node("y")->value() << "\t"
+                                    << object->first_node("position")->first_node("z")->value() << endl;
+            x = atof(object->first_node("position")->first_node("x")->value()) ;
+            y = atof(object->first_node("position")->first_node("y")->value()) ;
+            z = atof(object->first_node("position")->first_node("z")->value()) ;
+
+            cout << "Orientation: "     << object->first_node("orientation")->first_node("y")->value() << "\t"
+                                        << object->first_node("orientation")->first_node("p")->value() << "\t"
+                                        << object->first_node("orientation")->first_node("r")->value() << endl;
+            yaw = atof(object->first_node("orientation")->first_node("y")->value()) ;
+            pitch = atof(object->first_node("orientation")->first_node("p")->value()) ;
+            roll = atof(object->first_node("orientation")->first_node("r")->value()) ;
+
+            movePC(id, x, y, z, yaw, pitch, roll);
+            PCVec.at(id).positionXYZ = Eigen::Vector3f(x, y, z);
+            PCVec.at(id).orientationYPR = Eigen::Vector3f(yaw, pitch, roll);
+
+            if(id==0){
+                on_comboBoxPCSelect_currentIndexChanged(id);
+            }else{
+                ui->comboBoxPCSelect->setCurrentIndex(id);
+            }
+
+            cout << "Visible: " << object->first_node("visible")->value() << endl;
+            ss.str(string());
+            ss.clear();
+            ss << object->first_node("visible")->value();
+            visibility = ss.str();
+            if(strcmp(visibility.c_str(), "false") == 0){
+                hidePC(id);
+            }
+
+        }
+
+    }
+}
+
+void MainWindow::on_btnSaveWorld_clicked()
+{
+    stringstream ss;
+    ss.precision(3);
+
+    xml_document<> doc;
+    xml_node<>* decl = doc.allocate_node(node_declaration);
+    decl->append_attribute(doc.allocate_attribute("version", "1.0"));
+    decl->append_attribute(doc.allocate_attribute("encoding", "UTF-8"));
+    doc.prepend_node(decl);
+
+    xml_node<> *root = doc.allocate_node(node_element, "modelscene");
+    doc.append_node(root);
+
+    xml_node<> *name = doc.allocate_node(node_element, "name", "Model World 2");
+    root->append_node(name);
+
+    vector<string> objectNames;
+    vector<string> positionVals;
+    vector<string> orientationVals;
+    vector<string> textures;
+    vector<string> geometries;
+    vector<string> visibilities;
+
+    for(size_t model_cnt = 0; model_cnt < modelVec.size(); model_cnt++){
+        //check if it is a duplicate of another object and reduce name to original model name
+        string newObjName = modelVec.at(model_cnt).id;
+        string teststring = newObjName.substr(newObjName.length() - 1, 1);
+        if(strcmp(teststring.c_str(), ")") == 0) {
+            newObjName = newObjName.substr(0, newObjName.length() - 3);
+            teststring = newObjName.substr(newObjName.length() - 1, 1);
+            while(strcmp(teststring.c_str(), "_") != 0){
+                newObjName = newObjName.substr(0, newObjName.length() - 1);
+                teststring = newObjName.substr(newObjName.length() - 1, 1);
+            }
+            newObjName = newObjName.substr(0, newObjName.length() - 1);
+        }
+        objectNames.push_back(newObjName);
+        geometries.push_back(newObjName);
+
+        ss.str(string());
+        ss.clear();
+        ss << modelVec.at(model_cnt).positionXYZ(0);
+        positionVals.push_back(ss.str());
+
+        ss.str(string());
+        ss.clear();
+        ss << modelVec.at(model_cnt).positionXYZ(1);
+        positionVals.push_back(ss.str());
+
+        ss.str(string());
+        ss.clear();
+        ss << modelVec.at(model_cnt).positionXYZ(2);
+        positionVals.push_back(ss.str());
+
+        ss.str(string());
+        ss.clear();
+        ss << modelVec.at(model_cnt).orientationYPR(0);
+        orientationVals.push_back(ss.str());
+
+        ss.str(string());
+        ss.clear();
+        ss << modelVec.at(model_cnt).orientationYPR(1);
+        orientationVals.push_back(ss.str());
+
+        ss.str(string());
+        ss.clear();
+        ss << modelVec.at(model_cnt).orientationYPR(2);
+        orientationVals.push_back(ss.str());
+
+        ss.str(string());
+        ss.clear();
+        ss << modelVec.at(model_cnt).texture;
+        textures.push_back(ss.str());
+
+        ss.str(string());
+        ss.clear();
+        if(modelVec.at(model_cnt).visible){
+            ss << "true";
+        }else {
+            ss << "false";
+        }
+        visibilities.push_back(ss.str());
+
+    }
+    for(size_t pc_cnt = 0; pc_cnt < PCVec.size(); pc_cnt++){
+        //check if it is a duplicate of another object and reduce name to original model name
+        string newObjName = PCVec.at(pc_cnt).id;
+        string teststring = newObjName.substr(newObjName.length() - 1, 1);
+        if(strcmp(teststring.c_str(), ")") == 0) {
+            newObjName = newObjName.substr(0, newObjName.length() - 3);
+            teststring = newObjName.substr(newObjName.length() - 1, 1);
+            while(strcmp(teststring.c_str(), "_") != 0){
+                newObjName = newObjName.substr(0, newObjName.length() - 1);
+                teststring = newObjName.substr(newObjName.length() - 1, 1);
+            }
+            newObjName = newObjName.substr(0, newObjName.length() - 1);
+        }
+        objectNames.push_back(newObjName);
+        geometries.push_back(newObjName);
+
+        ss.str(string());
+        ss.clear();
+        ss << PCVec.at(pc_cnt).positionXYZ(0);
+        positionVals.push_back(ss.str());
+
+        ss.str(string());
+        ss.clear();
+        ss << PCVec.at(pc_cnt).positionXYZ(1);
+        positionVals.push_back(ss.str());
+
+        ss.str(string());
+        ss.clear();
+        ss << PCVec.at(pc_cnt).positionXYZ(2);
+        positionVals.push_back(ss.str());
+
+        ss.str(string());
+        ss.clear();
+        ss << PCVec.at(pc_cnt).orientationYPR(0);
+        orientationVals.push_back(ss.str());
+
+        ss.str(string());
+        ss.clear();
+        ss << PCVec.at(pc_cnt).orientationYPR(1);
+        orientationVals.push_back(ss.str());
+
+        ss.str(string());
+        ss.clear();
+        ss << PCVec.at(pc_cnt).orientationYPR(2);
+        orientationVals.push_back(ss.str());
+
+        textures.push_back("");
+
+        ss.str(string());
+        ss.clear();
+        if(PCVec.at(pc_cnt).visible){
+            ss << "true";
+        }else {
+            ss << "false";
+        }
+        visibilities.push_back(ss.str());
+    }
+
+    for(size_t cnt = 0; cnt < objectNames.size(); cnt++){
+        xml_node<> *object = doc.allocate_node(node_element, "object");
+        root->append_node(object);
+
+        xml_node<> *objName = doc.allocate_node(node_element, "name", objectNames.at(cnt).c_str());
+        object->append_node(objName);
+
+        xml_node<> *objPosition = doc.allocate_node(node_element, "position");
+        object->append_node(objPosition);
+
+        xml_node<> *posX = doc.allocate_node(node_element, "x", positionVals.at(3*cnt).c_str());
+        objPosition->append_node(posX);
+
+        xml_node<> *posY = doc.allocate_node(node_element, "y", positionVals.at(3*cnt+1).c_str());
+        objPosition->append_node(posY);
+
+        xml_node<> *posZ = doc.allocate_node(node_element, "z", positionVals.at(3*cnt+2).c_str());
+        objPosition->append_node(posZ);
+
+        xml_node<> *objOrientation = doc.allocate_node(node_element, "orientation");
+        object->append_node(objOrientation);
+
+        xml_node<> *orY = doc.allocate_node(node_element, "y", orientationVals.at(3*cnt).c_str());
+        objOrientation->append_node(orY);
+
+        xml_node<> *orP = doc.allocate_node(node_element, "p", orientationVals.at(3*cnt+1).c_str());
+        objOrientation->append_node(orP);
+
+        xml_node<> *orR = doc.allocate_node(node_element, "r", orientationVals.at(3*cnt+2).c_str());
+        objOrientation->append_node(orR);
+
+        xml_node<> *objTex = doc.allocate_node(node_element, "texture", textures.at(cnt).c_str());
+        object->append_node(objTex);
+
+        xml_node<> *objGeo = doc.allocate_node(node_element, "geometry", geometries.at(cnt).c_str());
+        object->append_node(objGeo);
+
+        xml_node<> *objVis = doc.allocate_node(node_element, "visible", visibilities.at(cnt).c_str());
+        object->append_node(objVis);
+    }
+
+    string saveFile = resourceDir;
+    saveFile += (ui->lineSaveWorldFile->text().toStdString());
+    ofstream outputFile;
+    outputFile.open(saveFile.c_str());
+    outputFile << doc;
+    outputFile.close();
+
+}
+
+void MainWindow::clearScene()
+{
+    while(!modelVec.empty()) {
+        pclWidget->vis->removeActorFromRenderer(modelVec.at(0).actor);
+        ui->comboBoxModelSelect->clear();
+        ui->btnModelShow->setEnabled(true);
+        ui->btnModelHide->setEnabled(true);
+        modelVec.erase(modelVec.begin());
+    }
+
+    while(!PCVec.empty()) {
+        pclWidget->vis->removePointCloud(PCVec.at(0).id);
+        ui->comboBoxPCSelect->clear();
+        ui->btnPCShow->setEnabled(true);
+        ui->btnPCHide->setEnabled(true);
+        PCVec.erase(PCVec.begin());
+    }
+
+    ui->qvtkWidget->update();
+}
+
+void MainWindow::on_btnClearScene_clicked()
+{
+    clearScene();
+}
