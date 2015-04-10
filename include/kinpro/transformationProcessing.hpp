@@ -60,9 +60,10 @@ public:
     TransformationProcessor();
 
 public slots:
-    void newPositionReceived(nav_msgs::Odometry msg);
+    void newPoseReceived(nav_msgs::Odometry msg);
     void newTFTransform(tf::StampedTransform transform);
-    void setTransformations(Ui::MainWindow& ui);
+    void setTransformations(Ui::MainWindow& ui, bool useGUICam2ProjTransform = true);
+    void newCam2ProjTransformReceived(std_msgs::Float32MultiArray msg);
 
 
 signals:

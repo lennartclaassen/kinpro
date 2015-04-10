@@ -206,155 +206,84 @@ class MainWindow: public QMainWindow {
         void signalCallResumeLoc();
         void signalPauseVisOdom();
         void signalResumeVisOdom();
-
         void signalGetARTransform();
         void signalToggleARDet();
-
-        void setTransformations(Ui::MainWindow& ui);
+        void setTransformations(Ui::MainWindow& ui, bool useGUICam2ProjTransform = true);
 
 
     private slots:
         void timerCallback();
-
         void on_checkBoxRGBCloud_toggled(bool checked);
-
         void on_checkBoxCoordSys_toggled(bool checked);
-
         void on_btnSetCamView_clicked();
-
         void on_btnSavePointcloud_clicked();
-
         void on_btnLoadPointcloud_clicked();
-
         void on_btnTransformApply_clicked();
-
         void on_btnResetIntrFoc_clicked();
-
         void on_btnResetIntrPrinc_clicked();
-
         void on_btnResetExtrRot_clicked();
-
         void on_btnResetExtrTrans_clicked();
-
         void on_btnCreateImgFromGUI_clicked();
-
         void on_sliderPass_min_valueChanged(int value);
-
         void on_sliderPass_max_valueChanged(int value);
-
         void on_linePass_max_textEdited(const QString &arg1);
-
         void on_linePass_min_textEdited(const QString &arg1);
-
         void on_btnSegmentate_clicked();
-
         void on_comboBoxPlanes_activated(int index);
-
         void on_btnCreateProjImage_clicked();
-
         void on_btnFilterPlane_clicked();
-
         void on_btnLoadModel_clicked();
-
         void on_btnModelShow_clicked();
-
         void on_btnModelHide_clicked();
-
         void on_btnModelDel_clicked();
-
         void on_btnPCShow_clicked();
-
         void on_btnPCHide_clicked();
-
         void on_btnPCDel_clicked();
-
         void on_comboBoxPCSelect_currentIndexChanged(int index);
-
         void on_comboBoxModelSelect_currentIndexChanged(int index);
-
         void on_btnModelMove_clicked();
-
         void on_btnPCMove_clicked();
-
         void on_btnMergeClouds_clicked();
-
         void on_btnPCSave_clicked();
-
         void on_btnModelReset_clicked();
-
         void on_btnPCReset_clicked();
-
         void on_btnPCSendOcto_clicked();
-
-        void on_btnAddArrows_clicked();
-
-        void on_comboBox_currentIndexChanged(int index);
-
         void on_btnGlobalLoc_clicked();
-
         void on_btnLocalLoc_clicked();
-
         void on_btnPauseLoc_clicked();
-
         void on_btnResumeLoc_clicked();
-
         void on_btnSetInitPose_clicked();
-
         void on_btnPauseVisOdom_clicked();
-
         void on_btnResumeVisOdom_clicked();
-
         void on_btnAddTexture_clicked();
-
-        void on_btnTestChess_clicked();
-
         void on_btnGetARTransform_clicked();
-
         void on_btnTransformByAR_clicked();
-
         void on_btnGetPoseErrorProj_clicked();
-
         void on_btnGetPoseErrorLoc_clicked();
-
         void on_btnSetInitPoseByAR_clicked();
-
-        void on_btnTestMove_clicked();
-
         void on_btnPublishImage_clicked();
-
         void on_btnPassthroughApply_clicked();
-
         void on_btnResetCalibCloud_clicked();
-
         void on_btnSegmentatePre_clicked();
-
         void on_btnVoxelizePre_clicked();
-
         void on_btnVoxelize_clicked();
-
         void on_btnFilterPlanePre_clicked();
-
         void on_btnPassthroughPreview_clicked();
-
         void on_btnLoadWorld_clicked();
-
         void on_btnSaveWorld_clicked();
-
         void on_btnModelMoveAbs_clicked();
-
         void on_btnClearScene_clicked();
+
+        void on_btnTransformUpdate_clicked();
 
 public slots:
 
         void newPointCloud(pcl::PointCloud<pcl::PointXYZRGB> pc);
-//        void newPosition(nav_msgs::Odometry msg);
         void newLine(kinpro_interaction::line line);
         void newTransform();
         void transformationProcessingReady();
         void newARTransform(std::vector<geometry_msgs::TransformStamped> transforms);
         void slotPoseRMS(float rmsVal);
-
-
         void newCam2ProjVTKTransform(Eigen::Matrix4f T);
         void newMap2WorldVTKTransform(Eigen::Matrix4f T);
         void newWorld2CamlinkVTKTransform(Eigen::Matrix4f T);
@@ -367,15 +296,11 @@ public slots:
         void newIntrProjVTKTransform(Eigen::Matrix3f T);
         void newIntrProjTransform(Eigen::Matrix3f T);
 
-
     private:
         //structure for VTK actor entries
         struct actorEntry { vtkSmartPointer<vtkActor> actor; std::string id; bool visible; Eigen::Vector3f positionXYZ; Eigen::Vector3f orientationYPR; std::vector<double> bounds; std::string texture;};
-
         //structure for point cloud entries, position in m, orientation in DEG
         struct PCEntry { pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud; std::string id; bool visible; Eigen::Vector3f positionXYZ; Eigen::Vector3f orientationYPR; std::vector<double> bounds;};
-
-        bool transformReady;
 
         Ui::MainWindow* ui;
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_pc;
@@ -388,104 +313,14 @@ public slots:
         boost::mutex m_lineMutex;
 
         std::string resourceDir;
-
-        enum OperationMode{
-            BASIC = 0,
-            MOVEOBJECTS
-        };
-
-        void loadPointCloud(std::string filename = std::string("pointcloud.pcd"), std::string name = std::string("pointcloud.pcd"));
-        void savePointCloud(std::string filename = std::string("pointcloud.pcd"));
-        void setRenderWindowVis2Qt();
-        void displayCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc, bool color = false, std::string id = std::string("cloud"));
-        void displayCloudSingleColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc, float red, float green, float blue, std::string id = std::string("cloud"));
-//        void setTransformations();
-        void processCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
-        void applyVoxelization(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
-        void applyPassthrough(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
-        void applySegmentation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
-        void applyHull(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
-        void applyTransformation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
-        void createProjectionImage();
-        void showProjectionImage();
-        void createProjectionImageFromGUI();
-
-        void updateModelIndex();
-        void updateModelButtons();
-        void updatePCIndex();
-        void updatePCButtons();
-
-        void loadModel(std::string modelname);
-        void addTexture(int actorID, std::string texturename);
-        void moveModel();
-        void moveModel(actorEntry &entry, Eigen::Vector3f translateXYZ, Eigen::Vector3f rotateYPR);
-        void moveModelRelative(actorEntry &entry, Eigen::Vector3f translateXYZ, Eigen::Vector3f rotateYPR);
-        void moveModelAbsolute();
-        void showModel(int id);
-        void hideModel(int id);
-        void movePC();
-        void movePC(int id, double x, double y, double z, double yaw, double pitch, double roll);
-        void showPC(int id);
-        void hidePC(int id);
-
-        void resetPCPose();
-        void resetModelPose();
-
-        void clearScene();
-
-        void sendPCToOctomapServer();
-
-        //Helper Functions
-        int line2int(QLineEdit& line)       { return (&line)->text().toInt(); }
-        double line2double(QLineEdit& line) { return (&line)->text().toDouble(); }
-        float line2float(QLineEdit& line)   { return (&line)->text().toFloat(); }
-
-        void int2line(QLineEdit& line, int value)       { (&line)->setText(QString::number(value)); }
-        void double2line(QLineEdit& line, double value) { (&line)->setText(QString::number(value)); }
-        void float2line(QLineEdit& line, float value)   { (&line)->setText(QString::number(value)); }
-
-        void setTransformationMatrix(Eigen::Matrix3f in_R, Eigen::Vector3f in_t, Eigen::Matrix4f &out_T);
-        void setRotationMatrixFromYPR(float yaw, float pitch, float roll, Eigen::Matrix3f &out_R);
-        void setRotationMatrixFromYPR(Eigen::Vector3f ypr, Eigen::Matrix3f &out_R);
-
-        void setIdentityMatrix(Eigen::Matrix4f &mat);
-        void setIdentityMatrix(Eigen::Matrix3f &mat);
-
-        void setPCTransformationLines();
-        void setModelTransformationLines();
-
-        void transformLineToWorld(Eigen::Vector4f &pt_start, Eigen::Vector4f &pt_end, Eigen::Vector4f &pt_start_world, Eigen::Vector4f &pt_end_world);
-        void intersectLineWithModels(Eigen::Vector4f &start, Eigen::Vector4f &end, std::vector<Eigen::Vector3f> &intersections, std::vector<int> &ids);
-
-        void projectWorldPointToProjectorImage(Eigen::Vector3f &pt_world, cv::Point &pt_projector);
-
-        void visualizeLine(Eigen::Vector4f &start, Eigen::Vector4f &end);
-        bool checkForClick(int id);
-
-        void addSphere(Eigen::Vector3f &center, string id);
-        void removeSphere(std::string &id);
-        void removeAllSpheres();
-
-        void switchOperationMode(int mode = BASIC);
-
-        void addArrow(Eigen::Vector3f &center, Eigen::Vector3f &axis, float length = 1.0, float radius = 1.0, float resolution = 10.0, int id = 0);
-        void removeArrow(int id = 0);
-        void removeAllArrows();
-//        void highlightActor(std::string &id);
-        void highlightActor(int id);
-
-        int operationMode;
-
-        void addArrowsForActor(actorEntry &actor);
-        void moveArrows(Eigen::Vector3f translateXYZ, Eigen::Vector3f rotateYPR);
-
-        void addCoordinateSystem(Eigen::Vector4f origin, Eigen::Vector4f x, Eigen::Vector4f y, Eigen::Vector4f z, std::string name = "coordinates");
+        std::string locationPrefix;
 
         std::vector< PCEntry > PCVec;
         std::vector< actorEntry > modelVec;
-//        std::vector<vtkSmartPointer<vtkActor> > coneActors;
         std::vector< actorEntry > arrowVec;
         actorEntry* currentModel;
+        std::vector<std::string> sphereIDs;
+        cv::Point laserPoint;
 
         vtkSmartPointer<vtkActor> m_lineActor;
         vtkSmartPointer<vtkOBBTree> obbTree;
@@ -493,15 +328,43 @@ public slots:
         vtkSmartPointer<vtkActor> obbTreeActor;
         vtkSmartPointer<vtkActor> bspTreeActor;
 
+        ros::Time lastLocTime;
 
-        std::vector<std::string> sphereIDs;
-        cv::Point laserPoint;
+        int operationMode;
+        int noOfArrows;
+        int currentObjectIndex;
+
+        bool transformReady;
         bool drawClickingCircle;
-
         bool visualOdometryActive;
-
-
         bool displayRGBCloud;
+        bool waitForLines;
+        bool timerRunning;
+
+        double previousValueSpinBoxOrientation[3];
+
+        float currRMSVal;
+
+        //projection contour for calibration validation
+        vector< vector<cv::Point> > projectionContour;
+        cv::Mat projectorImage;
+
+        QTimer timer;
+
+        ros::Duration selection_thresh;
+        ros::Duration selectionDuration;
+        ros::Time selectionBegin;
+        ros::Time lastSelectionTime;
+        ros::Duration idleDuration;
+        ros::Duration idle_thresh;
+
+        geometry_msgs::TransformStamped arMarker1;
+        geometry_msgs::TransformStamped arMarker2;
+
+        enum OperationMode{
+            BASIC = 0,
+            MOVEOBJECTS
+        };
 
         //transformation from camera coordinates (rgb frame) to projector coordinates
         Eigen::Matrix3f R_cam2projVTK;
@@ -556,33 +419,71 @@ public slots:
         Eigen::Matrix4f T_camlinkInWorldFromAR;
         Eigen::Matrix4f T_camInWorldFromLoc;
 
-        vector< vector<cv::Point> > projectionContour;
-        cv::Mat projectorImage;
+        void loadPointCloud(std::string filename = std::string("pointcloud.pcd"), std::string name = std::string("pointcloud.pcd"));
+        void savePointCloud(std::string filename = std::string("pointcloud.pcd"));
+        void setRenderWindowVis2Qt();
+        void displayCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc, bool color = false, std::string id = std::string("cloud"));
+        void displayCloudSingleColor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc, float red, float green, float blue, std::string id = std::string("cloud"));
+        void processCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+        void applyVoxelization(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+        void applyPassthrough(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+        void applySegmentation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+        void applyHull(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+        void applyTransformation(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+        void createProjectionImage();
+        void showProjectionImage();
+        void createProjectionImageFromGUI();
+        void updateModelIndex();
+        void updateModelButtons();
+        void updatePCIndex();
+        void updatePCButtons();
+        void loadModel(std::string modelname);
+        void addTexture(int actorID, std::string texturename);
+        void moveModel();
+        void moveModel(actorEntry &entry, Eigen::Vector3f translateXYZ, Eigen::Vector3f rotateYPR);
+        void moveModelRelative(actorEntry &entry, Eigen::Vector3f translateXYZ, Eigen::Vector3f rotateYPR);
+        void moveModelAbsolute();
+        void showModel(int id);
+        void hideModel(int id);
+        void movePC();
+        void movePC(int id, double x, double y, double z, double yaw, double pitch, double roll);
+        void showPC(int id);
+        void hidePC(int id);
+        void resetPCPose();
+        void resetModelPose();
+        void clearScene();
+        void sendPCToOctomapServer();
+        void addArrowsForActor(actorEntry &actor);
+        void moveArrows(Eigen::Vector3f translateXYZ, Eigen::Vector3f rotateYPR);
+        void addCoordinateSystem(Eigen::Vector4f origin, Eigen::Vector4f x, Eigen::Vector4f y, Eigen::Vector4f z, std::string name = "coordinates");
+        void setTransformationMatrix(Eigen::Matrix3f in_R, Eigen::Vector3f in_t, Eigen::Matrix4f &out_T);
+        void setRotationMatrixFromYPR(float yaw, float pitch, float roll, Eigen::Matrix3f &out_R);
+        void setRotationMatrixFromYPR(Eigen::Vector3f ypr, Eigen::Matrix3f &out_R);
+        void setIdentityMatrix(Eigen::Matrix4f &mat);
+        void setIdentityMatrix(Eigen::Matrix3f &mat);
+        void setPCTransformationLines();
+        void setModelTransformationLines();
+        void transformLineToWorld(Eigen::Vector4f &pt_start, Eigen::Vector4f &pt_end, Eigen::Vector4f &pt_start_world, Eigen::Vector4f &pt_end_world);
+        void intersectLineWithModels(Eigen::Vector4f &start, Eigen::Vector4f &end, std::vector<Eigen::Vector3f> &intersections, std::vector<int> &ids);
+        void projectWorldPointToProjectorImage(Eigen::Vector3f &pt_world, cv::Point &pt_projector);
+        void visualizeLine(Eigen::Vector4f &start, Eigen::Vector4f &end);
+        bool checkForClick(int id);
+        void addSphere(Eigen::Vector3f &center, string id);
+        void removeSphere(std::string &id);
+        void removeAllSpheres();
+        void switchOperationMode(int mode = BASIC);
+        void addArrow(Eigen::Vector3f &center, Eigen::Vector3f &axis, float length = 1.0, float radius = 1.0, float resolution = 10.0, int id = 0);
+        void removeArrow(int id = 0);
+        void removeAllArrows();
+        void highlightActor(int id);
 
-        bool waitForLines;
-        std::string locationPrefix;
-
-//        std::string currentObject;
-        int currentObjectIndex;
-        ros::Duration selection_thresh;
-        ros::Duration selectionDuration;
-        ros::Time selectionBegin;
-        ros::Time lastSelectionTime;
-        ros::Duration idleDuration;
-        ros::Duration idle_thresh;
-
-        QTimer timer;
-        bool timerRunning;
-
-        geometry_msgs::TransformStamped arMarker1;
-        geometry_msgs::TransformStamped arMarker2;
-
-        double previousValueSpinBoxOrientation[3];
-
-        int noOfArrows;
-
-        float currRMSVal;
-        ros::Time lastLocTime;
+        //Helper Functions
+        int line2int(QLineEdit& line)       { return (&line)->text().toInt(); }
+        double line2double(QLineEdit& line) { return (&line)->text().toDouble(); }
+        float line2float(QLineEdit& line)   { return (&line)->text().toFloat(); }
+        void int2line(QLineEdit& line, int value)       { (&line)->setText(QString::number(value)); }
+        void double2line(QLineEdit& line, double value) { (&line)->setText(QString::number(value)); }
+        void float2line(QLineEdit& line, float value)   { (&line)->setText(QString::number(value)); }
 
 };
 

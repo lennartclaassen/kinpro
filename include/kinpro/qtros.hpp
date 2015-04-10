@@ -32,6 +32,7 @@
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/Image.h>
 #include <std_msgs/Float32.h>
+#include <std_msgs/Float32MultiArray.h>
 
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <geometry_msgs/TransformStamped.h>
@@ -61,7 +62,8 @@ class QtROS: public QThread {
         void rosShutdown();
 
         void pointCloudReceived(pcl::PointCloud<pcl::PointXYZRGB> pc);
-        void positionReceived(nav_msgs::Odometry msg);
+        void poseReceived(nav_msgs::Odometry msg);
+        void cam2projTrafoReceived(std_msgs::Float32MultiArray msg);
         void lineReceived(kinpro_interaction::line line);
         void signalSendARTransform(std::vector<geometry_msgs::TransformStamped> transforms);
         void signalPoseRMS(float rmsVal);
@@ -106,10 +108,11 @@ class QtROS: public QThread {
         void run();
 
         void pointcloudCallback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg);
-        void positionCallback(const nav_msgs::Odometry::ConstPtr& msg);
+        void poseCallback(const nav_msgs::Odometry::ConstPtr& msg);
         void lineCallback(const kinpro_interaction::lineConstPtr& line);
         void arCallback(const geometry_msgs::TransformStamped::ConstPtr& msg);
         void poseRMSCallback(const std_msgs::Float32::ConstPtr& rmsMsg);
+        void cam2projCallback(const std_msgs::Float32MultiArray::ConstPtr& msg);
 
 
     private:
@@ -119,6 +122,7 @@ class QtROS: public QThread {
         image_transport::Publisher          image_publisher;
         ros::Subscriber                     pc_sub;
         ros::Subscriber                     pos_sub;
+        ros::Subscriber                     cam2proj_sub;
         ros::Subscriber                     line_sub;
         ros::Subscriber                     ar_sub;
         ros::Subscriber                     posRMS_sub;

@@ -788,7 +788,7 @@
        <rect>
         <x>540</x>
         <y>0</y>
-        <width>331</width>
+        <width>391</width>
         <height>161</height>
        </rect>
       </property>
@@ -820,106 +820,6 @@
        <property name="text">
         <string>Reset</string>
        </property>
-      </widget>
-      <widget class="QGroupBox" name="groupBoxrotObjAbs">
-       <property name="geometry">
-        <rect>
-         <x>120</x>
-         <y>40</y>
-         <width>101</width>
-         <height>111</height>
-        </rect>
-       </property>
-       <property name="title">
-        <string>Rotate</string>
-       </property>
-       <widget class="QDoubleSpinBox" name="spinBoxMoveObjAbsYaw">
-        <property name="geometry">
-         <rect>
-          <x>30</x>
-          <y>20</y>
-          <width>71</width>
-          <height>27</height>
-         </rect>
-        </property>
-        <property name="minimum">
-         <double>-180.000000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>180.000000000000000</double>
-        </property>
-       </widget>
-       <widget class="QLabel" name="labelMoveObjAbsPitch">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>50</y>
-          <width>16</width>
-          <height>30</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>p:</string>
-        </property>
-       </widget>
-       <widget class="QLabel" name="labelMoveObjAbsYaw">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>20</y>
-          <width>16</width>
-          <height>30</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>y:</string>
-        </property>
-       </widget>
-       <widget class="QLabel" name="labelMoveObjAbsRoll">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>80</y>
-          <width>16</width>
-          <height>30</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>r:</string>
-        </property>
-       </widget>
-       <widget class="QDoubleSpinBox" name="spinBoxMoveObjAbsPitch">
-        <property name="geometry">
-         <rect>
-          <x>30</x>
-          <y>50</y>
-          <width>71</width>
-          <height>27</height>
-         </rect>
-        </property>
-        <property name="minimum">
-         <double>-180.000000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>180.000000000000000</double>
-        </property>
-       </widget>
-       <widget class="QDoubleSpinBox" name="spinBoxMoveObjAbsRoll">
-        <property name="geometry">
-         <rect>
-          <x>30</x>
-          <y>80</y>
-          <width>71</width>
-          <height>27</height>
-         </rect>
-        </property>
-        <property name="minimum">
-         <double>-180.000000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>180.000000000000000</double>
-        </property>
-       </widget>
       </widget>
       <widget class="QGroupBox" name="groupBoxTransObj">
        <property name="geometry">
@@ -1036,7 +936,7 @@
       <widget class="QPushButton" name="btnModelMoveAbs">
        <property name="geometry">
         <rect>
-         <x>240</x>
+         <x>270</x>
          <y>10</y>
          <width>81</width>
          <height>27</height>
@@ -1049,14 +949,14 @@
       <widget class="QGroupBox" name="groupBoxRotObjRel">
        <property name="geometry">
         <rect>
-         <x>230</x>
+         <x>130</x>
          <y>40</y>
          <width>101</width>
          <height>111</height>
         </rect>
        </property>
        <property name="title">
-        <string>Rot. Relative</string>
+        <string>Rotate</string>
        </property>
        <widget class="QDoubleSpinBox" name="spinBoxMoveObjRoll">
         <property name="geometry">
@@ -1143,6 +1043,106 @@
         </property>
         <property name="text">
          <string>p:</string>
+        </property>
+       </widget>
+      </widget>
+      <widget class="QGroupBox" name="groupBoxrotObjAbs">
+       <property name="geometry">
+        <rect>
+         <x>260</x>
+         <y>40</y>
+         <width>131</width>
+         <height>111</height>
+        </rect>
+       </property>
+       <property name="title">
+        <string>Rotate Absolute</string>
+       </property>
+       <widget class="QDoubleSpinBox" name="spinBoxMoveObjAbsYaw">
+        <property name="geometry">
+         <rect>
+          <x>30</x>
+          <y>20</y>
+          <width>71</width>
+          <height>27</height>
+         </rect>
+        </property>
+        <property name="minimum">
+         <double>-180.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>180.000000000000000</double>
+        </property>
+       </widget>
+       <widget class="QLabel" name="labelMoveObjAbsPitch">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>50</y>
+          <width>16</width>
+          <height>30</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>p:</string>
+        </property>
+       </widget>
+       <widget class="QLabel" name="labelMoveObjAbsYaw">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>20</y>
+          <width>16</width>
+          <height>30</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>y:</string>
+        </property>
+       </widget>
+       <widget class="QLabel" name="labelMoveObjAbsRoll">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>80</y>
+          <width>16</width>
+          <height>30</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>r:</string>
+        </property>
+       </widget>
+       <widget class="QDoubleSpinBox" name="spinBoxMoveObjAbsPitch">
+        <property name="geometry">
+         <rect>
+          <x>30</x>
+          <y>50</y>
+          <width>71</width>
+          <height>27</height>
+         </rect>
+        </property>
+        <property name="minimum">
+         <double>-180.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>180.000000000000000</double>
+        </property>
+       </widget>
+       <widget class="QDoubleSpinBox" name="spinBoxMoveObjAbsRoll">
+        <property name="geometry">
+         <rect>
+          <x>30</x>
+          <y>80</y>
+          <width>71</width>
+          <height>27</height>
+         </rect>
+        </property>
+        <property name="minimum">
+         <double>-180.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>180.000000000000000</double>
         </property>
        </widget>
       </widget>
@@ -1617,6 +1617,19 @@
       </property>
       <property name="text">
        <string>Scenes:</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineSavePC">
+      <property name="geometry">
+       <rect>
+        <x>230</x>
+        <y>250</y>
+        <width>191</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>maps/room033.pcd</string>
       </property>
      </widget>
     </widget>
@@ -2231,7 +2244,7 @@
        </rect>
       </property>
       <property name="text">
-       <string>Receive Position Signal</string>
+       <string>Receive Pose Signal</string>
       </property>
      </widget>
      <widget class="QGroupBox" name="groupBoxInteraction">
@@ -2861,13 +2874,26 @@
       <property name="geometry">
        <rect>
         <x>10</x>
-        <y>80</y>
+        <y>100</y>
         <width>141</width>
         <height>30</height>
        </rect>
       </property>
       <property name="text">
        <string>Set Camera View</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnTransformUpdate">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>70</y>
+        <width>141</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Update</string>
       </property>
      </widget>
     </widget>
@@ -3441,54 +3467,6 @@
     <hint type="destinationlabel">
      <x>722</x>
      <y>102</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>spinBoxMoveObjAbsYaw</sender>
-   <signal>valueChanged(double)</signal>
-   <receiver>btnModelMoveAbs</receiver>
-   <slot>click()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>753</x>
-     <y>141</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>832</x>
-     <y>93</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>spinBoxMoveObjAbsPitch</sender>
-   <signal>valueChanged(double)</signal>
-   <receiver>btnModelMoveAbs</receiver>
-   <slot>click()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>744</x>
-     <y>167</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>840</x>
-     <y>92</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>spinBoxMoveObjAbsRoll</sender>
-   <signal>valueChanged(double)</signal>
-   <receiver>btnModelMoveAbs</receiver>
-   <slot>click()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>746</x>
-     <y>196</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>831</x>
-     <y>95</y>
     </hint>
    </hints>
   </connection>

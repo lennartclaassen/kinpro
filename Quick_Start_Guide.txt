@@ -1,0 +1,58 @@
+# Quick Start Guide zur Verwendung des Kamera-Projektor-Systems:
+
+0. Vorbereitung:
+ a) Anschließen des Arduino Nano über USB
+ b) Anschließen des Raspberry Pi über Ethernet
+ c) Anschließen des Projektors an die Stromversorgung
+ d) Anschalten des Projektors
+
+--------------------------------------------------
+
+1. Starten eines roscore durch ausführen des folgenden Befehls im Terminal:
+roscore
+
+--------------------------------------------------
+
+2. Anschließen des Raspberry Pi an die Stromversorgung
+
+--------------------------------------------------
+
+3. Starten des GUI durch Ausführen des folgenden Befehls in einem zweiten Terminal:
+roslaunch kinpro_launch kinpro_gui.launch
+
+--------------------------------------------------
+
+4. Laden einer Modellszene im GUI: 
+ a) Auswahl des Reiters "Elements"
+ b) Angabe der Szenendatei neben der Schaltfläche "Load Scene"
+ c) Betätigen der Schaltfläche "Load Scene"
+
+(Hinweis: Das Laden aller Modellelemente kann je nach Größe der Dateien einige Zeit in Anspruch nehmen, das GUI ist in dieser Zeit nicht bedienbar)
+
+--------------------------------------------------
+
+5. Die Modellszene kann nun innerhalb des Visualisierungsbereiches überprüft werden
+
+--------------------------------------------------
+
+6. Starten aller weiteren Softwaremodule durch ausführen des folgenden Befehls in einem dritten Terminal:
+roslaunch kinpro_launch kinpro.launch 
+
+(Hinweis: Die Visualisierung mittels rviz kann bei Bedarf über das Anhängen von rviz:=true an den Befehl gestartet werden. Die Visualiserung mittels rviz benötigt jedoch viel Rechenkapazität, während des Betriebs des Kamera-Projektor-Systems sollte deshalb darauf verzichtet werden)
+
+--------------------------------------------------
+
+7. Empfangen der Pose der Lokalisation und Generierung der Projektorperspektive
+ a) Wechseln auf den Reiter "ROS" des GUI
+ b) Aktivieren des Hakens bei "Receive Pose Signal"
+
+--------------------------------------------------
+
+8. Starten der globalen Lokalisation durch Betätigung der Schaltfläche "Start Global". 
+(Hinweis: Die Parameter für die Lokalisation enthält die Datei "kinpro_launch/launch/mcl_localization.yaml")
+
+--------------------------------------------------
+
+9. Aktivieren der Interaktion durch Setzen des Hakens bei "Activate" im Bereich "Interaction"
+
+(Hinweis: Schritt 1 ist nicht zwingend erforderlich, da das Starten eines Launchfiles automatisch einen roscore startet, er hilft jedoch die Verbindung zwischen den verschiedenen Modulen korrekt zu initialiseren, falls es zu einem Absturz eines Softwaremoduls kommt)

@@ -18,6 +18,22 @@
 		<visible>true</visible>
 	</object>
 	<object>
+		<name>objects/board.obj</name>
+		<position>
+			<x>2.3</x>
+			<y>0</y>
+			<z>0.3</z>
+		</position>
+		<orientation>
+			<y>0</y>
+			<p>-90</p>
+			<r>0</r>
+		</orientation>
+		<texture>textures/board_02.jpg</texture>
+		<geometry>objects/board.obj</geometry>
+		<visible>true</visible>
+	</object>
+	<object>
 		<name>maps/room033.pcd</name>
 		<position>
 			<x>0</x>

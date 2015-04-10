@@ -19,6 +19,7 @@
  */
 int main(int argc, char **argv) {
 
+    //register the meta types
     QApplication app(argc, argv);
     qRegisterMetaType< cv::Mat >("cv::Mat");
     qRegisterMetaType< pcl::PointCloud<pcl::PointXYZRGB> >("pcl::PointCloud<pcl::PointXYZRGB>");
@@ -30,29 +31,28 @@ int main(int argc, char **argv) {
     qRegisterMetaType< Eigen::Matrix3f >("Eigen::Matrix3f");
     qRegisterMetaType< Eigen::Matrix4f >("Eigen::Matrix4f");
     qRegisterMetaType< std::vector<geometry_msgs::TransformStamped> >("std::vector<geometry_msgs::TransformStamped>");
+    qRegisterMetaType< std_msgs::Float32MultiArray >("std_msgs::Float32MultiArray");
+
     qRegisterMetaType< float >("float");
 
-
-
-
-    // create the ROS Node
+    //create the ROS Node
     QtROS qtRos(argc, argv, "kinpro_node");
 
+    //create the threads to perform coordinate transformations
     QThread transformThread, tfThread;
     TFProcessor *tfProc = new TFProcessor;
     tfProc->moveToThread(&tfThread);
     TransformationProcessor *transformProc = new TransformationProcessor;
     transformProc->moveToThread(&transformThread);
 
-    // create a GUI
+    //create the GUI
     MainWindow gui;
     gui.show();
 
-    // signals and slots
+    //connect the signals and slots
     app.connect(&gui,   SIGNAL(signalProjectImage(cv::Mat)),                                        &qtRos, SLOT(slotProjectImage(cv::Mat)) );
     app.connect(&gui,   SIGNAL(signalPublishPointcloud(pcl::PointCloud<pcl::PointXYZRGB>)),         &qtRos, SLOT(slotPublishPointcloud(pcl::PointCloud<pcl::PointXYZRGB>)) );
     app.connect(&qtRos, SIGNAL(pointCloudReceived(pcl::PointCloud<pcl::PointXYZRGB>)),              &gui,   SLOT(newPointCloud(pcl::PointCloud<pcl::PointXYZRGB>)) );
-//    app.connect(&qtRos, SIGNAL(positionReceived(nav_msgs::Odometry)),                               &gui,   SLOT(newPosition(nav_msgs::Odometry)) );
     app.connect(&qtRos, SIGNAL(lineReceived(kinpro_interaction::line)),                             &gui,   SLOT(newLine(kinpro_interaction::line)) );
     app.connect(&gui,   SIGNAL(signalPublishInitialPose(geometry_msgs::PoseWithCovarianceStamped)), &qtRos, SLOT(slotPublishInitialPose(geometry_msgs::PoseWithCovarianceStamped)) );
     app.connect(&gui,   SIGNAL(signalCallGlobalLoc()),                                              &qtRos, SLOT(slotCallGlobalLoc()) );
@@ -66,14 +66,14 @@ int main(int argc, char **argv) {
     app.connect(&qtRos, SIGNAL(signalSendARTransform(std::vector<geometry_msgs::TransformStamped>)),             &gui,   SLOT(newARTransform(std::vector<geometry_msgs::TransformStamped>)));
     app.connect(&qtRos, SIGNAL(signalPoseRMS(float)), &gui, SLOT(slotPoseRMS(float)));
 
-    app.connect(&gui,   SIGNAL(setTransformations(Ui::MainWindow&)),                                transformProc, SLOT(setTransformations(Ui::MainWindow&)) );
+    app.connect(&gui,   SIGNAL(setTransformations(Ui::MainWindow&, bool)),                          transformProc, SLOT(setTransformations(Ui::MainWindow&, bool)) );
     app.connect(&gui.timer,   SIGNAL(timeout()),                                                    &gui, SLOT(timerCallback()) );
 
-
-    app.connect(&qtRos,         SIGNAL(positionReceived(nav_msgs::Odometry)),           tfProc,         SLOT(newPositionReceived(nav_msgs::Odometry)) );
+    app.connect(&qtRos,         SIGNAL(poseReceived(nav_msgs::Odometry)),           tfProc,         SLOT(newPoseReceived(nav_msgs::Odometry)) );
     app.connect(tfProc,         SIGNAL(signalNewTFTransform(tf::StampedTransform)),     transformProc,  SLOT(newTFTransform(tf::StampedTransform)) );
 
-    app.connect(&qtRos,         SIGNAL(positionReceived(nav_msgs::Odometry)),           transformProc,  SLOT(newPositionReceived(nav_msgs::Odometry)) );
+    app.connect(&qtRos,         SIGNAL(poseReceived(nav_msgs::Odometry)),           transformProc,  SLOT(newPoseReceived(nav_msgs::Odometry)) );
+    app.connect(&qtRos,         SIGNAL(cam2projTrafoReceived(std_msgs::Float32MultiArray)), transformProc, SLOT(newCam2ProjTransformReceived(std_msgs::Float32MultiArray)) );
     app.connect(transformProc,  SIGNAL(transformationProcessingReady()),                &gui,           SLOT(transformationProcessingReady()));
     app.connect(transformProc,  SIGNAL(transformDone()),                                &gui,           SLOT(newTransform()) );
 
@@ -89,9 +89,7 @@ int main(int argc, char **argv) {
     app.connect(transformProc,  SIGNAL(newWorld2ProjTransform(Eigen::Matrix4f)),        &gui,   SLOT(newWorld2ProjTransform(Eigen::Matrix4f)) );
     app.connect(transformProc,  SIGNAL(newWorld2ProjVTKTransform(Eigen::Matrix4f)),     &gui,   SLOT(newWorld2ProjVTKTransform(Eigen::Matrix4f)) );
 
-//    app.connect(transformProc,  SIGNAL(destroyed()),        transformProc,  SLOT(deleteLater()));
-//    app.connect(tfProc,         SIGNAL(destroyed()),        tfProc,  SLOT(deleteLater()));
-
+    //run the applications
     transformThread.start();
     tfThread.start();
     int result = app.exec();

@@ -59,7 +59,7 @@ public:
     TFProcessor();
 
 public slots:
-    void newPositionReceived(nav_msgs::Odometry msg);
+    void newPoseReceived(nav_msgs::Odometry msg);
 
 signals:
     void signalNewTFTransform(tf::StampedTransform transform);
