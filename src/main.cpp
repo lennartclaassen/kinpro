@@ -67,7 +67,6 @@ int main(int argc, char **argv) {
     app.connect(&qtRos, SIGNAL(signalPoseRMS(float)), &gui, SLOT(slotPoseRMS(float)));
 
     app.connect(&gui,   SIGNAL(setTransformations(Ui::MainWindow&, bool)),                          transformProc, SLOT(setTransformations(Ui::MainWindow&, bool)) );
-    app.connect(&gui.timer,   SIGNAL(timeout()),                                                    &gui, SLOT(timerCallback()) );
 
     app.connect(&qtRos,         SIGNAL(poseReceived(nav_msgs::Odometry)),           tfProc,         SLOT(newPoseReceived(nav_msgs::Odometry)) );
     app.connect(tfProc,         SIGNAL(signalNewTFTransform(tf::StampedTransform)),     transformProc,  SLOT(newTFTransform(tf::StampedTransform)) );

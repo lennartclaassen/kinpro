@@ -30,7 +30,7 @@
      </size>
     </property>
     <property name="currentIndex">
-     <number>5</number>
+     <number>0</number>
     </property>
     <widget class="QWidget" name="tab_controls">
      <attribute name="title">
@@ -1942,7 +1942,7 @@
      <widget class="QGroupBox" name="groupBoxARDet">
       <property name="geometry">
        <rect>
-        <x>730</x>
+        <x>500</x>
         <y>110</y>
         <width>191</width>
         <height>261</height>
@@ -2246,122 +2246,6 @@
       <property name="text">
        <string>Receive Pose Signal</string>
       </property>
-     </widget>
-     <widget class="QGroupBox" name="groupBoxInteraction">
-      <property name="geometry">
-       <rect>
-        <x>500</x>
-        <y>110</y>
-        <width>161</width>
-        <height>211</height>
-       </rect>
-      </property>
-      <property name="title">
-       <string>Interaction</string>
-      </property>
-      <widget class="QCheckBox" name="checkBoxActivateInteraction">
-       <property name="geometry">
-        <rect>
-         <x>10</x>
-         <y>30</y>
-         <width>97</width>
-         <height>22</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Activate</string>
-       </property>
-       <property name="checked">
-        <bool>false</bool>
-       </property>
-      </widget>
-      <widget class="QCheckBox" name="checkBoxShowLine">
-       <property name="geometry">
-        <rect>
-         <x>10</x>
-         <y>50</y>
-         <width>97</width>
-         <height>22</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Show Line</string>
-       </property>
-       <property name="checked">
-        <bool>true</bool>
-       </property>
-      </widget>
-      <widget class="QGroupBox" name="groupBoxInteractionBB">
-       <property name="geometry">
-        <rect>
-         <x>0</x>
-         <y>90</y>
-         <width>151</width>
-         <height>121</height>
-        </rect>
-       </property>
-       <property name="title">
-        <string>Bounding Box</string>
-       </property>
-       <widget class="QRadioButton" name="radioButtonBSP">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>100</y>
-          <width>141</width>
-          <height>22</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Axis Aligned BB</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-       </widget>
-       <widget class="QRadioButton" name="radioButtonOBB">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>80</y>
-          <width>117</width>
-          <height>22</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Oriented BB</string>
-        </property>
-       </widget>
-       <widget class="QCheckBox" name="checkBoxShowBB">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>50</y>
-          <width>97</width>
-          <height>22</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Show</string>
-        </property>
-       </widget>
-       <widget class="QCheckBox" name="checkBoxActivateBB">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>30</y>
-          <width>97</width>
-          <height>22</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Activate</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </widget>
      </widget>
      <widget class="QCheckBox" name="checkBoxPubImage">
       <property name="geometry">

@@ -109,7 +109,6 @@ class QtROS: public QThread {
 
         void pointcloudCallback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg);
         void poseCallback(const nav_msgs::Odometry::ConstPtr& msg);
-        //void lineCallback(const kinpro_interaction::lineConstPtr& line);
         void arCallback(const geometry_msgs::TransformStamped::ConstPtr& msg);
         void poseRMSCallback(const std_msgs::Float32::ConstPtr& rmsMsg);
         void cam2projCallback(const std_msgs::Float32MultiArray::ConstPtr& msg);
@@ -123,7 +122,6 @@ class QtROS: public QThread {
         ros::Subscriber                     pc_sub;
         ros::Subscriber                     pos_sub;
         ros::Subscriber                     cam2proj_sub;
-        ros::Subscriber                     line_sub;
         ros::Subscriber                     ar_sub;
         ros::Subscriber                     posRMS_sub;
         ros::Publisher                      pc_pub;

@@ -146,7 +146,6 @@
 //XML
 #include <kinpro/rapidxml.hpp>
 #include <kinpro/rapidxml_print.hpp>
-//#include <kinpro/rapidxml_iterators.hpp>
 #include <kinpro/rapidxml_utils.hpp>
 
 
@@ -212,7 +211,6 @@ class MainWindow: public QMainWindow {
 
 
     private slots:
-        void timerCallback();
         void on_checkBoxRGBCloud_toggled(bool checked);
         void on_checkBoxCoordSys_toggled(bool checked);
         void on_btnSetCamView_clicked();
@@ -279,7 +277,6 @@ class MainWindow: public QMainWindow {
 public slots:
 
         void newPointCloud(pcl::PointCloud<pcl::PointXYZRGB> pc);
-        //void newLine(kinpro_interaction::line line);
         void newTransform();
         void transformationProcessingReady();
         void newARTransform(std::vector<geometry_msgs::TransformStamped> transforms);
@@ -310,36 +307,20 @@ public slots:
 
         boost::mutex m_cloudMtx;
         boost::mutex m_positionMutex;
-        boost::mutex m_lineMutex;
 
         std::string resourceDir;
         std::string locationPrefix;
 
         std::vector< PCEntry > PCVec;
         std::vector< actorEntry > modelVec;
-        std::vector< actorEntry > arrowVec;
         actorEntry* currentModel;
-        std::vector<std::string> sphereIDs;
-        cv::Point laserPoint;
-
-        vtkSmartPointer<vtkActor> m_lineActor;
-        vtkSmartPointer<vtkOBBTree> obbTree;
-        vtkSmartPointer<vtkModifiedBSPTree> bspTree;
-        vtkSmartPointer<vtkActor> obbTreeActor;
-        vtkSmartPointer<vtkActor> bspTreeActor;
 
         ros::Time lastLocTime;
 
-        int operationMode;
-        int noOfArrows;
-        int currentObjectIndex;
-
         bool transformReady;
-        bool drawClickingCircle;
         bool visualOdometryActive;
         bool displayRGBCloud;
         bool waitForLines;
-        bool timerRunning;
 
         double previousValueSpinBoxOrientation[3];
 
@@ -351,20 +332,8 @@ public slots:
 
         QTimer timer;
 
-        ros::Duration selection_thresh;
-        ros::Duration selectionDuration;
-        ros::Time selectionBegin;
-        ros::Time lastSelectionTime;
-        ros::Duration idleDuration;
-        ros::Duration idle_thresh;
-
         geometry_msgs::TransformStamped arMarker1;
         geometry_msgs::TransformStamped arMarker2;
-
-        enum OperationMode{
-            BASIC = 0,
-            MOVEOBJECTS
-        };
 
         //transformation from camera coordinates (rgb frame) to projector coordinates
         Eigen::Matrix3f R_cam2projVTK;
@@ -453,8 +422,6 @@ public slots:
         void resetModelPose();
         void clearScene();
         void sendPCToOctomapServer();
-        void addArrowsForActor(actorEntry &actor);
-        void moveArrows(Eigen::Vector3f translateXYZ, Eigen::Vector3f rotateYPR);
         void addCoordinateSystem(Eigen::Vector4f origin, Eigen::Vector4f x, Eigen::Vector4f y, Eigen::Vector4f z, std::string name = "coordinates");
         void setTransformationMatrix(Eigen::Matrix3f in_R, Eigen::Vector3f in_t, Eigen::Matrix4f &out_T);
         void setRotationMatrixFromYPR(float yaw, float pitch, float roll, Eigen::Matrix3f &out_R);
@@ -463,19 +430,7 @@ public slots:
         void setIdentityMatrix(Eigen::Matrix3f &mat);
         void setPCTransformationLines();
         void setModelTransformationLines();
-        void transformLineToWorld(Eigen::Vector4f &pt_start, Eigen::Vector4f &pt_end, Eigen::Vector4f &pt_start_world, Eigen::Vector4f &pt_end_world);
-        void intersectLineWithModels(Eigen::Vector4f &start, Eigen::Vector4f &end, std::vector<Eigen::Vector3f> &intersections, std::vector<int> &ids);
         void projectWorldPointToProjectorImage(Eigen::Vector3f &pt_world, cv::Point &pt_projector);
-        void visualizeLine(Eigen::Vector4f &start, Eigen::Vector4f &end);
-        bool checkForClick(int id);
-        void addSphere(Eigen::Vector3f &center, string id);
-        void removeSphere(std::string &id);
-        void removeAllSpheres();
-        void switchOperationMode(int mode = BASIC);
-        void addArrow(Eigen::Vector3f &center, Eigen::Vector3f &axis, float length = 1.0, float radius = 1.0, float resolution = 10.0, int id = 0);
-        void removeArrow(int id = 0);
-        void removeAllArrows();
-        void highlightActor(int id);
 
         //Helper Functions
         int line2int(QLineEdit& line)       { return (&line)->text().toInt(); }
