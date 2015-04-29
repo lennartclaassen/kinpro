@@ -31,7 +31,7 @@ QtROS::QtROS(int argc, char *argv[], const char* node_name) {
     pc_sub = nh->subscribe< pcl::PointCloud<pcl::PointXYZRGB> >("/camera/depth_registered/points", 1, &QtROS::pointcloudCallback, this);
 //    pos_sub = nh->subscribe< nav_msgs::Odometry >("/kinect_odometer/odometry", 1, &QtROS::positionCallback, this);
     pos_sub = nh->subscribe< nav_msgs::Odometry >("/odometry/filtered", 1, &QtROS::poseCallback, this);
-    line_sub = nh->subscribe< kinpro_interaction::line >("/line", 1, &QtROS::lineCallback, this);
+    //line_sub = nh->subscribe< kinpro_interaction::line >("/line", 1, &QtROS::lineCallback, this);
 //    ar_sub = nh->subscribe< geometry_msgs::TransformStamped >("/ar_single_board/transform", 1, &QtROS::arCallback, this);
     ar_sub = nh->subscribe< geometry_msgs::TransformStamped >("/ar_multi_boards/transform", 2, &QtROS::arCallback, this);
     posRMS_sub = nh->subscribe< std_msgs::Float32 >("/humanoid_localization/best_particle_rms", 1, &QtROS::poseRMSCallback, this);
@@ -186,9 +186,9 @@ void QtROS::slotPublishPointcloud(pcl::PointCloud<pcl::PointXYZRGB> pc) {
  * @brief QtROS::lineCallback       publish the line
  * @param line
  */
-void QtROS::lineCallback(const kinpro_interaction::lineConstPtr &line) {
-    emit lineReceived(*line);
-}
+//void QtROS::lineCallback(const kinpro_interaction::lineConstPtr &line) {
+//    emit lineReceived(*line);
+//}
 
 /**
  * @brief QtROS::slotPublishInitialPose     publish a pose to (re-)initialize global localization

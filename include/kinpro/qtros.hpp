@@ -38,7 +38,7 @@
 #include <geometry_msgs/TransformStamped.h>
 #include <std_srvs/Empty.h>
 
-#include <kinpro_interaction/line.h>
+//#include <kinpro_interaction/line.h>
 
 #include <nav_msgs/Odometry.h>
 
@@ -64,7 +64,7 @@ class QtROS: public QThread {
         void pointCloudReceived(pcl::PointCloud<pcl::PointXYZRGB> pc);
         void poseReceived(nav_msgs::Odometry msg);
         void cam2projTrafoReceived(std_msgs::Float32MultiArray msg);
-        void lineReceived(kinpro_interaction::line line);
+        //void lineReceived(kinpro_interaction::line line);
         void signalSendARTransform(std::vector<geometry_msgs::TransformStamped> transforms);
         void signalPoseRMS(float rmsVal);
 
@@ -109,7 +109,7 @@ class QtROS: public QThread {
 
         void pointcloudCallback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg);
         void poseCallback(const nav_msgs::Odometry::ConstPtr& msg);
-        void lineCallback(const kinpro_interaction::lineConstPtr& line);
+        //void lineCallback(const kinpro_interaction::lineConstPtr& line);
         void arCallback(const geometry_msgs::TransformStamped::ConstPtr& msg);
         void poseRMSCallback(const std_msgs::Float32::ConstPtr& rmsMsg);
         void cam2projCallback(const std_msgs::Float32MultiArray::ConstPtr& msg);

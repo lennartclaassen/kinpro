@@ -194,161 +194,161 @@ void MainWindow::newTransform() {
  * @brief MainWindow::newLine       SLOT to be called if new line is received
  * @param line
  */
-void MainWindow::newLine(kinpro_interaction::line line) {
-    boost::lock_guard<boost::mutex> guard(m_lineMutex);
+//void MainWindow::newLine(kinpro_interaction::line line) {
+//    boost::lock_guard<boost::mutex> guard(m_lineMutex);
 
-    //check if the interaction mode is activated
-    if(ui->checkBoxActivateInteraction->isChecked()){
+//    //check if the interaction mode is activated
+//    if(ui->checkBoxActivateInteraction->isChecked()){
 
-        //start the time to recognize if the user interaction has ended
-        if(!timerRunning) {
-//            cout << "starting timer" << endl;
-            timer.start(5000);
-            timerRunning = true;
-        }
+//        //start the time to recognize if the user interaction has ended
+//        if(!timerRunning) {
+////            cout << "starting timer" << endl;
+//            timer.start(5000);
+//            timerRunning = true;
+//        }
 
-        //check if the received line is empty
-        bool lineEmpty = true;
-        if(line.end.z > 0.0) {
-            lineEmpty = false;
-            timer.stop();
-            timerRunning = false;
-        }
+//        //check if the received line is empty
+//        bool lineEmpty = true;
+//        if(line.end.z > 0.0) {
+//            lineEmpty = false;
+//            timer.stop();
+//            timerRunning = false;
+//        }
 
-        //clear the line and arrow actors
-        pclWidget->vis->removeActorFromRenderer(m_lineActor);
-        pclWidget->vis->removeActorFromRenderer(obbTreeActor);
-        pclWidget->vis->removeActorFromRenderer(bspTreeActor);
+//        //clear the line and arrow actors
+//        pclWidget->vis->removeActorFromRenderer(m_lineActor);
+//        pclWidget->vis->removeActorFromRenderer(obbTreeActor);
+//        pclWidget->vis->removeActorFromRenderer(bspTreeActor);
 
-        //transform the line points from camera into world coordinates
-        Eigen::Vector4f start_cam, end_cam, start_world, end_world;
-        start_cam << line.start.x, line.start.y, line.start.z, 1.0;
-        end_cam << line.end.x, line.end.y, line.end.z, 1.0;
-        this->transformLineToWorld(start_cam, end_cam, start_world, end_world);
+//        //transform the line points from camera into world coordinates
+//        Eigen::Vector4f start_cam, end_cam, start_world, end_world;
+//        start_cam << line.start.x, line.start.y, line.start.z, 1.0;
+//        end_cam << line.end.x, line.end.y, line.end.z, 1.0;
+//        this->transformLineToWorld(start_cam, end_cam, start_world, end_world);
 
-        //visualize lines?
-        if(ui->checkBoxShowLine->isChecked()) {
-            //visualize line
-            this->visualizeLine(start_world, end_world);
-        }
+//        //visualize lines?
+//        if(ui->checkBoxShowLine->isChecked()) {
+//            //visualize line
+//            this->visualizeLine(start_world, end_world);
+//        }
 
-        //clear spheres
-        this->removeAllSpheres();
+//        //clear spheres
+//        this->removeAllSpheres();
 
-        //activate bounding boxes for intersection determination
-        if(ui->checkBoxActivateBB->isChecked()) {
+//        //activate bounding boxes for intersection determination
+//        if(ui->checkBoxActivateBB->isChecked()) {
 
-            if(!lineEmpty) {
-                //calculate intersections of line with models
-                vector<Eigen::Vector3f> intersections;
-                vector<int> ids;
-                this->intersectLineWithModels(start_world, end_world, intersections, ids);
+//            if(!lineEmpty) {
+//                //calculate intersections of line with models
+//                vector<Eigen::Vector3f> intersections;
+//                vector<int> ids;
+//                this->intersectLineWithModels(start_world, end_world, intersections, ids);
 
-                //check if intersections were found TODO: handle cases of multiple objects
-                if(!intersections.empty()) {
+//                //check if intersections were found TODO: handle cases of multiple objects
+//                if(!intersections.empty()) {
 
-                    this->lastSelectionTime = ros::Time::now();
+//                    this->lastSelectionTime = ros::Time::now();
 
-                    //draw the intersection points (laserpointer) and highlight the models
-                    for(size_t i = 0; i<intersections.size(); i++) {
-                        //create spheres (laser pointer) for the intersections
-                        stringstream sphereID;
-                        sphereID << "Sphere " << i;
-                        this->addSphere(intersections.at(i), sphereID.str());
+//                    //draw the intersection points (laserpointer) and highlight the models
+//                    for(size_t i = 0; i<intersections.size(); i++) {
+//                        //create spheres (laser pointer) for the intersections
+//                        stringstream sphereID;
+//                        sphereID << "Sphere " << i;
+//                        this->addSphere(intersections.at(i), sphereID.str());
 
-                        //create laser points to visualize in projection image TODO: decide how to determine the most suitable intersection point if there are multiple
-                        projectWorldPointToProjectorImage(intersections.at(i), this->laserPoint);
+//                        //create laser points to visualize in projection image TODO: decide how to determine the most suitable intersection point if there are multiple
+//                        projectWorldPointToProjectorImage(intersections.at(i), this->laserPoint);
 
-                        //highlight the intersected models
-                        for(size_t j=0; j<ids.size(); j++) {
-                            this->highlightActor(ids.at(j));
-                        }
-                    }
+//                        //highlight the intersected models
+//                        for(size_t j=0; j<ids.size(); j++) {
+//                            this->highlightActor(ids.at(j));
+//                        }
+//                    }
 
-                    //check if a "click" happened on the selected object
-                    if(this->checkForClick(ids.at(0))){
+//                    //check if a "click" happened on the selected object
+//                    if(this->checkForClick(ids.at(0))){
 
-                        if(this->operationMode == BASIC){
-                            //select the model
-                            this->currentModel = &modelVec.at(ids.at(0));
-//                            cout << "updated current model" << endl;
-                            //show the arrows for the highlighted actor
-//                            cout << "adding arrows..." << endl;
-                            this->addArrowsForActor(modelVec.at(ids.at(0)));
-//                            cout << "...done" << endl;
-                            //activate the object movement mode
-                            this->switchOperationMode(MOVEOBJECTS);
-                        }else {
-                            //detect which arrow was clicked and create movement in the selected direction TODO: rotation
-                            Eigen::Vector3f translation;
-                            float x, y, z;
-                            x = y = z = 0;
+//                        if(this->operationMode == BASIC){
+//                            //select the model
+//                            this->currentModel = &modelVec.at(ids.at(0));
+////                            cout << "updated current model" << endl;
+//                            //show the arrows for the highlighted actor
+////                            cout << "adding arrows..." << endl;
+//                            this->addArrowsForActor(modelVec.at(ids.at(0)));
+////                            cout << "...done" << endl;
+//                            //activate the object movement mode
+//                            this->switchOperationMode(MOVEOBJECTS);
+//                        }else {
+//                            //detect which arrow was clicked and create movement in the selected direction TODO: rotation
+//                            Eigen::Vector3f translation;
+//                            float x, y, z;
+//                            x = y = z = 0;
 
-                            //select direction
-                            switch (ids.at(0)) {
-                            case 0:
-                                x = 0.1;
-                                break;
-                            case 1:
-                                x = -0.1;
-                                break;
-                            case 2:
-                                y = 0.1;
-                                break;
-                            case 3:
-                                y = -0.1;
-                                break;
-                            case 4:
-                                z = 0.1;
-                                break;
-                            case 5:
-                                z = -0.1;
-                                break;
-                            default:
-                                break;
-                            }
+//                            //select direction
+//                            switch (ids.at(0)) {
+//                            case 0:
+//                                x = 0.1;
+//                                break;
+//                            case 1:
+//                                x = -0.1;
+//                                break;
+//                            case 2:
+//                                y = 0.1;
+//                                break;
+//                            case 3:
+//                                y = -0.1;
+//                                break;
+//                            case 4:
+//                                z = 0.1;
+//                                break;
+//                            case 5:
+//                                z = -0.1;
+//                                break;
+//                            default:
+//                                break;
+//                            }
 
-                            vtkSmartPointer<vtkMatrix4x4> mat = currentModel->actor->GetMatrix();
+//                            vtkSmartPointer<vtkMatrix4x4> mat = currentModel->actor->GetMatrix();
 
-                            //detect which arrow was clicked and create movement in the selected direction
-                            Eigen::Vector3f moveX, moveY, moveZ;
-                            moveX = Eigen::Vector3f(mat->GetElement(0,0), mat->GetElement(1,0), mat->GetElement(2,0));
-                            moveY = Eigen::Vector3f(mat->GetElement(0,1), mat->GetElement(1,1), mat->GetElement(2,1));
-                            moveZ = Eigen::Vector3f(mat->GetElement(0,2), mat->GetElement(1,2), mat->GetElement(2,2));
+//                            //detect which arrow was clicked and create movement in the selected direction
+//                            Eigen::Vector3f moveX, moveY, moveZ;
+//                            moveX = Eigen::Vector3f(mat->GetElement(0,0), mat->GetElement(1,0), mat->GetElement(2,0));
+//                            moveY = Eigen::Vector3f(mat->GetElement(0,1), mat->GetElement(1,1), mat->GetElement(2,1));
+//                            moveZ = Eigen::Vector3f(mat->GetElement(0,2), mat->GetElement(1,2), mat->GetElement(2,2));
 
-                            //select direction
-                            translation = x*moveX + y*moveY + z*moveZ;
-                            moveArrows(translation, Eigen::Vector3f(0,0,0));
+//                            //select direction
+//                            translation = x*moveX + y*moveY + z*moveZ;
+//                            moveArrows(translation, Eigen::Vector3f(0,0,0));
 
-                            //move the actor model relative to its current position
-                            moveModelRelative(*currentModel, translation, Eigen::Vector3f(0,0,0));
-                        }
-                    }
-                } else {
-                    //reset clicking Times
-                    this->selectionBegin = ros::Time::now();
-                    this->selectionDuration = ros::Duration(0);
+//                            //move the actor model relative to its current position
+//                            moveModelRelative(*currentModel, translation, Eigen::Vector3f(0,0,0));
+//                        }
+//                    }
+//                } else {
+//                    //reset clicking Times
+//                    this->selectionBegin = ros::Time::now();
+//                    this->selectionDuration = ros::Duration(0);
 
-                    //stop drawing the clicking circle
-                    this->drawClickingCircle = false;
+//                    //stop drawing the clicking circle
+//                    this->drawClickingCircle = false;
 
-                    //set point coordinates to zero to use if no intersections were found
-                    this->laserPoint = Point(0.0, 0.0);
+//                    //set point coordinates to zero to use if no intersections were found
+//                    this->laserPoint = Point(0.0, 0.0);
 
-                    if(end_world(0) > 0.0 && end_world(1) > 0.0 && end_world(2) > 0.0) {
-                        stringstream sphereID;
-                        sphereID << "Sphere end";
-                        Eigen::Vector3f lineEnd(end_world(0), end_world(1), end_world(2));
-                        this->addSphere(lineEnd, sphereID.str());
-                    }
-                }
-            }
-        }
+//                    if(end_world(0) > 0.0 && end_world(1) > 0.0 && end_world(2) > 0.0) {
+//                        stringstream sphereID;
+//                        sphereID << "Sphere end";
+//                        Eigen::Vector3f lineEnd(end_world(0), end_world(1), end_world(2));
+//                        this->addSphere(lineEnd, sphereID.str());
+//                    }
+//                }
+//            }
+//        }
 
-        //update the visualization area
-        ui->qvtkWidget->update();
-    }
-}
+//        //update the visualization area
+//        ui->qvtkWidget->update();
+//    }
+//}
 
 /**
  * @brief MainWindow::moveArrows    Move the arrow actors
@@ -1262,7 +1262,10 @@ void MainWindow::showProjectionImage()
 void MainWindow::createProjectionImageFromGUI()
 {
     //create an empty projection image
-    this->projectorImage = cv::Mat::zeros(480, 848, CV_8UC3);
+//    this->projectorImage = cv::Mat::zeros(480, 848, CV_8UC3);
+    //picopro modification
+    this->projectorImage = cv::Mat::zeros(720, 1280, CV_8UC3);
+
 
     //get the visualization window of the GUI as an image
     vtkSmartPointer<vtkRenderWindow> renderWindow = ui->qvtkWidget->GetRenderWindow();
@@ -1283,7 +1286,10 @@ void MainWindow::createProjectionImageFromGUI()
         cv::flip( cvImage, cvImage, 0); //align axis with visualizer
         ros::Duration t_diff = ros::Time::now()-lastLocTime;
         int border = (t_diff.toSec() > 8.0 ? 8 : 24-2*(int)(t_diff.toSec()));
-        cv::Rect roi(border,border,848-2*border,480-2*border);      //TODO projector size param
+//        cv::Rect roi(border,border,848-2*border,480-2*border);      //TODO projector size param
+        //picopro modification
+        cv::Rect roi(border,border,1280-2*border,720-2*border);      //TODO projector size param
+
         if(currRMSVal > 0.1)
             currRMSVal = 0.1;
         this->projectorImage.setTo(Scalar(255*(currRMSVal*10),255*(1-currRMSVal*10),0));
@@ -1434,6 +1440,11 @@ void MainWindow::on_btnResetExtrTrans_clicked()
  */
 void MainWindow::on_btnCreateImgFromGUI_clicked()
 {
+    //setup the window
+    namedWindow("projected Image", WINDOW_NORMAL);
+    moveWindow("projected Image", 1920, 0);
+    resizeWindow("projected Image", 1280, 720);
+    setWindowProperty("projected Image", CV_WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN);
     //create and visualize the projection image based on the perspective of the GUI visualization
     this->createProjectionImageFromGUI();
     this->showProjectionImage();

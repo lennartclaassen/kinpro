@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
     qRegisterMetaType< cv::Mat >("cv::Mat");
     qRegisterMetaType< pcl::PointCloud<pcl::PointXYZRGB> >("pcl::PointCloud<pcl::PointXYZRGB>");
     qRegisterMetaType< nav_msgs::Odometry >("nav_msgs::Odometry");
-    qRegisterMetaType< kinpro_interaction::line >("kinpro_interaction::line");
+    //qRegisterMetaType< kinpro_interaction::line >("kinpro_interaction::line");
     qRegisterMetaType< geometry_msgs::PoseWithCovarianceStamped >("geometry_msgs::PoseWithCovarianceStamped");
     qRegisterMetaType< tf::StampedTransform >("tf::StampedTransform");
     qRegisterMetaType< Ui::MainWindow >("Ui::MainWindow&");
@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
     app.connect(&gui,   SIGNAL(signalProjectImage(cv::Mat)),                                        &qtRos, SLOT(slotProjectImage(cv::Mat)) );
     app.connect(&gui,   SIGNAL(signalPublishPointcloud(pcl::PointCloud<pcl::PointXYZRGB>)),         &qtRos, SLOT(slotPublishPointcloud(pcl::PointCloud<pcl::PointXYZRGB>)) );
     app.connect(&qtRos, SIGNAL(pointCloudReceived(pcl::PointCloud<pcl::PointXYZRGB>)),              &gui,   SLOT(newPointCloud(pcl::PointCloud<pcl::PointXYZRGB>)) );
-    app.connect(&qtRos, SIGNAL(lineReceived(kinpro_interaction::line)),                             &gui,   SLOT(newLine(kinpro_interaction::line)) );
+    //app.connect(&qtRos, SIGNAL(lineReceived(kinpro_interaction::line)),                             &gui,   SLOT(newLine(kinpro_interaction::line)) );
     app.connect(&gui,   SIGNAL(signalPublishInitialPose(geometry_msgs::PoseWithCovarianceStamped)), &qtRos, SLOT(slotPublishInitialPose(geometry_msgs::PoseWithCovarianceStamped)) );
     app.connect(&gui,   SIGNAL(signalCallGlobalLoc()),                                              &qtRos, SLOT(slotCallGlobalLoc()) );
     app.connect(&gui,   SIGNAL(signalCallLocalLoc()),                                               &qtRos, SLOT(slotCallLocalLoc()) );

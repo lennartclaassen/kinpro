@@ -279,7 +279,7 @@ class MainWindow: public QMainWindow {
 public slots:
 
         void newPointCloud(pcl::PointCloud<pcl::PointXYZRGB> pc);
-        void newLine(kinpro_interaction::line line);
+        //void newLine(kinpro_interaction::line line);
         void newTransform();
         void transformationProcessingReady();
         void newARTransform(std::vector<geometry_msgs::TransformStamped> transforms);

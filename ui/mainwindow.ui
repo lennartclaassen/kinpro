@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>970</width>
-    <height>980</height>
+    <width>2300</width>
+    <height>816</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,7 +19,7 @@
      <rect>
       <x>10</x>
       <y>10</y>
-      <width>951</width>
+      <width>931</width>
       <height>461</height>
      </rect>
     </property>
@@ -30,7 +30,7 @@
      </size>
     </property>
     <property name="currentIndex">
-     <number>2</number>
+     <number>5</number>
     </property>
     <widget class="QWidget" name="tab_controls">
      <attribute name="title">
@@ -3234,10 +3234,10 @@
    <widget class="QVTKWidget" name="qvtkWidget" native="true">
     <property name="geometry">
      <rect>
-      <x>40</x>
-      <y>480</y>
-      <width>874</width>
-      <height>451</height>
+      <x>990</x>
+      <y>40</y>
+      <width>1280</width>
+      <height>720</height>
      </rect>
     </property>
     <property name="minimumSize">
@@ -3248,8 +3248,8 @@
     </property>
     <property name="maximumSize">
      <size>
-      <width>890</width>
-      <height>480</height>
+      <width>1280</width>
+      <height>720</height>
      </size>
     </property>
     <property name="autoFillBackground">
@@ -3262,7 +3262,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>970</width>
+     <width>2300</width>
      <height>25</height>
     </rect>
    </property>
