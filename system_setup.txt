@@ -46,6 +46,9 @@ https://developer.nvidia.com/cuda-toolkit-55-archive
 sudo apt-get install libboost-all-dev
 
 ### PCL and KinfuLS
+#if not using KinfuLS try standard PCL packages first:
+sudo apt-get install ros-indigo-perception-pcl
+#if setup is not working try following workaround:
 #create seperat workspace for pcl and kinfu (from http://answers.ros.org/question/142461/pcl-kinfu-in-ros-hydro/)
 source /opt/ros/hydro/setup.sh
 mkdir pcl_workspace && cd pcl_workspace && catkin_make_isolated
