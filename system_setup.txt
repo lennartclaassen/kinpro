@@ -74,6 +74,29 @@ sudo modprobe -r gspca_kinect
 sudo modprobe -r gspca_main
 (von http://answers.ros.org/question/55201/using-ros-with-kinect-failed-to-set-usb-interface/)
 
+### Kinect / freenect - !!!Alternative for openni_launch!!!
+sudo apt-get install ros-indigo-freenect-launch
+
+### Kinect2 / freenect
+#(Installation instructions from https://github.com/code-iai/iai_kinect2)
+cd ~
+sudo apt-get install -y build-essential libturbojpeg libtool autoconf libudev-dev cmake mesa-common-dev freeglut3-dev libxrandr-dev doxygen libxi-dev libopencv-dev
+sudo ln -s /usr/lib/x86_64-linux-gnu/libturbojpeg.so.0 /usr/lib/x86_64-linux-gnu/libturbojpeg.so
+git clone https://github.com/wiedemeyer/libfreenect2
+cd libfreenect2/depends
+./install_ubuntu.sh
+cd ../build
+mkdir linux
+cd linux
+cmake ../../examples/protonect/ -DENABLE_CXX11=ON
+make && sudo make install
+cd ~/catkin_ws/src/
+git clone https://github.com/code-iai/iai_kinect2.git
+cd iai_kinect2
+rosdep install -r --from-paths .
+cd ~/catkin_ws
+catkin_make -DCMAKE_BUILD_TYPE="Release"
+
 ### octovis
 sudo apt-get install ros-indigo-octovis
 
