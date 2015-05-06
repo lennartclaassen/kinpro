@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>2300</width>
-    <height>816</height>
+    <width>969</width>
+    <height>535</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -30,7 +30,7 @@
      </size>
     </property>
     <property name="currentIndex">
-     <number>0</number>
+     <number>4</number>
     </property>
     <widget class="QWidget" name="tab_controls">
      <attribute name="title">
@@ -2619,7 +2619,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>1447.40731</string>
+         <string>1500</string>
         </property>
        </widget>
        <widget class="QLabel" name="labelIntrinsicParamsProj_fx">
@@ -2645,7 +2645,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>1515.51089</string>
+         <string>1500</string>
         </property>
        </widget>
        <widget class="QPushButton" name="btnResetIntrFoc">
@@ -2684,7 +2684,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>1031.11484</string>
+         <string>720</string>
         </property>
        </widget>
        <widget class="QLabel" name="labelIntrinsicParamsProj_cx">
@@ -2723,7 +2723,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>874.75508</string>
+         <string>1280</string>
         </property>
        </widget>
        <widget class="QPushButton" name="btnResetIntrPrinc">
@@ -2778,6 +2778,32 @@
       </property>
       <property name="text">
        <string>Update</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnSetVisFullscreen">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>130</y>
+        <width>141</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Fullscreen</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="btnSetVisWindow">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>160</y>
+        <width>141</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Window</string>
       </property>
      </widget>
     </widget>
@@ -3115,51 +3141,165 @@
      </widget>
     </widget>
    </widget>
-   <widget class="QVTKWidget" name="qvtkWidget" native="true">
-    <property name="geometry">
-     <rect>
-      <x>990</x>
-      <y>40</y>
-      <width>1280</width>
-      <height>720</height>
-     </rect>
-    </property>
-    <property name="minimumSize">
-     <size>
-      <width>0</width>
-      <height>0</height>
-     </size>
-    </property>
-    <property name="maximumSize">
-     <size>
-      <width>1280</width>
-      <height>720</height>
-     </size>
-    </property>
-    <property name="autoFillBackground">
-     <bool>true</bool>
-    </property>
-   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>2300</width>
+     <width>969</width>
      <height>25</height>
     </rect>
    </property>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>QVTKWidget</class>
-   <extends>QWidget</extends>
-   <header>QVTKWidget.h</header>
-  </customwidget>
- </customwidgets>
+ <tabstops>
+  <tabstop>tabWidget</tabstop>
+  <tabstop>checkBoxKinect</tabstop>
+  <tabstop>lineSavePointcloud</tabstop>
+  <tabstop>btnSavePointcloud</tabstop>
+  <tabstop>checkBoxRGBCloud</tabstop>
+  <tabstop>checkBoxCoordSys</tabstop>
+  <tabstop>checkBoxShowProjImage</tabstop>
+  <tabstop>btnCreateImgFromGUI</tabstop>
+  <tabstop>btnPublishImage</tabstop>
+  <tabstop>sliderPass_min</tabstop>
+  <tabstop>linePass_min</tabstop>
+  <tabstop>sliderPass_max</tabstop>
+  <tabstop>linePass_max</tabstop>
+  <tabstop>btnPassthroughPreview</tabstop>
+  <tabstop>btnPassthroughApply</tabstop>
+  <tabstop>btnSegmentatePre</tabstop>
+  <tabstop>comboBoxPlanes</tabstop>
+  <tabstop>btnSegmentate</tabstop>
+  <tabstop>lineVoxRes</tabstop>
+  <tabstop>btnVoxelizePre</tabstop>
+  <tabstop>btnVoxelize</tabstop>
+  <tabstop>radioConvex</tabstop>
+  <tabstop>radioConcave</tabstop>
+  <tabstop>lineHullAlpha</tabstop>
+  <tabstop>btnFilterPlanePre</tabstop>
+  <tabstop>btnFilterPlane</tabstop>
+  <tabstop>checkBoxContours</tabstop>
+  <tabstop>checkBoxPoly</tabstop>
+  <tabstop>checkBoxRect</tabstop>
+  <tabstop>checkBoxContoursLines</tabstop>
+  <tabstop>checkBoxPolyLines</tabstop>
+  <tabstop>btnCreateProjImage</tabstop>
+  <tabstop>btnResetCalibCloud</tabstop>
+  <tabstop>comboBoxModelSelect</tabstop>
+  <tabstop>btnLoadModel</tabstop>
+  <tabstop>lineLoadModel</tabstop>
+  <tabstop>btnAddTexture</tabstop>
+  <tabstop>lineAddTexture</tabstop>
+  <tabstop>btnModelShow</tabstop>
+  <tabstop>btnModelHide</tabstop>
+  <tabstop>btnModelDel</tabstop>
+  <tabstop>comboBoxPCSelect</tabstop>
+  <tabstop>btnLoadPointcloud</tabstop>
+  <tabstop>lineLoadPointcloud</tabstop>
+  <tabstop>checkBoxCalibMode</tabstop>
+  <tabstop>checkBoxTransformPointcloud</tabstop>
+  <tabstop>btnPCSave</tabstop>
+  <tabstop>lineSavePC</tabstop>
+  <tabstop>btnMergeClouds</tabstop>
+  <tabstop>btnPCSendOcto</tabstop>
+  <tabstop>btnPCShow</tabstop>
+  <tabstop>btnPCHide</tabstop>
+  <tabstop>btnPCDel</tabstop>
+  <tabstop>btnLoadWorld</tabstop>
+  <tabstop>lineLoadWorldFile</tabstop>
+  <tabstop>btnSaveWorld</tabstop>
+  <tabstop>lineSaveWorldFile</tabstop>
+  <tabstop>btnClearScene</tabstop>
+  <tabstop>spinBoxMoveObjX</tabstop>
+  <tabstop>spinBoxMoveObjY</tabstop>
+  <tabstop>spinBoxMoveObjZ</tabstop>
+  <tabstop>spinBoxMoveObjYaw</tabstop>
+  <tabstop>spinBoxMoveObjPitch</tabstop>
+  <tabstop>spinBoxMoveObjRoll</tabstop>
+  <tabstop>btnModelMove</tabstop>
+  <tabstop>btnModelReset</tabstop>
+  <tabstop>spinBoxMoveObjAbsYaw</tabstop>
+  <tabstop>spinBoxMoveObjAbsPitch</tabstop>
+  <tabstop>spinBoxMoveObjAbsRoll</tabstop>
+  <tabstop>btnModelMoveAbs</tabstop>
+  <tabstop>spinBoxMovePCX</tabstop>
+  <tabstop>spinBoxMovePCY</tabstop>
+  <tabstop>spinBoxMovePCZ</tabstop>
+  <tabstop>spinBoxMovePCYaw</tabstop>
+  <tabstop>spinBoxMovePCPitch</tabstop>
+  <tabstop>spinBoxMovePCRoll</tabstop>
+  <tabstop>btnPCMove</tabstop>
+  <tabstop>btnPCReset</tabstop>
+  <tabstop>checkBoxUsePosSig</tabstop>
+  <tabstop>checkBoxPubImage</tabstop>
+  <tabstop>btnGlobalLoc</tabstop>
+  <tabstop>btnLocalLoc</tabstop>
+  <tabstop>btnPauseLoc</tabstop>
+  <tabstop>btnResumeLoc</tabstop>
+  <tabstop>lineInitPoseX</tabstop>
+  <tabstop>lineInitPoseY</tabstop>
+  <tabstop>lineInitPoseZ</tabstop>
+  <tabstop>lineInitPosePitch</tabstop>
+  <tabstop>lineInitPoseYaw</tabstop>
+  <tabstop>lineInitPoseRoll</tabstop>
+  <tabstop>btnSetInitPose</tabstop>
+  <tabstop>btnPauseVisOdom</tabstop>
+  <tabstop>btnResumeVisOdom</tabstop>
+  <tabstop>btnToggleARDet</tabstop>
+  <tabstop>btnGetARTransform</tabstop>
+  <tabstop>lineARPoseX</tabstop>
+  <tabstop>lineARPoseY</tabstop>
+  <tabstop>lineARPoseZ</tabstop>
+  <tabstop>lineARPoseYaw</tabstop>
+  <tabstop>lineARPosePitch</tabstop>
+  <tabstop>lineARPoseRoll</tabstop>
+  <tabstop>btnTransformByAR</tabstop>
+  <tabstop>btnSetInitPoseByAR</tabstop>
+  <tabstop>btnTransformApply</tabstop>
+  <tabstop>btnTransformUpdate</tabstop>
+  <tabstop>btnSetCamView</tabstop>
+  <tabstop>btnSetVisFullscreen</tabstop>
+  <tabstop>btnSetVisWindow</tabstop>
+  <tabstop>btnTransformLoad</tabstop>
+  <tabstop>btnTransformSave</tabstop>
+  <tabstop>lineIntrinsicParamsProj_fx</tabstop>
+  <tabstop>lineIntrinsicParamsProj_fy</tabstop>
+  <tabstop>btnResetIntrFoc</tabstop>
+  <tabstop>lineIntrinsicParamsProj_cx</tabstop>
+  <tabstop>lineIntrinsicParamsProj_cy</tabstop>
+  <tabstop>btnResetIntrPrinc</tabstop>
+  <tabstop>lineRotCamProj_00</tabstop>
+  <tabstop>lineRotCamProj_01</tabstop>
+  <tabstop>lineRotCamProj_02</tabstop>
+  <tabstop>lineRotCamProj_10</tabstop>
+  <tabstop>lineRotCamProj_11</tabstop>
+  <tabstop>lineRotCamProj_12</tabstop>
+  <tabstop>lineRotCamProj_20</tabstop>
+  <tabstop>lineRotCamProj_21</tabstop>
+  <tabstop>lineRotCamProj_22</tabstop>
+  <tabstop>btnResetExtrRot</tabstop>
+  <tabstop>lineTransCamProjX</tabstop>
+  <tabstop>lineTransCamProjY</tabstop>
+  <tabstop>lineTransCamProjZ</tabstop>
+  <tabstop>btnResetExtrTrans</tabstop>
+  <tabstop>btnGetPoseErrorProj</tabstop>
+  <tabstop>lineExProj</tabstop>
+  <tabstop>lineEyProj</tabstop>
+  <tabstop>lineEzProj</tabstop>
+  <tabstop>lineErollProj</tabstop>
+  <tabstop>lineEpitchProj</tabstop>
+  <tabstop>lineEyawProj</tabstop>
+  <tabstop>btnGetPoseErrorLoc</tabstop>
+  <tabstop>lineExLoc</tabstop>
+  <tabstop>lineEyLoc</tabstop>
+  <tabstop>lineEzLoc</tabstop>
+  <tabstop>lineErollLoc</tabstop>
+  <tabstop>lineEpitchLoc</tabstop>
+  <tabstop>lineEyawLoc</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

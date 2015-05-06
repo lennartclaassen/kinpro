@@ -193,6 +193,9 @@ class MainWindow: public QMainWindow {
         ~MainWindow();
 
         VTKPointCloudWidget* pclWidget;
+        //SEPARATE WINDOW MODIFICATION
+        vtkSmartPointer<vtkRenderWindow> renderWindow;
+        vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor;
 
     signals:
 
@@ -273,6 +276,10 @@ class MainWindow: public QMainWindow {
         void on_btnClearScene_clicked();
 
         void on_btnTransformUpdate_clicked();
+
+        void on_btnSetVisFullscreen_clicked();
+
+        void on_btnSetVisWindow_clicked();
 
 public slots:
 

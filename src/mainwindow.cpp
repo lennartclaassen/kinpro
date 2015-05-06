@@ -39,6 +39,10 @@ VTKPointCloudWidget::VTKPointCloudWidget(QWidget *parent) : QVTKWidget(parent)
     vis = new visualization::PCLVisualizer("vis", false);
 //    vis->setBackgroundColor(0.7, 0.7, 0.7);
     vis->setBackgroundColor(0,0,0);
+    vis->setShowFPS(false);
+    vis->setPosition(0,0);
+    vis->setSize(1280,720);
+    vis->setFullScreen(false);
 }
 
 /**
@@ -46,6 +50,7 @@ VTKPointCloudWidget::VTKPointCloudWidget(QWidget *parent) : QVTKWidget(parent)
  */
 VTKPointCloudWidget::~VTKPointCloudWidget() {
 }
+
 
 /**
  * @brief MainWindow::MainWindow    The GUI Main Window
@@ -59,7 +64,19 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     //init visualization widget
     pclWidget = new VTKPointCloudWidget();
-    ui->qvtkWidget->SetRenderWindow (pclWidget->vis->getRenderWindow());
+
+    //SEPARATE WINDOW MODIFICATION
+//    ui->qvtkWidget->SetRenderWindow (pclWidget->vis->getRenderWindow());
+    // An interactor
+    renderWindowInteractor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
+    renderWindow = vtkSmartPointer< vtkRenderWindow >::New();
+    renderWindow = pclWidget->vis->getRenderWindow();
+//    renderWindowInteractor->SetRenderWindow(renderWindow);
+    // Begin mouse interaction
+//    renderWindowInteractor->Initialize();
+//    pclWidget->vis->setupInteractor(renderWindowInteractor, renderWindow);
+//    pclWidget->vis->setupInteractor(pclWidget->vis->getRenderWindow()->GetInteractor(), pclWidget->vis->getRenderWindow());
+    renderWindow->Render();
 
     //create empty mat as projector image
     projectorImage = cv::Mat::zeros(480, 848, CV_8UC3);
@@ -110,7 +127,7 @@ void MainWindow::newTransform() {
 
         //set the camera parameters to generate the projector perspective
         pclWidget->vis->setCameraParameters(T_intrProjVTK, T_world2projVTK);
-        ui->qvtkWidget->update();
+//        ui->qvtkWidget->update();
 
         //create the projection image from the GUI visualization
         this->createProjectionImageFromGUI();
@@ -267,7 +284,9 @@ void MainWindow::displayCloud(PointCloud<PointXYZRGB>::Ptr pc, bool color, strin
     }
 
     //update the visualization
-    ui->qvtkWidget->update();
+    //SEPARATE WINDOW MODIFICATION
+    renderWindow->Render();
+//    ui->qvtkWidget->update();
 }
 
 /**
@@ -286,7 +305,9 @@ void MainWindow::displayCloudSingleColor(PointCloud<PointXYZRGB>::Ptr pc, float 
     }
 
     //update the visualization
-    ui->qvtkWidget->update();
+    //SEPARATE WINDOW MODIFICATION
+    renderWindow->Render();
+//    ui->qvtkWidget->update();
 }
 
 /**
@@ -553,7 +574,9 @@ void MainWindow::createProjectionImageFromGUI()
 
 
     //get the visualization window of the GUI as an image
-    vtkSmartPointer<vtkRenderWindow> renderWindow = ui->qvtkWidget->GetRenderWindow();
+    //SEPARATE WINDOW MODIFICATION
+//    vtkSmartPointer<vtkRenderWindow> renderWindow = ui->qvtkWidget->GetRenderWindow();
+//    vtkSmartPointer<vtkRenderWindow> renderWindow = pclWidget->vis->getRenderWindow();
     vtkSmartPointer<vtkWindowToImageFilter> windowToImageFilter = vtkSmartPointer<vtkWindowToImageFilter>::New();
     windowToImageFilter->SetInput( renderWindow );
 
@@ -579,13 +602,6 @@ void MainWindow::createProjectionImageFromGUI()
             currRMSVal = 0.1;
         this->projectorImage.setTo(Scalar(255*(currRMSVal*10),255*(1-currRMSVal*10),0));
         cvImage(roi).copyTo(this->projectorImage(roi));
-//        if(this->laserPoint.x != 0.0 && this->laserPoint.y != 0.0 )
-//            circle(this->projectorImage, this->laserPoint, 8.0, Scalar(0, 255, 0),3);
-
-//        if(this->drawClickingCircle) {
-//            double angle = (this->selectionDuration.toSec() / this->selection_thresh.toSec()) * 360.0;
-//            ellipse(this->projectorImage, Point(424,240), Size(40, 40), angle, 0.0, 360.0, Scalar(0, 0, 0), 5);
-//        }
     }catch (cv::Exception e) {
         cout << "could not create image! Error: " << e.what() << endl;
     }
@@ -615,7 +631,9 @@ void MainWindow::on_checkBoxCoordSys_toggled(bool checked)
     }
 
     //update the visualizer
-    ui->qvtkWidget->update();
+    //SEPARATE WINDOW MODIFICATION
+    renderWindow->Render();
+//    ui->qvtkWidget->update();
 }
 
 /**
@@ -629,7 +647,9 @@ void MainWindow::on_btnSetCamView_clicked()
     pclWidget->vis->setCameraParameters(T_intrProjVTK, T_world2projVTK);
 
     //update the visualizer
-    ui->qvtkWidget->update();
+    //SEPARATE WINDOW MODIFICATION
+    renderWindow->Render();
+//    ui->qvtkWidget->update();
 }
 
 /**
@@ -1052,7 +1072,9 @@ void MainWindow::loadModel(string modelname)
     pclWidget->vis->addActorToRenderer(actor);
 
     //update the GUI
-    ui->qvtkWidget->update();
+    //SEPARATE WINDOW MODIFICATION
+    renderWindow->Render();
+//    ui->qvtkWidget->update();
 
     //update the dropdown menu with the new mode
     this->updateModelIndex();
@@ -1098,7 +1120,9 @@ void MainWindow::addTexture(int actorID, string texturename)
     modelVec.at(actorID).texture = texturename;
 
     //update the visualizer
-    ui->qvtkWidget->update();
+    //SEPARATE WINDOW MODIFICATION
+    renderWindow->Render();
+//    ui->qvtkWidget->update();
 }
 
 /**
@@ -1138,7 +1162,9 @@ void MainWindow::showModel(int id){
             //update the model buttons
             updateModelButtons();
             //update the GUI
-            ui->qvtkWidget->update();
+            //SEPARATE WINDOW MODIFICATION
+            renderWindow->Render();
+        //    ui->qvtkWidget->update();
         }
     }
 }
@@ -1169,7 +1195,9 @@ void MainWindow::hideModel(int id){
             //update the model buttons
             updateModelButtons();
             //update the GUI
-            ui->qvtkWidget->update();
+            //SEPARATE WINDOW MODIFICATION
+            renderWindow->Render();
+        //    ui->qvtkWidget->update();
         }
     }
 }
@@ -1190,7 +1218,9 @@ void MainWindow::on_btnModelDel_clicked()
         //update the model dropdown menu
         this->updateModelIndex();
         //update the GUI
-        ui->qvtkWidget->update();
+        //SEPARATE WINDOW MODIFICATION
+        renderWindow->Render();
+    //    ui->qvtkWidget->update();
     }
 }
 
@@ -1260,7 +1290,9 @@ void MainWindow::showPC(int id){
             //update the pointcloud buttons
             updatePCButtons();
             //update the GUI
-            ui->qvtkWidget->update();
+            //SEPARATE WINDOW MODIFICATION
+            renderWindow->Render();
+        //    ui->qvtkWidget->update();
         }
     }    
 }
@@ -1291,7 +1323,9 @@ void MainWindow::hidePC(int id){
             //update the pointcloud buttons
             updatePCButtons();
             //update the GUI
-            ui->qvtkWidget->update();
+            //SEPARATE WINDOW MODIFICATION
+            renderWindow->Render();
+        //    ui->qvtkWidget->update();
         }
     }
 }
@@ -1312,7 +1346,9 @@ void MainWindow::on_btnPCDel_clicked()
         //update the pointcloud dropdown menu
         this->updatePCIndex();
         //update the GUI
-        ui->qvtkWidget->update();
+        //SEPARATE WINDOW MODIFICATION
+        renderWindow->Render();
+    //    ui->qvtkWidget->update();
     }
 }
 
@@ -1412,7 +1448,9 @@ void MainWindow::moveModel() {
 //            cout << "yaw = " << orientation[2] << "\tpitch = " << orientation[1] << "\troll = " << orientation[0] << endl;
 
             //update the GUI
-            ui->qvtkWidget->update();
+            //SEPARATE WINDOW MODIFICATION
+            renderWindow->Render();
+        //    ui->qvtkWidget->update();
         }
 
     }
@@ -1457,7 +1495,9 @@ void MainWindow::moveModel(actorEntry &entry, Eigen::Vector3f translateXYZ, Eige
     entry.orientationYPR = rotateYPR;
 
     //update the GUI
-    ui->qvtkWidget->update();
+    //SEPARATE WINDOW MODIFICATION
+    renderWindow->Render();
+//    ui->qvtkWidget->update();
 }
 
 /**
@@ -1514,7 +1554,9 @@ void MainWindow::moveModelRelative(actorEntry &entry, Eigen::Vector3f translateX
     entry.positionXYZ = Eigen::Vector3f(position[0], position[1], position[2]);
 
     //update the GUI
-    ui->qvtkWidget->update();
+    //SEPARATE WINDOW MODIFICATION
+    renderWindow->Render();
+//    ui->qvtkWidget->update();
 }
 
 /**
@@ -1545,7 +1587,9 @@ void MainWindow::moveModelAbsolute()
         modelVec.at(id).orientationYPR = Eigen::Vector3f(orientation[2], orientation[1], orientation[0]);
 
         //update the GUI
-        ui->qvtkWidget->update();
+        //SEPARATE WINDOW MODIFICATION
+        renderWindow->Render();
+    //    ui->qvtkWidget->update();
     }
 }
 
@@ -1618,7 +1662,9 @@ void MainWindow::movePC() {
             displayCloud(PCVec.at(id).cloud, displayRGBCloud, PCVec.at(id).id);
 
             //update the GUI
-            ui->qvtkWidget->update();
+            //SEPARATE WINDOW MODIFICATION
+            renderWindow->Render();
+        //    ui->qvtkWidget->update();
         }
     }
 }
@@ -1676,7 +1722,9 @@ void MainWindow::movePC(int id, double x, double y, double z, double yaw, double
             displayCloud(PCVec.at(id).cloud, displayRGBCloud, PCVec.at(id).id);
 
             //update the GUI
-            ui->qvtkWidget->update();
+            //SEPARATE WINDOW MODIFICATION
+            renderWindow->Render();
+        //    ui->qvtkWidget->update();
         }
     }
 }
@@ -1911,7 +1959,9 @@ void MainWindow::resetModelPose() {
         modelVec.at(id).orientationYPR = Eigen::Vector3f(0, 0, 0);
 
         //update the GUI
-        ui->qvtkWidget->update();
+        //SEPARATE WINDOW MODIFICATION
+        renderWindow->Render();
+    //    ui->qvtkWidget->update();
     }
 }
 
@@ -2263,7 +2313,9 @@ void MainWindow::on_btnTransformByAR_clicked()
 {
     //transform the projector view given the transformation from the AR marker
     pclWidget->vis->setCameraParameters(T_intrProjVTK, T_projInWorldFromAR);
-    ui->qvtkWidget->update();
+    //SEPARATE WINDOW MODIFICATION
+    renderWindow->Render();
+//    ui->qvtkWidget->update();
 }
 
 /**
@@ -2764,7 +2816,9 @@ void MainWindow::clearScene()
     }
 
     //update the GUI
-    ui->qvtkWidget->update();
+    //SEPARATE WINDOW MODIFICATION
+    renderWindow->Render();
+//    ui->qvtkWidget->update();
 }
 
 /**
@@ -2774,4 +2828,22 @@ void MainWindow::on_btnClearScene_clicked()
 {
     //clear the current visualization scene
     clearScene();
+}
+
+void MainWindow::on_btnSetVisFullscreen_clicked()
+{
+//    pclWidget->vis->setFullScreen(true);
+    renderWindow->FullScreenOn();
+    renderWindow->Render();
+    sleep(3);
+//    pclWidget->vis->setFullScreen(false);
+    renderWindow->FullScreenOff();
+    renderWindow->Render();
+}
+
+void MainWindow::on_btnSetVisWindow_clicked()
+{
+//    pclWidget->vis->setFullScreen(false);
+    renderWindow->FullScreenOff();
+    renderWindow->Render();
 }
